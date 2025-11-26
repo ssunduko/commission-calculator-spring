@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 45 mvn spring-boot:run:*)",
+      "Bash(tee:*)",
+      "Bash(curl:*)",
+      "Bash(mvn clean package:*)",
+      "Bash(java:*)",
+      "Bash(mvn:*)",
+      "Bash(timeout /t 20)",
+      "Bash(ping:*)",
+      "Bash(nul)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebSearch",
+      "WebFetch(domain:mvnrepository.com)",
+      "Bash(taskkill:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
