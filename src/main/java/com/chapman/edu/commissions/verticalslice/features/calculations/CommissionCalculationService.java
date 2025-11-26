@@ -7,7 +7,6 @@ import com.chapman.edu.commissions.verticalslice.domain.CommissionCalculation;
 import com.chapman.edu.commissions.verticalslice.domain.CommissionPlan;
 import com.chapman.edu.commissions.verticalslice.domain.CommissionRule;
 import com.chapman.edu.commissions.verticalslice.domain.Deal;
-import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -36,8 +35,6 @@ public class CommissionCalculationService {
         this.planRepository = planRepository;
     }
 
-    @Tool(name = "calculateCommission",
-            description = "Calculate commission for a deal using a commission plan. Specify deal ID and plan ID. Returns the calculation with base commission, adjustments, and final amount.")
     public CommissionCalculationResponse calculateCommission(CalculateCommissionRequest request) {
         request.validate();
 
@@ -74,32 +71,24 @@ public class CommissionCalculationService {
             .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 
-    @Tool(name = "getCommissionCalculation",
-            description = "Get a commission calculation by its ID. Returns the calculation details including base commission, adjustments, and final amount.")
     public CommissionCalculationResponse getCalculation(String id) {
         CommissionCalculation calculation = calculationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Commission Calculation", id));
         return CommissionCalculationResponse.from(calculation);
     }
 
-    @Tool(name = "getAllCommissionCalculations",
-            description = "Get all commission calculations in the system. Returns a list of all calculations with their details.")
     public List<CommissionCalculationResponse> getAllCalculations() {
         return calculationRepository.findAll().stream()
             .map(CommissionCalculationResponse::from)
             .collect(Collectors.toList());
     }
 
-    @Tool(name = "getCalculationsByDeal",
-            description = "Get all commission calculations for a specific deal. Specify the deal ID.")
     public List<CommissionCalculationResponse> getCalculationsByDeal(String dealId) {
         return calculationRepository.findByDealId(dealId).stream()
             .map(CommissionCalculationResponse::from)
             .collect(Collectors.toList());
     }
 
-    @Tool(name = "getCalculationsBySalesRep",
-            description = "Get all commission calculations for a specific sales representative. Specify the sales rep ID.")
     public List<CommissionCalculationResponse> getCalculationsBySalesRep(String salesRepId) {
         return calculationRepository.findBySalesRepId(salesRepId).stream()
             .map(CommissionCalculationResponse::from)

@@ -1,15 +1,13 @@
 package com.chapman.edu.commissions;
 
-import com.chapman.edu.commissions.verticalslice.features.calculations.CommissionCalculationService;
-import com.chapman.edu.commissions.verticalslice.features.deals.DealService;
-import com.chapman.edu.commissions.verticalslice.features.disputes.DisputeService;
-import com.chapman.edu.commissions.verticalslice.features.plans.CommissionPlanService;
+import com.chapman.edu.commissions.verticalslice.infrastructure.mcp.McpCommissionTools;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -24,32 +22,17 @@ public class CommissionCalculatorApplication {
     }
 
     /**
-     * Register all MCP tools from services
+     * Register all MCP tools from McpCommissionTools facade
      * These tools can be invoked by AI agents through the MCP protocol
+     *
+     * Total: 27 tools
+     * - Deal Management Tools: 7 tools
+     * - Commission Plan Management Tools: 7 tools
+     * - Dispute Management Tools: 8 tools
+     * - Commission Calculation Tools: 5 tools
      */
     @Bean
-    public List<ToolCallback> tools(
-            DealService dealService,
-            CommissionPlanService commissionPlanService,
-            DisputeService disputeService,
-            CommissionCalculationService calculationService) {
-
-        // Collect all tool callbacks from all services
-        // Each ToolCallbacks.from() returns an array of ToolCallback[]
-        return java.util.stream.Stream.of(
-                // Deal Management Tools (7 tools)
-                ToolCallbacks.from(dealService),
-
-                // Commission Plan Management Tools (7 tools)
-                ToolCallbacks.from(commissionPlanService),
-
-                // Dispute Management Tools (8 tools)
-                ToolCallbacks.from(disputeService),
-
-                // Commission Calculation Tools (5 tools)
-                ToolCallbacks.from(calculationService)
-        )
-        .flatMap(java.util.Arrays::stream)
-        .toList();
+    public List<ToolCallback> tools(McpCommissionTools mcpCommissionTools) {
+        return Arrays.asList(ToolCallbacks.from(mcpCommissionTools));
     }
 }
