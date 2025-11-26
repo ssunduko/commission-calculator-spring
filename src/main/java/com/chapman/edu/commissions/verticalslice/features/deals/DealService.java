@@ -4,6 +4,7 @@ import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.Resou
 import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.ValidationException;
 import com.chapman.edu.commissions.verticalslice.domain.Deal;
 import com.chapman.edu.commissions.verticalslice.domain.DealStatus;
+import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.stream.Collectors;
 /**
  * Service for managing deals.
  * Contains business logic for deal operations.
+ * Exposed as MCP tools for AI agent access.
  */
 @Service
 public class DealService {
@@ -21,6 +23,8 @@ public class DealService {
         this.dealRepository = dealRepository;
     }
 
+    @Tool(name = "createDeal",
+            description = "Create a new deal with title, value, and sales rep ID. Returns the created deal details.")
     public DealResponse createDeal(CreateDealRequest request) {
         request.validate();
 
@@ -30,30 +34,40 @@ public class DealService {
         return DealResponse.from(savedDeal);
     }
 
+    @Tool(name = "getDeal",
+            description = "Get a deal by its ID. Returns the deal details including title, value, status, and sales rep.")
     public DealResponse getDeal(String id) {
         Deal deal = dealRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Deal", id));
         return DealResponse.from(deal);
     }
 
+    @Tool(name = "getAllDeals",
+            description = "Get all deals in the system. Returns a list of all deals with their details.")
     public List<DealResponse> getAllDeals() {
         return dealRepository.findAll().stream()
             .map(DealResponse::from)
             .collect(Collectors.toList());
     }
 
+    @Tool(name = "getDealsBySalesRep",
+            description = "Get all deals for a specific sales representative. Specify the sales rep ID.")
     public List<DealResponse> getDealsBySalesRep(String salesRepId) {
         return dealRepository.findBySalesRepId(salesRepId).stream()
             .map(DealResponse::from)
             .collect(Collectors.toList());
     }
 
+    @Tool(name = "getDealsByStatus",
+            description = "Get all deals with a specific status (OPEN, WON, LOST, PENDING). Specify the status.")
     public List<DealResponse> getDealsByStatus(DealStatus status) {
         return dealRepository.findByStatus(status).stream()
             .map(DealResponse::from)
             .collect(Collectors.toList());
     }
 
+    @Tool(name = "updateDeal",
+            description = "Update an existing deal. Specify the deal ID and fields to update (title, value, status, closeDate).")
     public DealResponse updateDeal(String id, UpdateDealRequest request) {
         Deal deal = dealRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Deal", id));
@@ -78,6 +92,8 @@ public class DealService {
         return DealResponse.from(updatedDeal);
     }
 
+    @Tool(name = "deleteDeal",
+            description = "Delete a deal by its ID. This permanently removes the deal from the system.")
     public void deleteDeal(String id) {
         if (!dealRepository.existsById(id)) {
             throw new ResourceNotFoundException("Deal", id);

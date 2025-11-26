@@ -13,7 +13,7 @@ import java.util.Map;
  * Global exception handler for REST API controllers only.
  * Limited to API package to avoid interfering with Swagger and H2 console.
  */
-@RestControllerAdvice(basePackages = "com.chapman.edu.commissions.features")
+@RestControllerAdvice(basePackages = "com.chapman.edu.commissions.verticalslice.features")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)

@@ -15,7 +15,10 @@
       "WebFetch(domain:api.github.com)",
       "WebSearch",
       "WebFetch(domain:mvnrepository.com)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(dir /s /b 'C:\\Commission Calculator\\commission-calculator-spring\\src\\main\\java\\com\\chapman\\edu\\commissions\\verticalslice')",
+      "Bash(findstr:*)",
+      "Bash(del \"C:\\Commission Calculator\\commission-calculator-spring\\src\\main\\java\\com\\chapman\\edu\\commissions\\verticalslice\\infrastructure\\config\\McpServerConfig.java\")"
     ],
     "deny": [],
     "ask": []
