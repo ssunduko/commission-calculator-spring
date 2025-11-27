@@ -1,0 +1,98 @@
+{
+  "mcpServers": {
+    "commission-calculator": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "C:/Commission Calculator/commission-calculator-spring/target/commission-calculator-0.0.1-SNAPSHOT.jar"
+      ],
+      "env": {
+        "SERVER_PORT": "8081",
+        "SPRING_PROFILES_ACTIVE": "production"
+      },
+      "metadata": {
+        "name": "Commission Calculator MCP Server",
+        "version": "1.0.0",
+        "description": "MCP server for managing sales commission calculations, deals, plans, and disputes",
+        "author": "Commission Calculator Team",
+        "homepage": "http://localhost:8081",
+        "capabilities": {
+          "tools": true,
+          "resources": true,
+          "prompts": true
+        }
+      },
+      "endpoints": {
+        "base": "http://localhost:8081/api/mcp",
+        "initialize": "http://localhost:8081/api/mcp/initialize",
+        "info": "http://localhost:8081/api/mcp/info",
+        "capabilities": "http://localhost:8081/api/mcp/capabilities",
+        "tools": {
+          "list": "http://localhost:8081/api/mcp/tools/list",
+          "call": "http://localhost:8081/api/mcp/tools/call"
+        },
+        "prompts": {
+          "list": "http://localhost:8081/api/mcp/prompts/list",
+          "get": "http://localhost:8081/api/mcp/prompts/get"
+        },
+        "resources": {
+          "list": "http://localhost:8081/api/mcp/resources/list",
+          "read": "http://localhost:8081/api/mcp/resources/read"
+        }
+      },
+      "tools": [
+        {
+          "name": "createDeal",
+          "description": "Create a new deal with title, value, and sales rep ID"
+        },
+        {
+          "name": "getDeal",
+          "description": "Get a deal by its ID"
+        },
+        {
+          "name": "getAllDeals",
+          "description": "Get all deals in the system"
+        },
+        {
+          "name": "calculateCommission",
+          "description": "Calculate commission for a deal using a commission plan"
+        },
+        {
+          "name": "createDispute",
+          "description": "Create a new dispute for a commission calculation"
+        }
+      ],
+      "prompts": [
+        {
+          "name": "analyze-sales-performance",
+          "description": "Analyze the sales performance of a specific sales representative"
+        },
+        {
+          "name": "create-commission-workflow",
+          "description": "Complete workflow to create a deal and calculate commission"
+        },
+        {
+          "name": "monthly-commission-report",
+          "description": "Generate a comprehensive monthly commission report"
+        }
+      ],
+      "resources": [
+        {
+          "uri": "deals://all",
+          "name": "All Deals",
+          "description": "Complete list of all deals in the system"
+        },
+        {
+          "uri": "plans://active",
+          "name": "Active Commission Plans",
+          "description": "List of currently active commission plans"
+        },
+        {
+          "uri": "disputes://open",
+          "name": "Open Disputes",
+          "description": "List of all open/unresolved disputes"
+        }
+      ]
+    }
+  }
+}

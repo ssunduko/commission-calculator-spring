@@ -19,7 +19,13 @@
       "Bash(dir /s /b 'C:\\Commission Calculator\\commission-calculator-spring\\src\\main\\java\\com\\chapman\\edu\\commissions\\verticalslice')",
       "Bash(findstr:*)",
       "Bash(del \"C:\\Commission Calculator\\commission-calculator-spring\\src\\main\\java\\com\\chapman\\edu\\commissions\\verticalslice\\infrastructure\\config\\McpServerConfig.java\")",
-      "Bash(timeout 120 tail:*)"
+      "Bash(timeout 120 tail:*)",
+      "Bash(timeout 45 java:*)",
+      "Bash(timeout /t 2)",
+      "Bash(dir:*)",
+      "Bash(tasklist:*)",
+      "Bash(wmic process where name=''java.exe'' get ProcessId,CommandLine /format:csv)",
+      "Bash(del \"\\?\\C:\\Commission Calculator\\commission-calculator-spring\\nul\")"
     ],
     "deny": [],
     "ask": []

@@ -5,6 +5,8 @@ import com.chapman.edu.commissions.verticalslice.features.calculations.Commissio
 import com.chapman.edu.commissions.verticalslice.features.deals.DealRepository;
 import com.chapman.edu.commissions.verticalslice.features.disputes.DisputeRepository;
 import com.chapman.edu.commissions.verticalslice.features.plans.CommissionPlanRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +19,8 @@ import java.util.Currency;
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
     private final DealRepository dealRepository;
     private final CommissionPlanRepository planRepository;
@@ -37,7 +41,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        System.out.println("Initializing sample data...");
+        log.info("Initializing sample data...");
 
         // Create sample commission plans
         CommissionPlan standardPlan = createStandardPlan();
@@ -70,12 +74,7 @@ public class DataInitializer implements CommandLineRunner {
         createDispute(calc2, "REP001", "Missing Bonus Calculation",
                 "My Q4 performance bonus was not included in this calculation.");
 
-        System.out.println("Sample data initialization completed!");
-        System.out.println("Created:");
-        System.out.println("  - 2 Commission Plans");
-        System.out.println("  - 6 Deals");
-        System.out.println("  - 4 Commission Calculations");
-        System.out.println("  - 2 Disputes");
+        log.info("Sample data initialization completed! Created: 2 Plans, 6 Deals, 4 Calculations, 2 Disputes");
     }
 
     private CommissionPlan createStandardPlan() {

@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 public class McpProtocolController {
 
     private final List<ToolCallback> tools;
+    private final McpPrompts mcpPrompts;
+    private final McpResources mcpResources;
 
     @Value("${spring.ai.mcp.server.name}")
     private String serverName;
@@ -25,8 +27,13 @@ public class McpProtocolController {
     @Value("${spring.ai.mcp.server.version}")
     private String serverVersion;
 
-    public McpProtocolController(List<ToolCallback> tools) {
+    public McpProtocolController(
+            List<ToolCallback> tools,
+            McpPrompts mcpPrompts,
+            McpResources mcpResources) {
         this.tools = tools;
+        this.mcpPrompts = mcpPrompts;
+        this.mcpResources = mcpResources;
     }
 
     /**
@@ -158,13 +165,79 @@ public class McpProtocolController {
                 "listChanged", true
             ),
             "resources", Map.of(
-                "count", 0,
+                "count", mcpResources.getAllResources().size(),
                 "listChanged", true
             ),
             "prompts", Map.of(
-                "count", 0,
+                "count", mcpPrompts.getAllPrompts().size(),
                 "listChanged", true
             )
+        ));
+    }
+
+    /**
+     * List all available prompts
+     * Returns predefined prompts that AI agents can use
+     */
+    @PostMapping("/prompts/list")
+    public ResponseEntity<Map<String, Object>> listPrompts() {
+        return ResponseEntity.ok(Map.of(
+            "prompts", mcpPrompts.getAllPrompts()
+        ));
+    }
+
+    /**
+     * Get a specific prompt
+     * Retrieves a prompt by name
+     */
+    @PostMapping("/prompts/get")
+    public ResponseEntity<Map<String, Object>> getPrompt(@RequestBody Map<String, Object> request) {
+        String name = (String) request.get("name");
+        Map<String, Object> prompt = mcpPrompts.getPrompt(name);
+
+        if (prompt == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", Map.of(
+                    "code", -32602,
+                    "message", "Prompt not found: " + name
+                )
+            ));
+        }
+
+        return ResponseEntity.ok(prompt);
+    }
+
+    /**
+     * List all available resources
+     * Returns data sources that can be accessed
+     */
+    @PostMapping("/resources/list")
+    public ResponseEntity<Map<String, Object>> listResources() {
+        return ResponseEntity.ok(Map.of(
+            "resources", mcpResources.getAllResources()
+        ));
+    }
+
+    /**
+     * Read a specific resource
+     * Retrieves the content of a resource by URI
+     */
+    @PostMapping("/resources/read")
+    public ResponseEntity<Map<String, Object>> readResource(@RequestBody Map<String, Object> request) {
+        String uri = (String) request.get("uri");
+        Map<String, Object> content = mcpResources.getResourceContent(uri);
+
+        if (content.containsKey("error")) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", Map.of(
+                    "code", -32602,
+                    "message", content.get("error")
+                )
+            ));
+        }
+
+        return ResponseEntity.ok(Map.of(
+            "contents", List.of(content)
         ));
     }
 
