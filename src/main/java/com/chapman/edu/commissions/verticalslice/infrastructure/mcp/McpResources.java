@@ -37,6 +37,69 @@ public class McpResources {
     }
 
     /**
+     * Get all available resource templates
+     */
+    public List<Map<String, Object>> getAllResourceTemplates() {
+        return List.of(
+            createResourceTemplate(
+                "deal://{dealId}",
+                "Deal by ID",
+                "Get a specific deal by its ID",
+                "application/json",
+                List.of("dealId")
+            ),
+
+            createResourceTemplate(
+                "plan://{planId}",
+                "Commission Plan by ID",
+                "Get a specific commission plan by its ID",
+                "application/json",
+                List.of("planId")
+            ),
+
+            createResourceTemplate(
+                "dispute://{disputeId}",
+                "Dispute by ID",
+                "Get a specific dispute by its ID",
+                "application/json",
+                List.of("disputeId")
+            ),
+
+            createResourceTemplate(
+                "calculation://{calculationId}",
+                "Calculation by ID",
+                "Get a specific commission calculation by its ID",
+                "application/json",
+                List.of("calculationId")
+            ),
+
+            createResourceTemplate(
+                "deals-by-rep://{salesRepId}",
+                "Deals by Sales Rep",
+                "Get all deals for a specific sales representative",
+                "application/json",
+                List.of("salesRepId")
+            ),
+
+            createResourceTemplate(
+                "calculations-by-rep://{salesRepId}",
+                "Calculations by Sales Rep",
+                "Get all commission calculations for a specific sales representative",
+                "application/json",
+                List.of("salesRepId")
+            ),
+
+            createResourceTemplate(
+                "disputes-by-rep://{salesRepId}",
+                "Disputes by Sales Rep",
+                "Get all disputes for a specific sales representative",
+                "application/json",
+                List.of("salesRepId")
+            )
+        );
+    }
+
+    /**
      * Get all available resources
      */
     public List<Map<String, Object>> getAllResources() {
@@ -124,16 +187,26 @@ public class McpResources {
     }
 
     /**
-     * Get resource content by URI
+     * Get resource content by URI (supports both static and template URIs)
      */
     public Map<String, Object> getResourceContent(String uri) {
         try {
             String content;
             String mimeType = "application/json";
 
+            // Check static resources first to avoid conflicts with template URIs
             switch (uri) {
                 case "deals://all":
                     content = objectMapper.writeValueAsString(dealService.getAllDeals());
+                    break;
+
+                case "deals://active":
+                    content = objectMapper.writeValueAsString(
+                        dealService.getAllDeals().stream()
+                            .filter(deal -> deal.status() == com.chapman.edu.commissions.verticalslice.domain.DealStatus.OPEN ||
+                                          deal.status() == com.chapman.edu.commissions.verticalslice.domain.DealStatus.WON)
+                            .toList()
+                    );
                     break;
 
                 case "plans://all":
@@ -179,8 +252,39 @@ public class McpResources {
                     mimeType = "application/schema+json";
                     break;
 
+                // Check for template URIs if no static resource matches
                 default:
-                    return Map.of("error", "Resource not found: " + uri);
+                    if (uri.startsWith("deal://")) {
+                        String dealId = uri.substring("deal://".length());
+                        content = objectMapper.writeValueAsString(dealService.getDeal(dealId));
+                    }
+                    else if (uri.startsWith("plan://")) {
+                        String planId = uri.substring("plan://".length());
+                        content = objectMapper.writeValueAsString(planService.getPlan(planId));
+                    }
+                    else if (uri.startsWith("dispute://")) {
+                        String disputeId = uri.substring("dispute://".length());
+                        content = objectMapper.writeValueAsString(disputeService.getDispute(disputeId));
+                    }
+                    else if (uri.startsWith("calculation://")) {
+                        String calculationId = uri.substring("calculation://".length());
+                        content = objectMapper.writeValueAsString(calculationService.getCalculation(calculationId));
+                    }
+                    else if (uri.startsWith("deals-by-rep://")) {
+                        String salesRepId = uri.substring("deals-by-rep://".length());
+                        content = objectMapper.writeValueAsString(dealService.getDealsBySalesRep(salesRepId));
+                    }
+                    else if (uri.startsWith("calculations-by-rep://")) {
+                        String salesRepId = uri.substring("calculations-by-rep://".length());
+                        content = objectMapper.writeValueAsString(calculationService.getCalculationsBySalesRep(salesRepId));
+                    }
+                    else if (uri.startsWith("disputes-by-rep://")) {
+                        String salesRepId = uri.substring("disputes-by-rep://".length());
+                        content = objectMapper.writeValueAsString(disputeService.getDisputesBySalesRep(salesRepId));
+                    }
+                    else {
+                        return Map.of("error", "Resource not found: " + uri);
+                    }
             }
 
             return Map.of(
@@ -208,6 +312,22 @@ public class McpResources {
             "name", name,
             "description", description,
             "mimeType", mimeType
+        );
+    }
+
+    private Map<String, Object> createResourceTemplate(
+            String uriTemplate,
+            String name,
+            String description,
+            String mimeType,
+            List<String> parameters) {
+
+        return Map.of(
+            "uriTemplate", uriTemplate,
+            "name", name,
+            "description", description,
+            "mimeType", mimeType,
+            "parameters", parameters
         );
     }
 

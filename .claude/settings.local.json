@@ -25,7 +25,10 @@
       "Bash(dir:*)",
       "Bash(tasklist:*)",
       "Bash(wmic process where name=''java.exe'' get ProcessId,CommandLine /format:csv)",
-      "Bash(del \"\\?\\C:\\Commission Calculator\\commission-calculator-spring\\nul\")"
+      "Bash(del \"\\?\\C:\\Commission Calculator\\commission-calculator-spring\\nul\")",
+      "Bash(timeout /t 10)",
+      "Bash(timeout 3 curl:*)",
+      "Bash(wmic process where \"name=''java.exe'' and CommandLine like ''%commission-calculator%''\" delete)"
     ],
     "deny": [],
     "ask": []

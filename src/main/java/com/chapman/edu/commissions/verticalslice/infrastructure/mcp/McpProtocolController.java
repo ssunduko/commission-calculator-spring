@@ -241,6 +241,17 @@ public class McpProtocolController {
         ));
     }
 
+    /**
+     * List all available resource templates
+     * Returns parameterized resource URIs that can be accessed with specific values
+     */
+    @PostMapping("/resources/templates/list")
+    public ResponseEntity<Map<String, Object>> listResourceTemplates() {
+        return ResponseEntity.ok(Map.of(
+            "resourceTemplates", mcpResources.getAllResourceTemplates()
+        ));
+    }
+
     private String convertArgumentsToJson(Map<String, Object> arguments) {
         try {
             // Simple JSON conversion

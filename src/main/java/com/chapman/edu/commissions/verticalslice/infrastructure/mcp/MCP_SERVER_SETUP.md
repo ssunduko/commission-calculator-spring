@@ -36,6 +36,26 @@ The MCP server exposes the following endpoints:
 - **Protocol Version**: `2024-11-05`
 - **Port**: `8081` (configurable in application.properties)
 
+### Transport Modes
+
+The server supports multiple transport protocols:
+
+1. **STDIO Transport** (for Claude Desktop)
+   - Uses standard input/output for communication
+   - Required for local MCP client integration
+   - No web server needed
+
+2. **HTTP/REST Transport** (for API testing)
+   - RESTful HTTP endpoints
+   - Requires authentication
+   - Suitable for curl/Postman testing
+
+3. **SSE Transport** (for real-time updates)
+   - Server-Sent Events for persistent connections
+   - Real-time notifications and updates
+   - Bidirectional communication over HTTP
+   - See [SSE_TESTING.md](../../../../../../../SSE_TESTING.md) for details
+
 ## Connecting with Claude Desktop
 
 Claude Desktop requires MCP servers to use STDIO (standard input/output) transport for local communication.
@@ -181,50 +201,73 @@ If the server doesn't appear or fails to connect:
 
 ## Testing the Connection
 
-### Using curl
+### Using curl (HTTP Endpoints)
 
 1. **Check server info:**
    ```bash
-   curl http://localhost:8081/api/mcp/info
+   curl -u admin:admin123 http://localhost:8081/api/mcp/info
    ```
 
 2. **List available tools:**
    ```bash
-   curl -X POST http://localhost:8081/api/mcp/tools/list \
+   curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/tools/list \
      -H "Content-Type: application/json" \
      -d '{}'
    ```
 
 3. **List available prompts:**
    ```bash
-   curl -X POST http://localhost:8081/api/mcp/prompts/list \
+   curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/prompts/list \
      -H "Content-Type: application/json" \
      -d '{}'
    ```
 
 4. **List available resources:**
    ```bash
-   curl -X POST http://localhost:8081/api/mcp/resources/list \
+   curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/resources/list \
      -H "Content-Type: application/json" \
      -d '{}'
    ```
 
 5. **Read a resource:**
    ```bash
-   curl -X POST http://localhost:8081/api/mcp/resources/read \
+   curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/resources/read \
      -H "Content-Type: application/json" \
      -d '{"uri": "deals://all"}'
    ```
 
 6. **Call a tool:**
    ```bash
-   curl -X POST http://localhost:8081/api/mcp/tools/call \
+   curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/tools/call \
      -H "Content-Type: application/json" \
      -d '{
        "name": "getAllDeals",
        "arguments": {}
      }'
    ```
+
+### Using SSE (Server-Sent Events)
+
+For real-time communication with persistent connections:
+
+1. **Connect to SSE stream:**
+   ```bash
+   curl -u admin:admin123 -N http://localhost:8081/api/mcp/sse
+   ```
+
+2. **Send MCP messages** (in another terminal):
+   ```bash
+   curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/message \
+     -H "Content-Type: application/json" \
+     -d '{
+       "jsonrpc": "2.0",
+       "id": 1,
+       "method": "tools/list",
+       "params": {}
+     }'
+   ```
+
+For complete SSE testing examples, see [SSE_TESTING.md](../../../../../../../SSE_TESTING.md)
 
 ### Authentication
 

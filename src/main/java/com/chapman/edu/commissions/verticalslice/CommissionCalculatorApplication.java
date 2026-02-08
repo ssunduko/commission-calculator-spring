@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions;
+package com.chapman.edu.commissions.verticalslice;
 
 import com.chapman.edu.commissions.verticalslice.infrastructure.mcp.McpCommissionTools;
 import org.springframework.ai.support.ToolCallbacks;

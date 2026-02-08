@@ -1,0 +1,8 @@
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "resources/read",
+  "params": {
+    "uri": "deal://ad3ad2ab-fa82-4234-ac8b-75d05826cf55"
+  }
+}
