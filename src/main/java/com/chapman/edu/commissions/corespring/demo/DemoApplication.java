@@ -1,21 +1,9 @@
 package com.chapman.edu.commissions.corespring.demo;
 
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 
-/**
- * Standalone Spring Boot Application for running ONLY the Spring Core demos.
- * <p>
- * This application loads only the corespring demo beans, not the full commission calculator.
- * <p>
- * To run:
- * mvn spring-boot:run -Dspring-boot.run.mainClass=com.chapman.edu.commissions.corespring.demo.DemoApplication
- * <p>
- * Or from IDE: Run this class directly
- */
-@SpringBootApplication
 @ComponentScan(
         basePackages = {
                 "com.chapman.edu.commissions.corespring",
