@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Deal Detail - Commission Calculator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .navbar { background: #1a73e8; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .navbar a { color: white; text-decoration: none; margin: 0 1rem; }
+        .navbar .brand { font-size: 1.3rem; font-weight: bold; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h2 { margin-bottom: 1rem; color: #1a73e8; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .detail-item label { font-weight: 600; color: #666; display: block; margin-bottom: 0.25rem; }
+        .detail-item span { font-size: 1.1rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; }
+        .btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 4px; text-decoration: none; }
+        .btn-primary { background: #1a73e8; color: white; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <span class="brand">Commission Calculator</span>
+    <div>
+        <a th:href="@{/springboot/dashboard}">Dashboard</a>
+        <a th:href="@{/springboot/deals}">Deals</a>
+        <a th:href="@{/springboot/plans}">Plans</a>
+        <a th:href="@{/springboot/calculations}">Calculations</a>
+    </div>
+</nav>
+<div class="container">
+    <a th:href="@{/springboot/deals}" class="btn btn-primary" style="margin-bottom: 1rem; display: inline-block;">Back to Deals</a>
+
+    <div class="card">
+        <h2 th:text="${deal.title}">Deal Title</h2>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <label>Deal ID</label>
+                <span th:text="${deal.id}">ID</span>
+            </div>
+            <div class="detail-item">
+                <label>Value</label>
+                <span th:text="'$' + ${#numbers.formatDecimal(deal.value, 1, 2)}">$0.00</span>
+            </div>
+            <div class="detail-item">
+                <label>Status</label>
+                <span th:text="${deal.status}">Status</span>
+            </div>
+            <div class="detail-item">
+                <label>Sales Representative</label>
+                <span th:text="${deal.salesRepId}">Rep</span>
+            </div>
+            <div class="detail-item">
+                <label>Close Date</label>
+                <span th:text="${deal.closeDate != null ? deal.closeDate : 'Not Closed'}">Date</span>
+            </div>
+            <div class="detail-item">
+                <label>Created Date</label>
+                <span th:text="${deal.createdDate}">Date</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="card" th:if="${deal.products != null and !deal.products.isEmpty()}">
+        <h2>Products</h2>
+        <table>
+            <thead>
+                <tr><th>Product</th><th>Quantity</th><th>Price</th><th>Total</th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="product : ${deal.products}">
+                    <td th:text="${product.productName}">Product</td>
+                    <td th:text="${product.quantity}">1</td>
+                    <td th:text="'$' + ${#numbers.formatDecimal(product.price, 1, 2)}">$0.00</td>
+                    <td th:text="'$' + ${#numbers.formatDecimal(product.calculateTotalPrice(), 1, 2)}">$0.00</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Calculations - Commission Calculator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .navbar { background: #1a73e8; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .navbar a { color: white; text-decoration: none; margin: 0 1rem; }
+        .navbar .brand { font-size: 1.3rem; font-weight: bold; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .card { background: white; border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; }
+        .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+        .badge-calculated { background: #e8f0fe; color: #1a73e8; }
+        .badge-approved { background: #e6f4ea; color: #34a853; }
+        .badge-paid { background: #d4edda; color: #155724; }
+        .badge-disputed { background: #fce8e6; color: #ea4335; }
+        .btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 4px; text-decoration: none; }
+        .btn-primary { background: #1a73e8; color: white; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <span class="brand">Commission Calculator</span>
+    <div>
+        <a th:href="@{/springboot/dashboard}">Dashboard</a>
+        <a th:href="@{/springboot/deals}">Deals</a>
+        <a th:href="@{/springboot/plans}">Plans</a>
+        <a th:href="@{/springboot/calculations}">Calculations</a>
+    </div>
+</nav>
+<div class="container">
+    <h1 style="margin-bottom: 1.5rem;">Commission Calculations</h1>
+    <div class="card">
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Deal</th><th>Sales Rep</th><th>Base</th><th>Gross</th><th>Net</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="calc : ${calculations}">
+                    <td th:text="${calc.id}">ID</td>
+                    <td th:text="${calc.dealId}">Deal</td>
+                    <td th:text="${calc.salesRepId}">Rep</td>
+                    <td th:text="'$' + ${#numbers.formatDecimal(calc.baseCommission, 1, 2)}">$0</td>
+                    <td th:text="'$' + ${#numbers.formatDecimal(calc.grossCommission, 1, 2)}">$0</td>
+                    <td th:text="'$' + ${#numbers.formatDecimal(calc.netCommission, 1, 2)}">$0</td>
+                    <td>
+                        <span class="badge"
+                              th:classappend="${calc.status.name() == 'CALCULATED'} ? 'badge-calculated' : (${calc.status.name() == 'APPROVED'} ? 'badge-approved' : (${calc.status.name() == 'PAID'} ? 'badge-paid' : 'badge-disputed'))"
+                              th:text="${calc.status}">Status</span>
+                    </td>
+                    <td><a th:href="@{'/springboot/calculations/' + ${calc.id}}" class="btn btn-primary">View</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Plan Detail - Commission Calculator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; }
+        .navbar { background: #1a73e8; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .navbar a { color: white; text-decoration: none; margin: 0 1rem; }
+        .navbar .brand { font-size: 1.3rem; font-weight: bold; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h2 { margin-bottom: 1rem; color: #1a73e8; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .detail-item label { font-weight: 600; color: #666; display: block; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; }
+        .btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 4px; text-decoration: none; }
+        .btn-primary { background: #1a73e8; color: white; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <span class="brand">Commission Calculator</span>
+    <div>
+        <a th:href="@{/springboot/dashboard}">Dashboard</a>
+        <a th:href="@{/springboot/deals}">Deals</a>
+        <a th:href="@{/springboot/plans}">Plans</a>
+        <a th:href="@{/springboot/calculations}">Calculations</a>
+    </div>
+</nav>
+<div class="container">
+    <a th:href="@{/springboot/plans}" class="btn btn-primary" style="margin-bottom: 1rem; display: inline-block;">Back to Plans</a>
+
+    <div class="card">
+        <h2 th:text="${plan.name}">Plan Name</h2>
+        <div class="detail-grid">
+            <div class="detail-item"><label>Plan ID</label><span th:text="${plan.id}">ID</span></div>
+            <div class="detail-item"><label>Status</label><span th:text="${plan.status}">Status</span></div>
+            <div class="detail-item"><label>Currency</label><span th:text="${plan.currency}">USD</span></div>
+            <div class="detail-item"><label>Created By</label><span th:text="${plan.createdBy}">User</span></div>
+            <div class="detail-item"><label>Start Date</label><span th:text="${plan.effectiveStartDate}">Date</span></div>
+            <div class="detail-item"><label>End Date</label><span th:text="${plan.effectiveEndDate != null ? plan.effectiveEndDate : 'Open-ended'}">Date</span></div>
+        </div>
+    </div>
+
+    <div class="card" th:if="${plan.tiers != null and !plan.tiers.isEmpty()}">
+        <h2>Commission Tiers</h2>
+        <table>
+            <thead><tr><th>Tier</th><th>Lower Bound</th><th>Upper Bound</th><th>Rate</th></tr></thead>
+            <tbody>
+                <tr th:each="tier : ${plan.tiers}">
+                    <td th:text="${tier.name}">Tier</td>
+                    <td th:text="'$' + ${#numbers.formatDecimal(tier.lowerBound, 1, 2)}">$0</td>
+                    <td th:text="${tier.upperBound != null ? '$' + #numbers.formatDecimal(tier.upperBound, 1, 2) : 'Unlimited'}">$0</td>
+                    <td th:text="${tier.rate + '%'}">0%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" th:if="${plan.rules != null and !plan.rules.isEmpty()}">
+        <h2>Commission Rules</h2>
+        <table>
+            <thead><tr><th>Rule</th><th>Type</th><th>Rate</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr th:each="rule : ${plan.rules}">
+                    <td th:text="${rule.name}">Rule</td>
+                    <td th:text="${rule.type}">Type</td>
+                    <td th:text="${rule.rate + '%'}">0%</td>
+                    <td th:text="${rule.description}">Description</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" th:if="${plan.bonuses != null and !plan.bonuses.isEmpty()}">
+        <h2>Bonus Rules</h2>
+        <table>
+            <thead><tr><th>Bonus</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr th:each="bonus : ${plan.bonuses}">
+                    <td th:text="${bonus.name}">Bonus</td>
+                    <td th:text="${bonus.type}">Type</td>
+                    <td th:text="${bonus.percentage ? bonus.amount + '%' : '$' + bonus.amount}">$0</td>
+                    <td th:text="${bonus.description}">Description</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
