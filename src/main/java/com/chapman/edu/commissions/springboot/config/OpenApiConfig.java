@@ -45,7 +45,7 @@ public class OpenApiConfig {
                     + "then click the 'Authorize' button above and enter: `Bearer <your-token>`")
                 .version("1.0.0")
                 .contact(new Contact()
-                    .name("Chapman University SDLC Course")
+                    .name("Sergey Sundukovskiy, Ph.D. \n Chapman University SC320 SDLC Course")
                     .email("sundukovskiy@chapman.edu"))
                 .license(new License()
                     .name("Educational Use")))
