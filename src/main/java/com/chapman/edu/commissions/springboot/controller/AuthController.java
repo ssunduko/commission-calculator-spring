@@ -4,6 +4,8 @@ import com.chapman.edu.commissions.springboot.dto.request.LoginRequest;
 import com.chapman.edu.commissions.springboot.dto.response.ApiResponse;
 import com.chapman.edu.commissions.springboot.dto.response.AuthResponse;
 import com.chapman.edu.commissions.springboot.security.JwtTokenProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -37,6 +39,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "Authentication — login to obtain a JWT token for API access")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -57,6 +60,7 @@ public class AuthController {
      * Response:
      *   { "token": "eyJhbG...", "tokenType": "Bearer", "username": "admin", "roles": ["SYSTEM_ADMIN"] }
      */
+    @Operation(summary = "Login", description = "Authenticate with username and password to receive a JWT token. Use the token in the Authorization header as: Bearer <token>")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request) {

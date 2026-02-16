@@ -7,6 +7,10 @@ import com.chapman.edu.commissions.springboot.dto.response.ApiResponse;
 import com.chapman.edu.commissions.springboot.dto.response.DealResponse;
 import com.chapman.edu.commissions.springboot.mapper.DtoMapper;
 import com.chapman.edu.commissions.springboot.service.DealService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +88,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/deals")
+@Tag(name = "Deals", description = "Deal management — create, read, update, and delete sales deals")
 public class DealController {
 
     private static final Logger logger = LoggerFactory.getLogger(DealController.class);
@@ -107,10 +112,11 @@ public class DealController {
      * Request parameters are URL query strings: /api/deals?status=WON&salesRepId=user-003
      * They are optional by default (required=false). You can set default values.
      */
+    @Operation(summary = "List all deals", description = "Retrieve all deals, optionally filtered by status or sales rep ID")
     @GetMapping
     public ResponseEntity<ApiResponse<List<DealResponse>>> getAllDeals(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String salesRepId) {
+            @Parameter(description = "Filter by deal status (OPEN, WON, LOST, CANCELLED)") @RequestParam(required = false) String status,
+            @Parameter(description = "Filter by sales representative ID") @RequestParam(required = false) String salesRepId) {
 
         List<Deal> deals;
 
@@ -137,9 +143,10 @@ public class DealController {
      * The {id} placeholder is extracted and passed as a method parameter.
      * Example: GET /api/deals/deal-001 → id = "deal-001"
      */
+    @Operation(summary = "Get deal by ID", description = "Retrieve a specific deal by its unique identifier")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<DealResponse>> getDealById(
-            @PathVariable String id) {
+            @Parameter(description = "Deal ID", example = "deal-001") @PathVariable String id) {
 
         Deal deal = dealService.getDealById(id);
         DealResponse response = mapper.toDealResponse(deal);
@@ -158,6 +165,7 @@ public class DealController {
      * fails, a MethodArgumentNotValidException is thrown and caught by
      * our GlobalExceptionHandler.
      */
+    @Operation(summary = "Create a new deal", description = "Create a new sales deal with title, value, and assigned sales rep")
     @PostMapping
     public ResponseEntity<ApiResponse<DealResponse>> createDeal(
             @Valid @RequestBody CreateDealRequest request) {
@@ -178,10 +186,11 @@ public class DealController {
      * PATCH is used for partial updates (only changing specific fields).
      * PUT would be for replacing the entire resource.
      */
+    @Operation(summary = "Update deal status", description = "Change the status of an existing deal (e.g., OPEN → WON, OPEN → LOST)")
     @PatchMapping("/{id}/status")
     public ResponseEntity<ApiResponse<DealResponse>> updateDealStatus(
-            @PathVariable String id,
-            @RequestParam String status) {
+            @Parameter(description = "Deal ID", example = "deal-001") @PathVariable String id,
+            @Parameter(description = "New status (OPEN, WON, LOST, CANCELLED)") @RequestParam String status) {
 
         Deal deal = dealService.updateDealStatus(id, DealStatus.valueOf(status));
         DealResponse response = mapper.toDealResponse(deal);
@@ -195,8 +204,9 @@ public class DealController {
      * Returns 204 No Content — standard response for successful deletion
      * with no body to return.
      */
+    @Operation(summary = "Delete a deal", description = "Permanently remove a deal by its ID")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteDeal(@PathVariable String id) {
+    public ResponseEntity<Void> deleteDeal(@Parameter(description = "Deal ID", example = "deal-001") @PathVariable String id) {
         dealService.deleteDeal(id);
         return ResponseEntity.noContent().build();
     }

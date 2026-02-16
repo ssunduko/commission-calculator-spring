@@ -7,6 +7,9 @@ import com.chapman.edu.commissions.springboot.dto.response.ApiResponse;
 import com.chapman.edu.commissions.springboot.dto.response.UserResponse;
 import com.chapman.edu.commissions.springboot.mapper.DtoMapper;
 import com.chapman.edu.commissions.springboot.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/users")
+@Tag(name = "Users", description = "User management — create, read, deactivate, and delete users")
 public class UserController {
 
     private final UserService userService;
@@ -34,9 +38,10 @@ public class UserController {
         this.mapper = mapper;
     }
 
+    @Operation(summary = "List all users", description = "Retrieve all users, optionally filtered by role")
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers(
-            @RequestParam(required = false) String role) {
+            @Parameter(description = "Filter by role (SALES_REP, SALES_MANAGER, FINANCE_ADMIN, SYSTEM_ADMIN)") @RequestParam(required = false) String role) {
 
         List<User> users;
         if (role != null) {
@@ -51,13 +56,16 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Users retrieved", responses));
     }
 
+    @Operation(summary = "Get user by ID", description = "Retrieve a specific user by their unique identifier")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<UserResponse>> getUserById(
+            @Parameter(description = "User ID", example = "user-001") @PathVariable String id) {
         User user = userService.getUserById(id);
         return ResponseEntity.ok(
             ApiResponse.success("User retrieved", mapper.toUserResponse(user)));
     }
 
+    @Operation(summary = "Create a new user", description = "Create a new user account. Requires SYSTEM_ADMIN role.")
     @PostMapping
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<UserResponse>> createUser(
@@ -67,17 +75,21 @@ public class UserController {
                 .body(ApiResponse.success("User created", mapper.toUserResponse(user)));
     }
 
+    @Operation(summary = "Deactivate a user", description = "Deactivate a user account. Requires SYSTEM_ADMIN role.")
     @PatchMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
-    public ResponseEntity<ApiResponse<UserResponse>> deactivateUser(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<UserResponse>> deactivateUser(
+            @Parameter(description = "User ID", example = "user-003") @PathVariable String id) {
         User user = userService.deactivateUser(id);
         return ResponseEntity.ok(
             ApiResponse.success("User deactivated", mapper.toUserResponse(user)));
     }
 
+    @Operation(summary = "Delete a user", description = "Permanently remove a user account. Requires SYSTEM_ADMIN role.")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SYSTEM_ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+    public ResponseEntity<Void> deleteUser(
+            @Parameter(description = "User ID", example = "user-003") @PathVariable String id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }

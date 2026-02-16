@@ -1,6 +1,8 @@
 package com.chapman.edu.commissions.springboot.controller;
 
 import com.chapman.edu.commissions.springboot.dto.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,8 +18,10 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/health")
+@Tag(name = "Health", description = "Health check — verify the application is running")
 public class HealthController {
 
+    @Operation(summary = "Health check", description = "Returns application health status, Java version, and current timestamp. No authentication required.")
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> health() {
         Map<String, Object> healthInfo = new HashMap<>();

@@ -6,6 +6,9 @@ import com.chapman.edu.commissions.springboot.dto.response.ApiResponse;
 import com.chapman.edu.commissions.springboot.dto.response.CommissionCalculationResponse;
 import com.chapman.edu.commissions.springboot.mapper.DtoMapper;
 import com.chapman.edu.commissions.springboot.service.CommissionCalculationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +35,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/calculations")
+@Tag(name = "Commission Calculations", description = "Commission calculation — compute, approve, and pay commissions")
 public class CommissionCalculationController {
 
     private final CommissionCalculationService calculationService;
@@ -43,10 +47,11 @@ public class CommissionCalculationController {
         this.mapper = mapper;
     }
 
+    @Operation(summary = "List all calculations", description = "Retrieve all commission calculations, optionally filtered by sales rep ID or deal ID")
     @GetMapping
     public ResponseEntity<ApiResponse<List<CommissionCalculationResponse>>> getAllCalculations(
-            @RequestParam(required = false) String salesRepId,
-            @RequestParam(required = false) String dealId) {
+            @Parameter(description = "Filter by sales representative ID") @RequestParam(required = false) String salesRepId,
+            @Parameter(description = "Filter by deal ID") @RequestParam(required = false) String dealId) {
 
         List<CommissionCalculation> calculations;
         if (salesRepId != null) {
@@ -63,9 +68,10 @@ public class CommissionCalculationController {
         return ResponseEntity.ok(ApiResponse.success("Calculations retrieved", responses));
     }
 
+    @Operation(summary = "Get calculation by ID", description = "Retrieve a specific commission calculation by its unique identifier")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CommissionCalculationResponse>> getCalculationById(
-            @PathVariable String id) {
+            @Parameter(description = "Calculation ID", example = "calc-001") @PathVariable String id) {
         CommissionCalculation calc = calculationService.getCalculationById(id);
         return ResponseEntity.ok(
             ApiResponse.success("Calculation retrieved", mapper.toCommissionCalculationResponse(calc)));
@@ -74,6 +80,7 @@ public class CommissionCalculationController {
     /**
      * POST /api/calculations — Calculate commission for a deal
      */
+    @Operation(summary = "Calculate commission", description = "Compute the commission for a deal using the specified commission plan")
     @PostMapping
     public ResponseEntity<ApiResponse<CommissionCalculationResponse>> calculateCommission(
             @Valid @RequestBody CalculateCommissionRequest request) {
@@ -87,10 +94,11 @@ public class CommissionCalculationController {
      *
      * @PreAuthorize restricts this to SALES_MANAGER and FINANCE_ADMIN roles only.
      */
+    @Operation(summary = "Approve a calculation", description = "Approve a commission calculation. Requires SALES_MANAGER, FINANCE_ADMIN, or SYSTEM_ADMIN role.")
     @PatchMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('SALES_MANAGER', 'FINANCE_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<CommissionCalculationResponse>> approveCalculation(
-            @PathVariable String id) {
+            @Parameter(description = "Calculation ID", example = "calc-002") @PathVariable String id) {
         CommissionCalculation calc = calculationService.approveCalculation(id);
         return ResponseEntity.ok(
             ApiResponse.success("Calculation approved", mapper.toCommissionCalculationResponse(calc)));
@@ -101,10 +109,11 @@ public class CommissionCalculationController {
      *
      * Only FINANCE_ADMIN and SYSTEM_ADMIN can process payments.
      */
+    @Operation(summary = "Mark calculation as paid", description = "Mark an approved commission calculation as paid. Requires FINANCE_ADMIN or SYSTEM_ADMIN role.")
     @PatchMapping("/{id}/pay")
     @PreAuthorize("hasAnyRole('FINANCE_ADMIN', 'SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<CommissionCalculationResponse>> markAsPaid(
-            @PathVariable String id) {
+            @Parameter(description = "Calculation ID", example = "calc-001") @PathVariable String id) {
         CommissionCalculation calc = calculationService.markAsPaid(id);
         return ResponseEntity.ok(
             ApiResponse.success("Calculation marked as paid", mapper.toCommissionCalculationResponse(calc)));

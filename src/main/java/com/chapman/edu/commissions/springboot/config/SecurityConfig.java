@@ -14,7 +14,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.http.HttpStatus;
 
 /**
  * ============================================================================
@@ -153,6 +155,13 @@ public class SecurityConfig {
             // Each request must carry its own authentication (JWT token)
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+
+            // Exception Handling — return 401 JSON instead of redirecting to login page
+            // Without this, unauthenticated API requests get redirected to the
+            // form login page, which returns HTML instead of a proper 401 response.
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             )
 
             // Add our custom JWT filter before the default authentication filter
