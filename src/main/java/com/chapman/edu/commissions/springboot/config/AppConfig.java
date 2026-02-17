@@ -3,6 +3,7 @@ package com.chapman.edu.commissions.springboot.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -82,6 +83,10 @@ public class AppConfig {
      */
     @Bean
     public RestTemplate restTemplate() {
-        return new RestTemplate();
+        // JdkClientHttpRequestFactory uses java.net.http.HttpClient (Java 11+)
+        // which supports ALL HTTP methods including PATCH.
+        // The default SimpleClientHttpRequestFactory uses HttpURLConnection,
+        // which does NOT support PATCH and throws ProtocolException.
+        return new RestTemplate(new JdkClientHttpRequestFactory());
     }
 }
