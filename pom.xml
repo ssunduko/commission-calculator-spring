@@ -117,6 +117,37 @@
             <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
         </dependency>
 
+        <!-- ============================================================ -->
+        <!-- SPRING AI — Anthropic Claude Integration                     -->
+        <!-- ============================================================ -->
+        <!-- Spring AI Anthropic starter provides auto-configuration for   -->
+        <!-- connecting to Claude AI models. It registers ChatModel and    -->
+        <!-- EmbeddingModel beans automatically when API key is provided.  -->
+        <!-- Artifact naming convention: spring-ai-starter-model-{provider} -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-anthropic</artifactId>
+        </dependency>
+
+        <!-- Spring AI Transformers (Local) Embedding Model               -->
+        <!-- Provides a local embedding model using ONNX transformers so  -->
+        <!-- we can generate embeddings without an external API call.      -->
+        <!-- This is ideal for development/education with H2 database.    -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-transformers</artifactId>
+        </dependency>
+
+        <!-- Spring AI Vector Store — Common vector store abstraction     -->
+        <!-- Provides VectorStore interface, SimpleVectorStore, and       -->
+        <!-- SearchRequest classes for semantic search. SimpleVectorStore  -->
+        <!-- is an in-memory implementation that works with H2 — no       -->
+        <!-- external vector DB (Pinecone/PGVector) needed.               -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-vector-store</artifactId>
+        </dependency>
+
         <!-- WebSocket Support -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

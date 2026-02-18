@@ -1,0 +1,247 @@
+package com.chapman.edu.commissions.ai.controller;
+
+import com.chapman.edu.commissions.ai.service.ml.AnomalyDetectionService;
+import com.chapman.edu.commissions.ai.service.ml.CommissionExplainerService;
+import com.chapman.edu.commissions.ai.service.ml.DisputeAnalysisService;
+import com.chapman.edu.commissions.ai.service.ml.ForecastingService;
+import com.chapman.edu.commissions.ai.service.rag.CommissionRagService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+/**
+ * ============================================================
+ * REST CONTROLLER: CommissionController
+ * ============================================================
+ *
+ * CONCEPT: Exposing AI Capabilities via REST API
+ * ------------------------------------------------------------
+ * This controller exposes all AI-powered commission services as
+ * REST endpoints. It follows the same Spring MVC patterns used
+ * in the ORM module's controllers.
+ *
+ * ENDPOINT CATEGORIES:
+ *
+ * 1. /api/ai/rag/** — RAG-powered Q&A endpoints
+ *    Uses Retrieval-Augmented Generation to answer questions
+ *    about commission data with grounded, accurate responses.
+ *
+ * 2. /api/ai/explain/** — Explainability endpoints
+ *    Generates natural language explanations of calculations and plans.
+ *
+ * 3. /api/ai/disputes/** — Dispute analysis endpoints
+ *    AI-powered analysis and triage of commission disputes.
+ *
+ * 4. /api/ai/forecast/** — Forecasting endpoints
+ *    AI-generated commission forecasts for individuals and teams.
+ *
+ * 5. /api/ai/anomaly/** — Anomaly detection endpoints
+ *    Identifies unusual commission calculations that need review.
+ *
+ * ARCHITECTURE NOTE:
+ * The controller is thin — it delegates all logic to service classes.
+ * This follows the Spring best practice of keeping controllers as
+ * "traffic directors" that route requests to the appropriate service.
+ *
+ * AI RESPONSE FORMAT:
+ * All endpoints return Map<String, String> with an "analysis" or
+ * "response" key containing the AI-generated text. This makes it
+ * easy for frontend applications to extract and display the content.
+ */
+@RestController("aiCommissionController")
+@RequestMapping("/api/ai")
+public class CommissionController {
+
+    private final CommissionRagService ragService;
+    private final CommissionExplainerService explainerService;
+    private final DisputeAnalysisService disputeAnalysisService;
+    private final ForecastingService forecastingService;
+    private final AnomalyDetectionService anomalyDetectionService;
+
+    public CommissionController(CommissionRagService ragService,
+                                CommissionExplainerService explainerService,
+                                DisputeAnalysisService disputeAnalysisService,
+                                ForecastingService forecastingService,
+                                AnomalyDetectionService anomalyDetectionService) {
+        this.ragService = ragService;
+        this.explainerService = explainerService;
+        this.disputeAnalysisService = disputeAnalysisService;
+        this.forecastingService = forecastingService;
+        this.anomalyDetectionService = anomalyDetectionService;
+    }
+
+    // ============================================================
+    // RAG (Retrieval-Augmented Generation) Endpoints
+    // ============================================================
+
+    /**
+     * Ask a natural language question about commission data.
+     *
+     * RAG FLOW:
+     * 1. User submits a question via POST body
+     * 2. Question is embedded and searched against vector store
+     * 3. Relevant documents are retrieved
+     * 4. Documents + question are sent to Claude
+     * 5. Claude generates a grounded answer
+     *
+     * Example questions:
+     * - "What commission plans are available?"
+     * - "How much did the enterprise deal earn?"
+     * - "Who are the top performing sales reps?"
+     */
+    @PostMapping("/rag/ask")
+    public ResponseEntity<Map<String, String>> askQuestion(@RequestBody Map<String, String> request) {
+        String question = request.get("question");
+        if (question == null || question.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Question is required"));
+        }
+        String answer = ragService.answerQuestion(question);
+        return ResponseEntity.ok(Map.of("question", question, "response", answer));
+    }
+
+    /**
+     * Ask a question filtered by document type.
+     *
+     * This endpoint demonstrates FILTERED RAG — narrowing the search
+     * to a specific category of documents for more focused answers.
+     *
+     * Valid types: deal, commission_plan, commission_calculation, user
+     */
+    @PostMapping("/rag/ask/{type}")
+    public ResponseEntity<Map<String, String>> askTypedQuestion(
+            @PathVariable String type,
+            @RequestBody Map<String, String> request) {
+        String question = request.get("question");
+        if (question == null || question.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Question is required"));
+        }
+        String answer = ragService.answerTypedQuestion(question, type);
+        return ResponseEntity.ok(Map.of("question", question, "type", type, "response", answer));
+    }
+
+    /**
+     * Generate a comprehensive performance report for a sales rep.
+     *
+     * This endpoint demonstrates MULTI-RETRIEVAL RAG — gathering
+     * context from multiple document types to produce a rich report.
+     */
+    @GetMapping("/rag/report/{salesRepName}")
+    public ResponseEntity<Map<String, String>> generateReport(@PathVariable String salesRepName) {
+        String report = ragService.generatePerformanceReport(salesRepName);
+        return ResponseEntity.ok(Map.of("salesRep", salesRepName, "report", report));
+    }
+
+    // ============================================================
+    // Commission Explanation Endpoints
+    // ============================================================
+
+    /**
+     * Explain a commission calculation in natural language.
+     *
+     * Uses Claude to generate a human-readable explanation of how
+     * a specific commission was calculated, including rate breakdowns
+     * and contextual insights.
+     */
+    @GetMapping("/explain/calculation/{calculationId}")
+    public ResponseEntity<Map<String, String>> explainCalculation(
+            @PathVariable String calculationId) {
+        String explanation = explainerService.explainCalculation(calculationId);
+        return ResponseEntity.ok(Map.of("calculationId", calculationId, "explanation", explanation));
+    }
+
+    /**
+     * Explain a commission plan's structure in plain language.
+     *
+     * Uses Claude to describe plan tiers, rates, and bonuses in
+     * terms a new sales representative would understand.
+     */
+    @GetMapping("/explain/plan/{planId}")
+    public ResponseEntity<Map<String, String>> explainPlan(@PathVariable String planId) {
+        String explanation = explainerService.explainPlan(planId);
+        return ResponseEntity.ok(Map.of("planId", planId, "explanation", explanation));
+    }
+
+    // ============================================================
+    // Dispute Analysis Endpoints
+    // ============================================================
+
+    /**
+     * Perform a full AI analysis of a commission dispute.
+     *
+     * Returns: validity assessment, supporting/weakening factors,
+     * recommended resolution, and next steps.
+     */
+    @GetMapping("/disputes/analyze/{disputeId}")
+    public ResponseEntity<Map<String, String>> analyzeDispute(@PathVariable String disputeId) {
+        String analysis = disputeAnalysisService.analyzeDispute(disputeId);
+        return ResponseEntity.ok(Map.of("disputeId", disputeId, "analysis", analysis));
+    }
+
+    /**
+     * Quick triage of a dispute for priority assessment.
+     *
+     * Returns: HIGH, MEDIUM, or LOW priority with brief reasoning.
+     * Useful for queue management and escalation workflows.
+     */
+    @GetMapping("/disputes/triage/{disputeId}")
+    public ResponseEntity<Map<String, String>> triageDispute(@PathVariable String disputeId) {
+        String triage = disputeAnalysisService.triageDispute(disputeId);
+        return ResponseEntity.ok(Map.of("disputeId", disputeId, "triage", triage));
+    }
+
+    // ============================================================
+    // Forecasting Endpoints
+    // ============================================================
+
+    /**
+     * Generate a commission forecast for an individual sales rep.
+     *
+     * Uses historical calculation data and current pipeline to
+     * project future commission earnings.
+     */
+    @GetMapping("/forecast/user/{userId}")
+    public ResponseEntity<Map<String, String>> forecastUser(@PathVariable String userId) {
+        String forecast = forecastingService.forecastCommissions(userId);
+        return ResponseEntity.ok(Map.of("userId", userId, "forecast", forecast));
+    }
+
+    /**
+     * Generate a team-level commission forecast.
+     *
+     * Aggregates data across all sales reps for an organizational view.
+     */
+    @GetMapping("/forecast/team")
+    public ResponseEntity<Map<String, String>> forecastTeam() {
+        String forecast = forecastingService.forecastTeamCommissions();
+        return ResponseEntity.ok(Map.of("forecast", forecast));
+    }
+
+    // ============================================================
+    // Anomaly Detection Endpoints
+    // ============================================================
+
+    /**
+     * Run anomaly detection across all commission calculations.
+     *
+     * Identifies calculations that are statistically unusual
+     * and provides AI-powered analysis of each anomaly.
+     */
+    @GetMapping("/anomaly/detect")
+    public ResponseEntity<Map<String, String>> detectAnomalies() {
+        String analysis = anomalyDetectionService.detectAnomalies();
+        return ResponseEntity.ok(Map.of("analysis", analysis));
+    }
+
+    /**
+     * Check a specific calculation for anomalies.
+     *
+     * Quick check whether a single commission calculation is
+     * within normal ranges compared to the population.
+     */
+    @GetMapping("/anomaly/check/{calculationId}")
+    public ResponseEntity<Map<String, String>> checkAnomaly(@PathVariable String calculationId) {
+        String result = anomalyDetectionService.checkSingleCalculation(calculationId);
+        return ResponseEntity.ok(Map.of("calculationId", calculationId, "result", result));
+    }
+}

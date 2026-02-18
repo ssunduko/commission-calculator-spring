@@ -35,7 +35,16 @@
       "Bash(pip install:*)",
       "Bash(./mvnw spring-boot:run:*)",
       "Bash(python -m json.tool:*)",
-      "Bash(./mvnw test:*)"
+      "Bash(./mvnw test:*)",
+      "Bash(cd:*)",
+      "WebFetch(domain:central.sonatype.com)",
+      "Bash(cmd.exe /c \"mvnw.cmd compile\")",
+      "Bash(echo:*)",
+      "Bash(tr:*)",
+      "Bash(jar tf:*)",
+      "Bash(javap:*)",
+      "Bash(./mvnw compile:*)",
+      "Bash(./mvnw test-compile:*)"
     ],
     "deny": [],
     "ask": []
