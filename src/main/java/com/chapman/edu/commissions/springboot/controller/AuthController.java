@@ -42,8 +42,21 @@ import java.util.stream.Collectors;
 @Tag(name = "Authentication", description = "Authentication — login to obtain a JWT token for API access")
 public class AuthController {
 
-    private final AuthenticationManager authenticationManager;
-    private final JwtTokenProvider tokenProvider;
+    /**
+     * Fields are protected (not private) to support the Extension (Inheritance) pattern.
+     * Subclasses in other modules (e.g., OrmAuthController) can access these fields
+     * when overriding methods, without needing getter methods.
+     *
+     * CONCEPT: Access Modifiers and Inheritance
+     * -------------------------------------------
+     * - private: Only this class can access (blocks inheritance reuse)
+     * - protected: This class + subclasses + same package (enables inheritance reuse)
+     * - public: Everyone can access (too permissive for internal fields)
+     *
+     * Using protected is the standard choice when designing a class for extension.
+     */
+    protected final AuthenticationManager authenticationManager;
+    protected final JwtTokenProvider tokenProvider;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtTokenProvider tokenProvider) {

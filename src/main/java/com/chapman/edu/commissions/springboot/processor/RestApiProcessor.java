@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.*;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -52,6 +53,7 @@ import java.util.Map;
  */
 @Component
 @Order(3)
+@Profile("!test")
 public class RestApiProcessor implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(RestApiProcessor.class);

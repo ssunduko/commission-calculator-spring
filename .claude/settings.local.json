@@ -28,7 +28,14 @@
       "Bash(del \"\\?\\C:\\Commission Calculator\\commission-calculator-spring\\nul\")",
       "Bash(timeout /t 10)",
       "Bash(timeout 3 curl:*)",
-      "Bash(wmic process where \"name=''java.exe'' and CommandLine like ''%commission-calculator%''\" delete)"
+      "Bash(wmic process where \"name=''java.exe'' and CommandLine like ''%commission-calculator%''\" delete)",
+      "Bash(netstat:*)",
+      "Bash(python3:*)",
+      "Bash(python -c:*)",
+      "Bash(pip install:*)",
+      "Bash(./mvnw spring-boot:run:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(./mvnw test:*)"
     ],
     "deny": [],
     "ask": []

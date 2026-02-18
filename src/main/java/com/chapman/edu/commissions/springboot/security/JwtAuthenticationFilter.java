@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -59,10 +60,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtTokenProvider tokenProvider;
-    private final CustomUserDetailsService userDetailsService;
+    private final UserDetailsService userDetailsService;
 
+    /**
+     * Constructor accepts UserDetailsService (interface) rather than a concrete class.
+     * This allows both the springboot module (CustomUserDetailsService) and the ORM module
+     * (JpaUserDetailsService) to use the same filter class with different implementations.
+     *
+     * CONCEPT: Programming to Interfaces
+     * ------------------------------------
+     * By depending on the UserDetailsService interface instead of a concrete class,
+     * this filter follows the Dependency Inversion Principle — it depends on an
+     * abstraction, not a specific implementation. This makes it reusable across modules.
+     */
     public JwtAuthenticationFilter(JwtTokenProvider tokenProvider,
-                                   CustomUserDetailsService userDetailsService) {
+                                   UserDetailsService userDetailsService) {
         this.tokenProvider = tokenProvider;
         this.userDetailsService = userDetailsService;
     }
@@ -77,6 +89,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        // Delegate to the reusable authentication method
+        authenticateRequest(request);
+
+        // Continue the filter chain (pass to next filter)
+        filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Core authentication logic extracted as a public method.
+     *
+     * CONCEPT: Reusable Method for Containment (Composition) Pattern
+     * ----------------------------------------------------------------
+     * By extracting the authentication logic into a public method, other modules
+     * can create a "wrapper" filter that contains an instance of this class and
+     * delegates authentication to this method. This is the Containment pattern —
+     * the wrapper has-a reference to this filter and calls authenticateRequest()
+     * without duplicating the JWT validation logic.
+     *
+     * @param request the HTTP request to authenticate
+     */
+    public void authenticateRequest(HttpServletRequest request) {
         try {
             // Step 1: Extract JWT from the Authorization header
             String jwt = extractJwtFromRequest(request);
@@ -111,9 +144,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context: {}", ex.getMessage());
         }
-
-        // Continue the filter chain (pass to next filter)
-        filterChain.doFilter(request, response);
     }
 
     /**
