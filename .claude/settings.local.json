@@ -44,7 +44,11 @@
       "Bash(jar tf:*)",
       "Bash(javap:*)",
       "Bash(./mvnw compile:*)",
-      "Bash(./mvnw test-compile:*)"
+      "Bash(./mvnw test-compile:*)",
+      "Bash(awk:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
