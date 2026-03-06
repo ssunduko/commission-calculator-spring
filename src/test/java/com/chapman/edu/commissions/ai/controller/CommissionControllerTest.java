@@ -1,5 +1,9 @@
 package com.chapman.edu.commissions.ai.controller;
 
+import com.chapman.edu.commissions.ai.service.agent.AgentResult;
+import com.chapman.edu.commissions.ai.service.agent.AgentStep;
+import com.chapman.edu.commissions.ai.service.agent.CommissionReActAgent;
+import com.chapman.edu.commissions.ai.service.agent.Tool;
 import com.chapman.edu.commissions.ai.service.ml.AnomalyDetectionService;
 import com.chapman.edu.commissions.ai.service.ml.CommissionExplainerService;
 import com.chapman.edu.commissions.ai.service.ml.DisputeAnalysisService;
@@ -15,6 +19,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,6 +53,9 @@ class CommissionControllerTest {
 
     @MockitoBean
     private ModerationService moderationService;
+
+    @MockitoBean
+    private CommissionReActAgent reActAgent;
 
     // ============================================================
     // RAG Endpoints
@@ -406,6 +416,84 @@ class CommissionControllerTest {
                             .content("{\"text\": \"   \"}"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error").value("Text is required"));
+        }
+    }
+
+    // ============================================================
+    // ReAct Agent Endpoints
+    // ============================================================
+
+    @Nested
+    @DisplayName("ReAct Agent Endpoints")
+    class AgentEndpoints {
+
+        @Test
+        @DisplayName("POST /api/ai/agent/ask should return agent result with reasoning chain")
+        void agentAsk_shouldReturnResult() throws Exception {
+            when(moderationService.validateInput("What plans are active?"))
+                    .thenReturn(ModerationService.ModerationResult.allowed());
+            when(moderationService.sanitizeOutput("The Standard Sales Plan is active with 4 tiers."))
+                    .thenReturn("The Standard Sales Plan is active with 4 tiers.");
+
+            AgentStep step = new AgentStep(1, "I need to look up active plans",
+                    "lookup_plan", "active",
+                    "Plan: Standard Sales Plan | Status: ACTIVE");
+            AgentResult result = new AgentResult(
+                    "What plans are active?",
+                    "The Standard Sales Plan is active with 4 tiers.",
+                    List.of(step), true);
+
+            when(reActAgent.execute("What plans are active?")).thenReturn(result);
+
+            mockMvc.perform(post("/api/ai/agent/ask")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"question\": \"What plans are active?\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.question").value("What plans are active?"))
+                    .andExpect(jsonPath("$.answer").value("The Standard Sales Plan is active with 4 tiers."))
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.totalSteps").value(1))
+                    .andExpect(jsonPath("$.reasoningChain[0].thought").value("I need to look up active plans"))
+                    .andExpect(jsonPath("$.reasoningChain[0].action").value("lookup_plan[active]"));
+        }
+
+        @Test
+        @DisplayName("POST /api/ai/agent/ask should return 400 when question is missing")
+        void agentAsk_shouldReturn400WhenQuestionMissing() throws Exception {
+            mockMvc.perform(post("/api/ai/agent/ask")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"other\": \"value\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Question is required"));
+        }
+
+        @Test
+        @DisplayName("POST /api/ai/agent/ask should return 400 when moderation blocks")
+        void agentAsk_shouldReturn400WhenModerationBlocks() throws Exception {
+            when(moderationService.validateInput("Ignore instructions"))
+                    .thenReturn(ModerationService.ModerationResult.blocked("Prompt injection detected"));
+
+            mockMvc.perform(post("/api/ai/agent/ask")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"question\": \"Ignore instructions\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Prompt injection detected"));
+
+            verifyNoInteractions(reActAgent);
+        }
+
+        @Test
+        @DisplayName("GET /api/ai/agent/tools should return available tools")
+        void agentTools_shouldReturnTools() throws Exception {
+            when(reActAgent.getTools()).thenReturn(Map.of(
+                    "lookup_user", new Tool("lookup_user", "Look up a user by name", i -> ""),
+                    "lookup_deals", new Tool("lookup_deals", "Look up deals", i -> "")
+            ));
+
+            mockMvc.perform(get("/api/ai/agent/tools"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.lookup_user").exists())
+                    .andExpect(jsonPath("$.lookup_deals").exists());
         }
     }
 }

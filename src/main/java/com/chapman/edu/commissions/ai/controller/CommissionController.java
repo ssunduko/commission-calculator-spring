@@ -1,5 +1,8 @@
 package com.chapman.edu.commissions.ai.controller;
 
+import com.chapman.edu.commissions.ai.service.agent.AgentResult;
+import com.chapman.edu.commissions.ai.service.agent.AgentStep;
+import com.chapman.edu.commissions.ai.service.agent.CommissionReActAgent;
 import com.chapman.edu.commissions.ai.service.ml.AnomalyDetectionService;
 import com.chapman.edu.commissions.ai.service.ml.CommissionExplainerService;
 import com.chapman.edu.commissions.ai.service.ml.DisputeAnalysisService;
@@ -9,6 +12,8 @@ import com.chapman.edu.commissions.ai.service.rag.CommissionRagService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -64,19 +69,22 @@ public class CommissionController {
     private final ForecastingService forecastingService;
     private final AnomalyDetectionService anomalyDetectionService;
     private final ModerationService moderationService;
+    private final CommissionReActAgent reActAgent;
 
     public CommissionController(CommissionRagService ragService,
                                 CommissionExplainerService explainerService,
                                 DisputeAnalysisService disputeAnalysisService,
                                 ForecastingService forecastingService,
                                 AnomalyDetectionService anomalyDetectionService,
-                                ModerationService moderationService) {
+                                ModerationService moderationService,
+                                CommissionReActAgent reActAgent) {
         this.ragService = ragService;
         this.explainerService = explainerService;
         this.disputeAnalysisService = disputeAnalysisService;
         this.forecastingService = forecastingService;
         this.anomalyDetectionService = anomalyDetectionService;
         this.moderationService = moderationService;
+        this.reActAgent = reActAgent;
     }
 
     // ============================================================
@@ -338,5 +346,75 @@ public class CommissionController {
                 "sanitized", sanitized,
                 "redacted", String.valueOf(wasModified)
         ));
+    }
+
+    // ============================================================
+    // ReAct Agent Endpoints
+    // ============================================================
+
+    /**
+     * Execute the ReAct agent to answer a complex commission question.
+     *
+     * The agent reasons step-by-step, using tools to look up data
+     * from the database and vector store, performing calculations,
+     * and building up context before producing a final answer.
+     *
+     * REACT LOOP:
+     * 1. AI thinks about what to do next (Thought)
+     * 2. AI selects and calls a tool (Action)
+     * 3. Tool returns data (Observation)
+     * 4. Repeat until AI has enough info → Final Answer
+     *
+     * Example questions:
+     * - "How much commission did Alice earn on her enterprise deals?"
+     * - "Compare the top sales reps by total commission"
+     * - "What rate applies to a $150,000 deal under the Standard Plan?"
+     */
+    @PostMapping("/agent/ask")
+    public ResponseEntity<Map<String, Object>> agentAsk(@RequestBody Map<String, String> request) {
+        String question = request.get("question");
+        if (question == null || question.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Question is required"));
+        }
+
+        // Validate input through moderation
+        ModerationService.ModerationResult inputCheck = moderationService.validateInput(question);
+        if (!inputCheck.isAllowed()) {
+            return ResponseEntity.badRequest().body(Map.of("error", inputCheck.getReason()));
+        }
+
+        AgentResult result = reActAgent.execute(question);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("question", result.getOriginalQuestion());
+        response.put("answer", moderationService.sanitizeOutput(result.getFinalAnswer()));
+        response.put("success", result.isSuccess());
+        response.put("totalSteps", result.getTotalSteps());
+
+        // Include reasoning chain for transparency
+        List<Map<String, String>> steps = result.getSteps().stream()
+                .map(step -> Map.of(
+                        "thought", step.getThought(),
+                        "action", step.getAction() + "[" + step.getActionInput() + "]",
+                        "observation", step.getObservation()
+                ))
+                .toList();
+        response.put("reasoningChain", steps);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * List all tools available to the ReAct agent.
+     *
+     * Returns the name and description of each registered tool,
+     * so users know what capabilities the agent has.
+     */
+    @GetMapping("/agent/tools")
+    public ResponseEntity<Map<String, Object>> agentTools() {
+        Map<String, Object> response = new LinkedHashMap<>();
+        reActAgent.getTools().forEach((name, tool) ->
+                response.put(name, tool.getDescription()));
+        return ResponseEntity.ok(response);
     }
 }

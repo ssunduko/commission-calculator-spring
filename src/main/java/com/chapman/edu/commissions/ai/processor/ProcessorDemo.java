@@ -51,7 +51,8 @@ public class ProcessorDemo {
                                                 PromptProcessor promptProcessor,
                                                 SearchProcessor searchProcessor,
                                                 RagProcessor ragProcessor,
-                                                ModerationProcessor moderationProcessor) {
+                                                ModerationProcessor moderationProcessor,
+                                                ReActProcessor reActProcessor) {
         return args -> {
             log.info("\n\n{}", BANNER);
             log.info("  PROCESSOR STARTUP DEMO");
@@ -63,6 +64,7 @@ public class ProcessorDemo {
             demoPromptProcessor(promptProcessor);
             demoRagProcessor(ragProcessor);
             demoModerationProcessor(moderationProcessor);
+            demoReActProcessor(reActProcessor);
 
             log.info("\n{}", BANNER);
             log.info("  PROCESSOR STARTUP DEMO COMPLETE");
@@ -409,6 +411,49 @@ public class ProcessorDemo {
             log.info("      Stage 3 (Output): redacted={}, result='{}'",
                     stage3.get("data_was_redacted"),
                     truncate((String) stage3.get("sanitized_response")));
+        }
+    }
+
+    // ============================================================
+    // 6. ReAct PROCESSOR DEMO — Reasoning + Acting Agent
+    // ============================================================
+
+    private void demoReActProcessor(ReActProcessor reActProcessor) {
+        log.info("\n{}", SECTION);
+        log.info("  [6/6] ReActProcessor — Reasoning + Acting Agent");
+        log.info("{}", SECTION);
+
+        // Demo 6a: Show available tools
+        log.info("\n>>> Demo 6a: Agent Tools — Available Capabilities");
+        Map<String, String> tools = reActProcessor.getAvailableTools();
+        for (Map.Entry<String, String> entry : tools.entrySet()) {
+            log.info("    Tool: {} — {}", entry.getKey(), truncate(entry.getValue()));
+        }
+
+        // Demo 6b: Multi-step agent query (API call)
+        log.info("\n>>> Demo 6b: ReAct Agent — Multi-Step Commission Query");
+        try {
+            Map<String, Object> result = reActProcessor.demonstrateReActAgent(
+                    "What commission plans are currently active and what are their tier rates?");
+            log.info("    Question: {}", result.get("question"));
+            log.info("    Success: {}", result.get("success"));
+            log.info("    Steps taken: {}", result.get("total_steps"));
+            log.info("    Answer: {}", truncate((String) result.get("final_answer")));
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> chain = (Map<String, Object>) result.get("reasoning_chain");
+            if (chain != null) {
+                for (Map.Entry<String, Object> step : chain.entrySet()) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> stepData = (Map<String, Object>) step.getValue();
+                    log.info("    {}: Thought='{}' Action='{}'",
+                            step.getKey(),
+                            truncate((String) stepData.get("thought")),
+                            truncate((String) stepData.get("action")));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("    ReAct agent demo skipped — API unavailable: {}", e.getMessage());
         }
     }
 

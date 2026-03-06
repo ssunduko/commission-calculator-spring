@@ -1,5 +1,8 @@
 package com.chapman.edu.commissions.ai.integration;
 
+import com.chapman.edu.commissions.ai.service.agent.AgentResult;
+import com.chapman.edu.commissions.ai.service.agent.CommissionReActAgent;
+import com.chapman.edu.commissions.ai.service.agent.Tool;
 import com.chapman.edu.commissions.ai.service.ml.AnomalyDetectionService;
 import com.chapman.edu.commissions.ai.service.ml.CommissionExplainerService;
 import com.chapman.edu.commissions.ai.service.ml.ForecastingService;
@@ -23,9 +26,12 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Currency;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -392,6 +398,331 @@ class AiServiceIntegrationTest {
             assertThat(sanitized).contains("[REDACTED-EMAIL]");
             assertThat(sanitized).contains("$19,800");
             assertThat(sanitized).doesNotContain("alice@test.com");
+        }
+    }
+
+    // ============================================================
+    // ReAct Agent End-to-End Integration
+    // ============================================================
+
+    @Nested
+    @DisplayName("CommissionReActAgent end-to-end with real repositories")
+    class ReActAgentIntegration {
+
+        /**
+         * Creates a ReAct agent with real tools wired to real H2 repositories.
+         * Only the ChatClient (AI model) is mocked — all tool execution uses
+         * live database queries against the seeded H2 test data.
+         */
+        private CommissionReActAgent createAgentWithRealTools() {
+            CommissionReActAgent agent = new CommissionReActAgent(chatClient);
+
+            // Register lookup_user tool backed by real UserRepository
+            agent.registerTool(new Tool("lookup_user",
+                    "Look up a sales representative by name.",
+                    input -> {
+                        List<User> users = userRepository.searchByName(input.trim());
+                        if (users.isEmpty()) return "No user found matching '" + input + "'.";
+                        StringBuilder sb = new StringBuilder();
+                        for (User user : users) {
+                            sb.append(String.format(
+                                    "User: %s | ID: %s | Department: %s | Territory: %s\n",
+                                    user.getFullName(), user.getId(),
+                                    user.getDepartment() != null ? user.getDepartment() : "N/A",
+                                    user.getTerritory() != null ? user.getTerritory() : "N/A"));
+                        }
+                        return sb.toString().trim();
+                    }));
+
+            // Register lookup_deals tool backed by real DealRepository
+            agent.registerTool(new Tool("lookup_deals",
+                    "Look up deals. Input: 'status:WON', 'rep:<userId>', or 'all'.",
+                    input -> {
+                        String trimmed = input.trim();
+                        List<Deal> deals;
+                        if (trimmed.toLowerCase().startsWith("rep:")) {
+                            String repId = trimmed.substring(4).trim();
+                            deals = dealRepository.findAll().stream()
+                                    .filter(d -> d.getSalesRep() != null && d.getSalesRep().getId().equals(repId))
+                                    .collect(Collectors.toList());
+                        } else if (trimmed.toLowerCase().startsWith("status:")) {
+                            String statusStr = trimmed.substring(7).trim().toUpperCase();
+                            deals = dealRepository.findByStatus(DealStatus.valueOf(statusStr));
+                        } else {
+                            deals = dealRepository.findAll();
+                        }
+                        if (deals.isEmpty()) return "No deals found.";
+                        StringBuilder sb = new StringBuilder();
+                        sb.append(String.format("Found %d deal(s):\n", deals.size()));
+                        for (Deal deal : deals) {
+                            sb.append(String.format("- %s | Value: $%s | Status: %s | Rep: %s\n",
+                                    deal.getTitle(), deal.getValue().toPlainString(),
+                                    deal.getStatus(),
+                                    deal.getSalesRep() != null ? deal.getSalesRep().getFullName() : "N/A"));
+                        }
+                        return sb.toString().trim();
+                    }));
+
+            // Register lookup_calculations tool backed by real CommissionCalculationRepository
+            agent.registerTool(new Tool("lookup_calculations",
+                    "Look up commission calculations for a sales rep by user ID.",
+                    input -> {
+                        List<CommissionCalculation> calcs = calculationRepository.findBySalesRepId(input.trim());
+                        if (calcs.isEmpty()) return "No calculations found for user: " + input;
+                        StringBuilder sb = new StringBuilder();
+                        BigDecimal total = BigDecimal.ZERO;
+                        for (CommissionCalculation calc : calcs) {
+                            sb.append(String.format("- Base: $%s | Net: $%s | Status: %s | Deal: %s\n",
+                                    calc.getBaseCommission().toPlainString(),
+                                    calc.getNetCommission().toPlainString(),
+                                    calc.getStatus(),
+                                    calc.getDeal() != null ? calc.getDeal().getTitle() : "N/A"));
+                            total = total.add(calc.getNetCommission());
+                        }
+                        sb.append(String.format("Total net commission: $%s", total.toPlainString()));
+                        return sb.toString().trim();
+                    }));
+
+            // Register lookup_plan tool backed by real CommissionPlanRepository
+            agent.registerTool(new Tool("lookup_plan",
+                    "Look up a commission plan. Input: plan name or 'active'.",
+                    input -> {
+                        List<CommissionPlan> plans;
+                        if (input.trim().equalsIgnoreCase("active")) {
+                            plans = planRepository.findByStatus(PlanStatus.ACTIVE);
+                        } else {
+                            plans = planRepository.findByNameContainingIgnoreCase(input.trim());
+                        }
+                        if (plans.isEmpty()) return "No plans found for: " + input;
+                        StringBuilder sb = new StringBuilder();
+                        for (CommissionPlan p : plans) {
+                            sb.append(String.format("Plan: %s | Status: %s\n", p.getName(), p.getStatus()));
+                            Optional<CommissionPlan> withTiers = planRepository.findByIdWithTiers(p.getId());
+                            if (withTiers.isPresent() && withTiers.get().getTiers() != null) {
+                                for (CommissionTier tier : withTiers.get().getTiers()) {
+                                    sb.append(String.format("  - %s: $%s–%s at %s%%\n",
+                                            tier.getName(), tier.getLowerBound().toPlainString(),
+                                            tier.getUpperBound() != null ? "$" + tier.getUpperBound().toPlainString() : "unlimited",
+                                            tier.getRate().toPlainString()));
+                                }
+                            }
+                        }
+                        return sb.toString().trim();
+                    }));
+
+            // Register calculate_total tool (pure computation, no DB)
+            agent.registerTool(new Tool("calculate_total",
+                    "Calculate commission. Input: 'value * rate_percent' or 'sum:v1,v2,v3'.",
+                    input -> {
+                        String trimmed = input.trim();
+                        if (trimmed.toLowerCase().startsWith("sum:")) {
+                            String[] values = trimmed.substring(4).split(",");
+                            BigDecimal total = BigDecimal.ZERO;
+                            for (String val : values) total = total.add(new BigDecimal(val.trim()));
+                            return String.format("Sum total: $%s", total.setScale(2, RoundingMode.HALF_UP).toPlainString());
+                        }
+                        if (trimmed.contains("*")) {
+                            String[] parts = trimmed.split("\\*");
+                            BigDecimal value = new BigDecimal(parts[0].trim());
+                            BigDecimal rate = new BigDecimal(parts[1].trim());
+                            BigDecimal commission = value.multiply(rate)
+                                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                            return String.format("$%s * %s%% = $%s",
+                                    value.toPlainString(), rate.toPlainString(), commission.toPlainString());
+                        }
+                        return "Error: Unknown format.";
+                    }));
+
+            return agent;
+        }
+
+        @Test
+        @DisplayName("should look up user then calculations using real H2 data")
+        void shouldLookUpUserThenCalculations() {
+            CommissionReActAgent agent = createAgentWithRealTools();
+
+            // Step 1: AI decides to look up Alice
+            // Step 2: AI uses Alice's real ID to look up calculations
+            // Step 3: AI produces final answer
+            when(chatClient.prompt().system(anyString()).user(anyString()).call().content())
+                    .thenReturn(String.format(
+                            "Thought: I need to find Alice's user ID first.\nAction: lookup_user[Alice]"))
+                    .thenReturn(String.format(
+                            "Thought: Now I'll look up her commission calculations.\nAction: lookup_calculations[%s]",
+                            alice.getId()))
+                    .thenReturn(
+                            "Thought: I have Alice's commission data from the database.\n" +
+                            "Final Answer: Alice Johnson earned $19,800 in net commissions from her Acme Corp License deal.");
+
+            AgentResult result = agent.execute("How much commission did Alice earn?");
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalSteps()).isEqualTo(2);
+
+            // Verify step 1: lookup_user tool queried real H2 and returned Alice's data
+            assertThat(result.getSteps().get(0).getAction()).isEqualTo("lookup_user");
+            assertThat(result.getSteps().get(0).getObservation()).contains("Alice Johnson");
+            assertThat(result.getSteps().get(0).getObservation()).contains(alice.getId());
+            assertThat(result.getSteps().get(0).getObservation()).contains("Enterprise Sales");
+
+            // Verify step 2: lookup_calculations tool queried real H2 with Alice's ID
+            assertThat(result.getSteps().get(1).getAction()).isEqualTo("lookup_calculations");
+            assertThat(result.getSteps().get(1).getObservation()).contains("19800");
+            assertThat(result.getSteps().get(1).getObservation()).contains("Acme Corp License");
+
+            // Verify final answer
+            assertThat(result.getFinalAnswer()).contains("Alice Johnson");
+            assertThat(result.getFinalAnswer()).contains("$19,800");
+        }
+
+        @Test
+        @DisplayName("should look up deals by status from real H2 data")
+        void shouldLookUpDealsByStatus() {
+            CommissionReActAgent agent = createAgentWithRealTools();
+
+            when(chatClient.prompt().system(anyString()).user(anyString()).call().content())
+                    .thenReturn("Thought: I'll look up all won deals.\nAction: lookup_deals[status:WON]")
+                    .thenReturn("Thought: I have the won deals.\n" +
+                            "Final Answer: There are 2 won deals: Acme Corp License ($150,000) and TechStart SaaS ($35,000).");
+
+            AgentResult result = agent.execute("What deals have been won?");
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalSteps()).isEqualTo(1);
+            assertThat(result.getSteps().get(0).getObservation()).contains("Acme Corp License");
+            assertThat(result.getSteps().get(0).getObservation()).contains("TechStart SaaS");
+            assertThat(result.getSteps().get(0).getObservation()).contains("150000");
+            assertThat(result.getSteps().get(0).getObservation()).contains("35000");
+            // Should NOT contain the OPEN deal
+            assertThat(result.getSteps().get(0).getObservation()).doesNotContain("MegaCorp Transform");
+        }
+
+        @Test
+        @DisplayName("should look up active plans with tiers from real H2 data")
+        void shouldLookUpActivePlansWithTiers() {
+            CommissionReActAgent agent = createAgentWithRealTools();
+
+            when(chatClient.prompt().system(anyString()).user(anyString()).call().content())
+                    .thenReturn("Thought: I need to find active commission plans.\nAction: lookup_plan[active]")
+                    .thenReturn("Thought: I found the active plan with its tier structure.\n" +
+                            "Final Answer: The Standard Sales Plan is active with Starter (5%) and Enterprise (12%) tiers.");
+
+            AgentResult result = agent.execute("What commission plans are active?");
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalSteps()).isEqualTo(1);
+
+            String observation = result.getSteps().get(0).getObservation();
+            assertThat(observation).contains("Standard Sales Plan");
+            assertThat(observation).containsIgnoringCase("active");
+            assertThat(observation).contains("Starter");
+            assertThat(observation).contains("Enterprise");
+            assertThat(observation).contains("5");
+            assertThat(observation).contains("12");
+        }
+
+        @Test
+        @DisplayName("should chain user lookup, deal lookup, and calculation in multi-step flow")
+        void shouldChainMultipleToolsEndToEnd() {
+            CommissionReActAgent agent = createAgentWithRealTools();
+
+            // 3-step chain: find Bob → find his deals → find his calculations
+            when(chatClient.prompt().system(anyString()).user(anyString()).call().content())
+                    .thenReturn("Thought: I need to find Bob's user ID.\nAction: lookup_user[Bob]")
+                    .thenReturn(String.format(
+                            "Thought: Found Bob. Now I'll look up his deals.\nAction: lookup_deals[rep:%s]",
+                            bob.getId()))
+                    .thenReturn(String.format(
+                            "Thought: Bob has the TechStart deal. Let me check his commission.\nAction: lookup_calculations[%s]",
+                            bob.getId()))
+                    .thenReturn("Thought: I have all of Bob's data.\n" +
+                            "Final Answer: Bob Smith earned $3,080 net commission on the TechStart SaaS deal ($35,000).");
+
+            AgentResult result = agent.execute("What deals does Bob have and how much commission did he earn?");
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalSteps()).isEqualTo(3);
+
+            // Step 1: lookup_user returns Bob's real data
+            assertThat(result.getSteps().get(0).getObservation()).contains("Bob Smith");
+            assertThat(result.getSteps().get(0).getObservation()).contains(bob.getId());
+
+            // Step 2: lookup_deals returns Bob's real deals
+            assertThat(result.getSteps().get(1).getObservation()).contains("TechStart SaaS");
+            assertThat(result.getSteps().get(1).getObservation()).contains("35000");
+
+            // Step 3: lookup_calculations returns Bob's real commissions
+            assertThat(result.getSteps().get(2).getObservation()).contains("3080");
+        }
+
+        @Test
+        @DisplayName("should use calculate_total tool with real data values")
+        void shouldUseCalculateToolWithRealData() {
+            CommissionReActAgent agent = createAgentWithRealTools();
+
+            // Agent looks up plan, then calculates commission for a deal value
+            when(chatClient.prompt().system(anyString()).user(anyString()).call().content())
+                    .thenReturn("Thought: I'll check the plan tiers.\nAction: lookup_plan[active]")
+                    .thenReturn("Thought: The Enterprise tier is 12%. Let me calculate 12% of $150,000.\n" +
+                            "Action: calculate_total[150000 * 12]")
+                    .thenReturn("Thought: The calculation confirms the commission.\n" +
+                            "Final Answer: A $150,000 deal at the Enterprise tier (12%) yields $18,000.00 in commission.");
+
+            AgentResult result = agent.execute("How much commission does a $150K deal earn under the Standard Plan?");
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalSteps()).isEqualTo(2);
+
+            // Step 1: Plan lookup returns real tier data
+            assertThat(result.getSteps().get(0).getObservation()).contains("Enterprise");
+            assertThat(result.getSteps().get(0).getObservation()).contains("12");
+
+            // Step 2: Calculation produces precise result
+            assertThat(result.getSteps().get(1).getObservation()).contains("$18000.00");
+        }
+
+        @Test
+        @DisplayName("should handle user not found gracefully in agent flow")
+        void shouldHandleUserNotFound() {
+            CommissionReActAgent agent = createAgentWithRealTools();
+
+            when(chatClient.prompt().system(anyString()).user(anyString()).call().content())
+                    .thenReturn("Thought: I need to find Charlie.\nAction: lookup_user[Charlie]")
+                    .thenReturn("Thought: Charlie was not found in the system.\n" +
+                            "Final Answer: No sales representative named Charlie was found in the system.");
+
+            AgentResult result = agent.execute("How much did Charlie earn?");
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalSteps()).isEqualTo(1);
+            assertThat(result.getSteps().get(0).getObservation()).contains("No user found");
+        }
+
+        @Test
+        @DisplayName("should sum multiple commission values using calculate_total tool")
+        void shouldSumMultipleCommissions() {
+            CommissionReActAgent agent = createAgentWithRealTools();
+
+            // Agent looks up all calculations then sums them
+            when(chatClient.prompt().system(anyString()).user(anyString()).call().content())
+                    .thenReturn(String.format(
+                            "Thought: I'll get Alice's commissions.\nAction: lookup_calculations[%s]",
+                            alice.getId()))
+                    .thenReturn(String.format(
+                            "Thought: Alice has $19,800. Now Bob's.\nAction: lookup_calculations[%s]",
+                            bob.getId()))
+                    .thenReturn("Thought: Alice earned $19,800 and Bob earned $3,080. Let me sum them.\n" +
+                            "Action: calculate_total[sum:19800,3080]")
+                    .thenReturn("Thought: The team total is confirmed.\n" +
+                            "Final Answer: The team earned $22,880.00 in total commissions (Alice: $19,800, Bob: $3,080).");
+
+            AgentResult result = agent.execute("What is the total team commission?");
+
+            assertThat(result.isSuccess()).isTrue();
+            assertThat(result.getTotalSteps()).isEqualTo(3);
+
+            // Sum tool produces correct total from real data
+            assertThat(result.getSteps().get(2).getObservation()).contains("$22880.00");
         }
     }
 }
