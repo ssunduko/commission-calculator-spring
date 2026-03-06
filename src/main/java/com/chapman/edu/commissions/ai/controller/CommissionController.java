@@ -4,6 +4,7 @@ import com.chapman.edu.commissions.ai.service.ml.AnomalyDetectionService;
 import com.chapman.edu.commissions.ai.service.ml.CommissionExplainerService;
 import com.chapman.edu.commissions.ai.service.ml.DisputeAnalysisService;
 import com.chapman.edu.commissions.ai.service.ml.ForecastingService;
+import com.chapman.edu.commissions.ai.service.moderation.ModerationService;
 import com.chapman.edu.commissions.ai.service.rag.CommissionRagService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,6 +40,10 @@ import java.util.Map;
  * 5. /api/ai/anomaly/** — Anomaly detection endpoints
  *    Identifies unusual commission calculations that need review.
  *
+ * 6. /api/ai/moderation/** — AI moderation and guardrails endpoints
+ *    Validates inputs, classifies content, and sanitizes outputs
+ *    to ensure safe, on-topic AI interactions.
+ *
  * ARCHITECTURE NOTE:
  * The controller is thin — it delegates all logic to service classes.
  * This follows the Spring best practice of keeping controllers as
@@ -58,17 +63,20 @@ public class CommissionController {
     private final DisputeAnalysisService disputeAnalysisService;
     private final ForecastingService forecastingService;
     private final AnomalyDetectionService anomalyDetectionService;
+    private final ModerationService moderationService;
 
     public CommissionController(CommissionRagService ragService,
                                 CommissionExplainerService explainerService,
                                 DisputeAnalysisService disputeAnalysisService,
                                 ForecastingService forecastingService,
-                                AnomalyDetectionService anomalyDetectionService) {
+                                AnomalyDetectionService anomalyDetectionService,
+                                ModerationService moderationService) {
         this.ragService = ragService;
         this.explainerService = explainerService;
         this.disputeAnalysisService = disputeAnalysisService;
         this.forecastingService = forecastingService;
         this.anomalyDetectionService = anomalyDetectionService;
+        this.moderationService = moderationService;
     }
 
     // ============================================================
@@ -96,8 +104,19 @@ public class CommissionController {
         if (question == null || question.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Question is required"));
         }
+
+        // GUARDRAIL: Validate input before sending to AI
+        ModerationService.ModerationResult inputCheck = moderationService.validateInput(question);
+        if (!inputCheck.isAllowed()) {
+            return ResponseEntity.badRequest().body(Map.of("error", inputCheck.getReason()));
+        }
+
         String answer = ragService.answerQuestion(question);
-        return ResponseEntity.ok(Map.of("question", question, "response", answer));
+
+        // GUARDRAIL: Sanitize output before returning to user
+        String safeAnswer = moderationService.sanitizeOutput(answer);
+
+        return ResponseEntity.ok(Map.of("question", question, "response", safeAnswer));
     }
 
     /**
@@ -243,5 +262,81 @@ public class CommissionController {
     public ResponseEntity<Map<String, String>> checkAnomaly(@PathVariable String calculationId) {
         String result = anomalyDetectionService.checkSingleCalculation(calculationId);
         return ResponseEntity.ok(Map.of("calculationId", calculationId, "result", result));
+    }
+
+    // ============================================================
+    // Moderation and Guardrails Endpoints
+    // ============================================================
+
+    /**
+     * Validate user input against all guardrail checks.
+     *
+     * Runs the full input validation pipeline (length, injection,
+     * topic boundary) and returns whether the input is allowed.
+     *
+     * GUARDRAILS APPLIED:
+     * 1. Empty/null check
+     * 2. Length limit (max 2000 characters)
+     * 3. Prompt injection pattern detection
+     * 4. Topic boundary enforcement (commission domain)
+     */
+    @PostMapping("/moderation/validate")
+    public ResponseEntity<Map<String, String>> validateInput(@RequestBody Map<String, String> request) {
+        String input = request.get("input");
+        ModerationService.ModerationResult result = moderationService.validateInput(input);
+
+        if (result.isAllowed()) {
+            return ResponseEntity.ok(Map.of("status", "ALLOWED", "message", "Input passed all guardrail checks."));
+        }
+        return ResponseEntity.ok(Map.of("status", "BLOCKED", "reason", result.getReason()));
+    }
+
+    /**
+     * Run AI-powered content classification on user input.
+     *
+     * Uses the AI model to determine whether the input is an
+     * appropriate commission-related query. This catches nuanced
+     * attacks that keyword-based filters miss.
+     *
+     * NOTE: This endpoint makes an extra AI API call, so it's
+     * more expensive than the /validate endpoint.
+     */
+    @PostMapping("/moderation/classify")
+    public ResponseEntity<Map<String, String>> classifyInput(@RequestBody Map<String, String> request) {
+        String input = request.get("input");
+        if (input == null || input.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Input is required"));
+        }
+
+        ModerationService.ModerationResult result = moderationService.classifyInput(input);
+
+        if (result.isAllowed()) {
+            return ResponseEntity.ok(Map.of("status", "ALLOWED", "message", "AI classified input as appropriate."));
+        }
+        return ResponseEntity.ok(Map.of("status", "BLOCKED", "reason", result.getReason()));
+    }
+
+    /**
+     * Sanitize AI-generated text by redacting sensitive data.
+     *
+     * Scans the provided text for patterns matching SSNs, credit
+     * card numbers, email addresses, and API keys, replacing them
+     * with [REDACTED-*] placeholders.
+     */
+    @PostMapping("/moderation/sanitize")
+    public ResponseEntity<Map<String, String>> sanitizeOutput(@RequestBody Map<String, String> request) {
+        String text = request.get("text");
+        if (text == null || text.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Text is required"));
+        }
+
+        String sanitized = moderationService.sanitizeOutput(text);
+        boolean wasModified = !sanitized.equals(text);
+
+        return ResponseEntity.ok(Map.of(
+                "original_length", String.valueOf(text.length()),
+                "sanitized", sanitized,
+                "redacted", String.valueOf(wasModified)
+        ));
     }
 }
