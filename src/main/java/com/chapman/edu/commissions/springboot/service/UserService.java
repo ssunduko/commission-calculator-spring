@@ -6,6 +6,7 @@ import com.chapman.edu.commissions.springboot.dto.request.CreateUserRequest;
 import com.chapman.edu.commissions.springboot.exception.BusinessValidationException;
 import com.chapman.edu.commissions.springboot.exception.ResourceNotFoundException;
 import com.chapman.edu.commissions.springboot.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,6 +18,7 @@ import java.util.List;
  * Service layer for User management business logic.
  */
 @Service
+@RequiredArgsConstructor
 public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
@@ -24,10 +26,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     public User createUser(CreateUserRequest request) {
         // Business rule: username must be unique

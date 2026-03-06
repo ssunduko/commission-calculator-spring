@@ -8,10 +8,13 @@ import com.chapman.edu.commissions.orm.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -62,22 +65,43 @@ public class CommissionDocumentService {
 
     private static final Logger log = LoggerFactory.getLogger(CommissionDocumentService.class);
 
-    private final VectorStore vectorStore;
+    private final SimpleVectorStore vectorStore;
     private final DealRepository dealRepository;
     private final CommissionPlanRepository planRepository;
     private final CommissionCalculationRepository calculationRepository;
     private final UserRepository userRepository;
+    private final String vectorStoreFilePath;
 
-    public CommissionDocumentService(VectorStore vectorStore,
+    public CommissionDocumentService(SimpleVectorStore vectorStore,
                                      DealRepository dealRepository,
                                      CommissionPlanRepository planRepository,
                                      CommissionCalculationRepository calculationRepository,
-                                     UserRepository userRepository) {
+                                     UserRepository userRepository,
+                                     @Value("${app.vectorstore.file-path:data/vectorstore.json}") String vectorStoreFilePath) {
         this.vectorStore = vectorStore;
         this.dealRepository = dealRepository;
         this.planRepository = planRepository;
         this.calculationRepository = calculationRepository;
         this.userRepository = userRepository;
+        this.vectorStoreFilePath = vectorStoreFilePath;
+    }
+
+    /**
+     * Checks whether the vector store was already loaded from a persisted file.
+     *
+     * PERSISTENCE FLOW:
+     * On startup, VectorStoreConfig attempts to load the store from disk.
+     * If successful, the store already contains embeddings from a previous run,
+     * and we can skip the expensive re-embedding step.
+     *
+     * This avoids re-computing embeddings for data that hasn't changed,
+     * which is especially important because embedding is the slowest part
+     * of the document loading pipeline.
+     *
+     * @return true if a persisted vector store file exists on disk
+     */
+    public boolean isVectorStorePersistedOnDisk() {
+        return new File(vectorStoreFilePath).exists();
     }
 
     /**
@@ -86,11 +110,16 @@ public class CommissionDocumentService {
      * This method is called during application startup (from DataInitializer)
      * to populate the vector store with searchable content.
      *
+     * PERSISTENCE:
+     * After loading documents, the vector store is saved to a JSON file
+     * on disk. On subsequent startups, the persisted file is loaded
+     * directly by VectorStoreConfig, skipping the expensive embedding step.
+     *
      * PERFORMANCE NOTE:
      * In production, you would:
      * 1. Use batch processing for large datasets
      * 2. Implement incremental updates (only embed new/changed records)
-     * 3. Use a persistent vector store to avoid re-embedding on restart
+     * 3. Use a persistent vector store (e.g., PgVector) instead of file-based
      */
     public void loadAllDocuments() {
         log.info("Loading commission domain data into vector store...");
@@ -115,9 +144,31 @@ public class CommissionDocumentService {
             // 2. Stores the resulting vectors alongside the text and metadata
             vectorStore.add(documents);
             log.info("Successfully loaded {} documents into vector store", documents.size());
+
+            // Persist the vector store to disk so subsequent startups skip re-embedding
+            persistVectorStore();
         } else {
             log.info("No documents to load into vector store (database may be empty)");
         }
+    }
+
+    /**
+     * Saves the current vector store contents to a JSON file on disk.
+     *
+     * PERSISTENCE MECHANISM:
+     * SimpleVectorStore.save(File) serializes all documents and their
+     * embedding vectors to a JSON file. On next startup, load(File)
+     * restores them without calling the EmbeddingModel again.
+     *
+     * This is a key optimization: embedding computation (text → vector)
+     * is the most expensive step. By persisting the results, we turn
+     * an O(n * embedding_time) startup into an O(n * file_read_time) startup.
+     */
+    private void persistVectorStore() {
+        File storeFile = new File(vectorStoreFilePath);
+        storeFile.getParentFile().mkdirs();
+        vectorStore.save(storeFile);
+        log.info("Vector store persisted to: {}", storeFile.getAbsolutePath());
     }
 
     /**

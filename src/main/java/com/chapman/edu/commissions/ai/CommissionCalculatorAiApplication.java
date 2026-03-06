@@ -42,15 +42,15 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  * ┌──────────────────────────────────┐
  * │  REST Controller (ai.controller) │  ← HTTP endpoints
  * ├──────────────────────────────────┤
- * │  AI Services (ai.ml, ai.rag)    │  ← AI business logic
+ * │  AI Services (ai.ml, ai.rag)     │  ← AI business logic
  * ├──────────────────────────────────┤
- * │  Prompt Templates (ai.prompt)   │  ← Prompt engineering
+ * │  Prompt Templates (ai.prompt)    │  ← Prompt engineering
  * ├──────────────────────────────────┤
- * │  Vector Store (ai.vectorstore)  │  ← Semantic search
+ * │  Vector Store (ai.vectorstore)   │  ← Semantic search
  * ├──────────────────────────────────┤
- * │  ORM Layer (orm.*)              │  ← Data access (reused)
+ * │  ORM Layer (orm.*)               │  ← Data access (reused)
  * ├──────────────────────────────────┤
- * │  H2 Database                    │  ← Data storage
+ * │  H2 Database                     │  ← Data storage
  * └──────────────────────────────────┘
  */
 @SpringBootApplication(

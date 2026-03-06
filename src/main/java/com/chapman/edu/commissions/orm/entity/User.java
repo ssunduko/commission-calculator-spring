@@ -157,6 +157,50 @@ public class User {
     @JsonIgnore
     private List<Deal> deals = new ArrayList<>();
 
+    /**
+     * INVERSE SIDE of the @OneToOne relationship with UserProfile.
+     *
+     * mappedBy = "user": The UserProfile entity owns the relationship
+     * (it has the @JoinColumn with the FK column 'user_id').
+     * This side is a read-only mirror — setting user.setProfile(profile)
+     * alone does NOT write the FK. You must also set profile.setUser(user).
+     *
+     * @OneToOne means exactly one UserProfile per User (and vice versa).
+     * Unlike @OneToMany where many children reference one parent, here
+     * the FK column in 'user_profiles' has a UNIQUE constraint so only
+     * one profile row can reference a given user.
+     *
+     * CascadeType.ALL + orphanRemoval: The profile's lifecycle is tied to the user.
+     * - When the user is persisted, the profile is auto-persisted (PERSIST)
+     * - When the user is deleted, the profile is auto-deleted (REMOVE)
+     * - If user.setProfile(null), the old profile is deleted (orphanRemoval)
+     */
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private UserProfile profile;
+
+    /**
+     * INVERSE SIDE of the @ManyToMany relationship with Company.
+     *
+     * mappedBy = "users": The Company entity owns the relationship
+     * (it has the @JoinTable defining the 'user_companies' join table).
+     * This side is a read-only mirror — adding to user.getCompanies()
+     * alone does NOT insert rows in the join table. You must add via
+     * company.addUser(user) to persist the association.
+     *
+     * @ManyToMany means a User can belong to many Companies, and a
+     * Company can have many Users. This requires a JOIN TABLE because
+     * neither entity's table can hold a single FK column to represent
+     * the N:M cardinality — a User row can't have multiple company_id
+     * values in one column, and vice versa.
+     *
+     * Set<Company> is used instead of List<Company> to prevent Hibernate's
+     * MultipleBagFetchException and to avoid duplicate associations.
+     */
+    @ManyToMany(mappedBy = "users", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private Set<Company> companies = new HashSet<>();
+
     public User(String username, String email, String firstName, String lastName) {
         this.username = username;
         this.email = email;

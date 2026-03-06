@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -61,7 +61,7 @@ class AiServiceIntegrationTest {
     // Mocked AI dependencies (no external API calls)
     private ChatClient chatClient;
     private PromptTemplateService promptTemplateService;
-    private VectorStore vectorStore;
+    private SimpleVectorStore vectorStore;
 
     private User alice;
     private User bob;
@@ -72,7 +72,7 @@ class AiServiceIntegrationTest {
         // Mock the AI client with deep stubs for fluent API
         chatClient = mock(ChatClient.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
         promptTemplateService = mock(PromptTemplateService.class);
-        vectorStore = mock(VectorStore.class);
+        vectorStore = mock(SimpleVectorStore.class);
 
         // Seed test data into H2 database
         alice = new User("alice.johnson", "alice@test.com", "Alice", "Johnson");
@@ -277,7 +277,8 @@ class AiServiceIntegrationTest {
         void shouldLoadAllEntitiesFromDb() {
             CommissionDocumentService docService = new CommissionDocumentService(
                     vectorStore, dealRepository, planRepository,
-                    calculationRepository, userRepository);
+                    calculationRepository, userRepository,
+                    "target/test-vectorstore.json");
 
             docService.loadAllDocuments();
 

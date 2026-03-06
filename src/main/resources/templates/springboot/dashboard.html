@@ -50,7 +50,9 @@ accessible as ${key} in the template.
         <a th:href="@{/springboot/calculations}">Calculations</a>
         <span sec:authorize="isAuthenticated()" style="margin-left: 2rem;">
             <span sec:authentication="name">User</span>
-            <a th:href="@{/logout}" style="margin-left: 0.5rem;">[Logout]</a>
+            <form th:action="@{/logout}" method="post" style="display: inline;">
+                <button type="submit" style="background: none; border: none; color: white; cursor: pointer; font-family: inherit; font-size: inherit; padding: 0; margin-left: 0.5rem;">[Logout]</button>
+            </form>
         </span>
     </div>
 </nav>

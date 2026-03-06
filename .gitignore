@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Vector Store ###
+data/vectorstore.json

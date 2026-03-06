@@ -115,8 +115,10 @@ public class DealController {
     @Operation(summary = "List all deals", description = "Retrieve all deals, optionally filtered by status or sales rep ID")
     @GetMapping
     public ResponseEntity<ApiResponse<List<DealResponse>>> getAllDeals(
-            @Parameter(description = "Filter by deal status (OPEN, WON, LOST, CANCELLED)") @RequestParam(required = false) String status,
-            @Parameter(description = "Filter by sales representative ID") @RequestParam(required = false) String salesRepId) {
+            @Parameter(description = "Filter by deal status (OPEN, WON, LOST, CANCELLED)")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "Filter by sales representative ID")
+            @RequestParam(required = false) String salesRepId) {
 
         List<Deal> deals;
 

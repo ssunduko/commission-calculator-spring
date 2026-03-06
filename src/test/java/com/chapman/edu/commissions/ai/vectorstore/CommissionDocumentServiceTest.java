@@ -15,7 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,7 +34,7 @@ import static org.mockito.Mockito.*;
 class CommissionDocumentServiceTest {
 
     @Mock
-    private VectorStore vectorStore;
+    private SimpleVectorStore vectorStore;
 
     @Mock
     private DealRepository dealRepository;
@@ -48,7 +48,6 @@ class CommissionDocumentServiceTest {
     @Mock
     private UserRepository userRepository;
 
-    @InjectMocks
     private CommissionDocumentService documentService;
 
     private User testUser;
@@ -58,6 +57,11 @@ class CommissionDocumentServiceTest {
 
     @BeforeEach
     void setUp() {
+        documentService = new CommissionDocumentService(
+                vectorStore, dealRepository, planRepository,
+                calculationRepository, userRepository,
+                "target/test-vectorstore.json");
+
         testUser = new User("alice", "alice@test.com", "Alice", "Johnson");
         testUser.setId("user-001");
         testUser.addRole(UserRole.SALES_REP);

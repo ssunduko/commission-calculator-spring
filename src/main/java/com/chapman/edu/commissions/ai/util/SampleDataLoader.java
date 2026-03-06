@@ -64,8 +64,12 @@ public class SampleDataLoader {
             // Only initialize if database is empty
             if (userRepository.count() > 0) {
                 log.info("Database already contains data, skipping initialization");
-                // Still load existing data into vector store
-                documentService.loadAllDocuments();
+                // Load into vector store only if not already persisted on disk
+                if (documentService.isVectorStorePersistedOnDisk()) {
+                    log.info("Vector store already loaded from persisted file, skipping re-embedding");
+                } else {
+                    documentService.loadAllDocuments();
+                }
                 return;
             }
 
