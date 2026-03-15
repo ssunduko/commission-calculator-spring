@@ -9,6 +9,8 @@ import com.chapman.edu.commissions.ai.service.ml.DisputeAnalysisService;
 import com.chapman.edu.commissions.ai.service.ml.ForecastingService;
 import com.chapman.edu.commissions.ai.service.moderation.ModerationService;
 import com.chapman.edu.commissions.ai.service.rag.CommissionRagService;
+import com.chapman.edu.commissions.ai.service.workflow.CommissionWorkflowOrchestrator;
+import com.chapman.edu.commissions.ai.service.workflow.WorkflowResult;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -49,6 +51,10 @@ import java.util.Map;
  *    Validates inputs, classifies content, and sanitizes outputs
  *    to ensure safe, on-topic AI interactions.
  *
+ * 7. /api/ai/workflow/** — Agentic Workflow endpoints
+ *    Multi-agent orchestrated workflows for complex tasks like
+ *    commission reviews (data gathering → compliance → anomaly → report).
+ *
  * ARCHITECTURE NOTE:
  * The controller is thin — it delegates all logic to service classes.
  * This follows the Spring best practice of keeping controllers as
@@ -70,6 +76,7 @@ public class CommissionController {
     private final AnomalyDetectionService anomalyDetectionService;
     private final ModerationService moderationService;
     private final CommissionReActAgent reActAgent;
+    private final CommissionWorkflowOrchestrator workflowOrchestrator;
 
     public CommissionController(CommissionRagService ragService,
                                 CommissionExplainerService explainerService,
@@ -77,7 +84,8 @@ public class CommissionController {
                                 ForecastingService forecastingService,
                                 AnomalyDetectionService anomalyDetectionService,
                                 ModerationService moderationService,
-                                CommissionReActAgent reActAgent) {
+                                CommissionReActAgent reActAgent,
+                                CommissionWorkflowOrchestrator workflowOrchestrator) {
         this.ragService = ragService;
         this.explainerService = explainerService;
         this.disputeAnalysisService = disputeAnalysisService;
@@ -85,6 +93,7 @@ public class CommissionController {
         this.anomalyDetectionService = anomalyDetectionService;
         this.moderationService = moderationService;
         this.reActAgent = reActAgent;
+        this.workflowOrchestrator = workflowOrchestrator;
     }
 
     // ============================================================
@@ -416,5 +425,67 @@ public class CommissionController {
         reActAgent.getTools().forEach((name, tool) ->
                 response.put(name, tool.getDescription()));
         return ResponseEntity.ok(response);
+    }
+
+    // ============================================================
+    // Agentic Workflow Endpoints
+    // ============================================================
+
+    /**
+     * Execute a full commission review workflow using multiple AI agents.
+     *
+     * AGENTIC WORKFLOW:
+     * Unlike the ReAct agent (single agent + tools), this endpoint
+     * orchestrates MULTIPLE specialized AI agents in a pipeline:
+     *
+     * 1. Data Gathering Agent → collects all commission data
+     * 2. Compliance Check Agent → validates against plan rules
+     * 3. Anomaly Analysis Agent → detects statistical outliers
+     * 4. Report Generation Agent → synthesizes a final review
+     *
+     * Each agent has its own AI persona and writes findings to
+     * shared state. The orchestrator manages sequencing and
+     * early termination.
+     *
+     * Example requests:
+     * - "Review Alice Johnson's commission performance"
+     * - "Audit Bob Smith's commission calculations"
+     * - "Generate a commission review for the enterprise team"
+     */
+    @PostMapping("/workflow/review")
+    public ResponseEntity<Map<String, Object>> workflowReview(@RequestBody Map<String, String> request) {
+        String reviewRequest = request.get("request");
+        if (reviewRequest == null || reviewRequest.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Request is required"));
+        }
+
+        // Validate input through moderation
+        ModerationService.ModerationResult inputCheck = moderationService.validateInput(reviewRequest);
+        if (!inputCheck.isAllowed()) {
+            return ResponseEntity.badRequest().body(Map.of("error", inputCheck.getReason()));
+        }
+
+        WorkflowResult result = workflowOrchestrator.executeReview(reviewRequest);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("request", result.getOriginalRequest());
+        response.put("report", moderationService.sanitizeOutput(result.getFinalReport()));
+        response.put("success", result.isSuccess());
+        response.put("totalStages", result.getTotalStages());
+        response.put("stageLog", result.getStageLog());
+        response.put("flags", result.getFlags());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * List the agents registered in the workflow pipeline.
+     *
+     * Returns each stage and its assigned agent, so users
+     * understand the workflow structure.
+     */
+    @GetMapping("/workflow/agents")
+    public ResponseEntity<Map<String, String>> workflowAgents() {
+        return ResponseEntity.ok(workflowOrchestrator.getRegisteredAgents());
     }
 }

@@ -30,6 +30,9 @@ import java.util.Map;
  * - PromptProcessor: Prompt engineering techniques and templates
  * - SearchProcessor: Vector store semantic search (runs locally)
  * - RagProcessor: Full RAG pipeline (retrieval + generation)
+ * - ModerationProcessor: AI safety guardrails and input/output filtering
+ * - ReActProcessor: Single-agent reasoning + acting with tools
+ * - WorkflowProcessor: Multi-agent orchestrated workflow (agentic workflow pattern)
  *
  * NOTE ON AI API CALLS:
  * Methods that call the Claude API are wrapped in try-catch blocks.
@@ -52,7 +55,8 @@ public class ProcessorDemo {
                                                 SearchProcessor searchProcessor,
                                                 RagProcessor ragProcessor,
                                                 ModerationProcessor moderationProcessor,
-                                                ReActProcessor reActProcessor) {
+                                                ReActProcessor reActProcessor,
+                                                WorkflowProcessor workflowProcessor) {
         return args -> {
             log.info("\n\n{}", BANNER);
             log.info("  PROCESSOR STARTUP DEMO");
@@ -65,6 +69,7 @@ public class ProcessorDemo {
             demoRagProcessor(ragProcessor);
             demoModerationProcessor(moderationProcessor);
             demoReActProcessor(reActProcessor);
+            demoWorkflowProcessor(workflowProcessor);
 
             log.info("\n{}", BANNER);
             log.info("  PROCESSOR STARTUP DEMO COMPLETE");
@@ -78,7 +83,7 @@ public class ProcessorDemo {
 
     private void demoAiProcessor(AiProcessor aiProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [1/4] AiProcessor — Spring AI Framework Setup");
+        log.info("  [1/7] AiProcessor — Spring AI Framework Setup");
         log.info("{}", SECTION);
 
         // Demo 1a: Configuration inspection (no API call)
@@ -133,7 +138,7 @@ public class ProcessorDemo {
 
     private void demoSearchProcessor(SearchProcessor searchProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [2/4] SearchProcessor — Vector DB & Semantic Search");
+        log.info("  [2/7] SearchProcessor — Vector DB & Semantic Search");
         log.info("{}", SECTION);
 
         // Demo 2a: Basic semantic search (local — no API call)
@@ -180,7 +185,7 @@ public class ProcessorDemo {
 
     private void demoPromptProcessor(PromptProcessor promptProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [3/4] PromptProcessor — Prompt Engineering");
+        log.info("  [3/7] PromptProcessor — Prompt Engineering");
         log.info("{}", SECTION);
 
         // Demo 3a: Role assignment (API call)
@@ -268,7 +273,7 @@ public class ProcessorDemo {
 
     private void demoRagProcessor(RagProcessor ragProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [4/4] RagProcessor — RAG Implementation");
+        log.info("  [4/7] RagProcessor — RAG Implementation");
         log.info("{}", SECTION);
 
         // Demo 4a: Basic RAG query (API call)
@@ -351,7 +356,7 @@ public class ProcessorDemo {
 
     private void demoModerationProcessor(ModerationProcessor moderationProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [5/5] ModerationProcessor — AI Safety & Guardrails");
+        log.info("  [5/7] ModerationProcessor — AI Safety & Guardrails");
         log.info("{}", SECTION);
 
         // Demo 5a: Input validation (no API call — all local checks)
@@ -420,7 +425,7 @@ public class ProcessorDemo {
 
     private void demoReActProcessor(ReActProcessor reActProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [6/6] ReActProcessor — Reasoning + Acting Agent");
+        log.info("  [6/7] ReActProcessor — Reasoning + Acting Agent");
         log.info("{}", SECTION);
 
         // Demo 6a: Show available tools
@@ -454,6 +459,77 @@ public class ProcessorDemo {
             }
         } catch (Exception e) {
             log.warn("    ReAct agent demo skipped — API unavailable: {}", e.getMessage());
+        }
+    }
+
+    // ============================================================
+    // 7. WORKFLOW PROCESSOR DEMO — Agentic Workflow Pattern
+    // ============================================================
+
+    /**
+     * Demonstrates the Agentic Workflow Pattern.
+     *
+     * WHAT MAKES THIS DIFFERENT:
+     * Unlike ReAct (demo 6), which uses a SINGLE agent reasoning in a
+     * loop with tools, the workflow orchestrates MULTIPLE specialized
+     * AI agents in a pipeline. Each agent has its own persona and
+     * expertise:
+     *
+     *   Agent 1 (Data Gathering)    → thinks like a data analyst
+     *   Agent 2 (Compliance Check)  → thinks like an auditor
+     *   Agent 3 (Anomaly Analysis)  → thinks like a data scientist
+     *   Agent 4 (Report Generation) → thinks like a senior manager
+     *
+     * The orchestrator passes shared state between them, allowing
+     * each agent to build on the previous agent's work.
+     */
+    private void demoWorkflowProcessor(WorkflowProcessor workflowProcessor) {
+        log.info("\n{}", SECTION);
+        log.info("  [7/7] WorkflowProcessor — Agentic Workflow (Multi-Agent)");
+        log.info("{}", SECTION);
+
+        // Demo 7a: Show registered workflow agents (no API call)
+        log.info("\n>>> Demo 7a: Workflow Agents — Registered Pipeline Stages");
+        Map<String, String> agents = workflowProcessor.getWorkflowAgents();
+        int stageNum = 1;
+        for (Map.Entry<String, String> entry : agents.entrySet()) {
+            log.info("    Stage {}: {} → {}", stageNum++, entry.getKey(), entry.getValue());
+        }
+
+        // Demo 7b: Full workflow execution (multiple API calls)
+        log.info("\n>>> Demo 7b: Commission Review Workflow — Full Multi-Agent Pipeline");
+        log.info("    Pattern: User Request → Gathering Agent → Compliance Agent → Anomaly Agent → Report Agent");
+        try {
+            Map<String, Object> result = workflowProcessor.demonstrateWorkflow(
+                    "Review Alice Johnson's commission performance");
+
+            log.info("    Request: {}", result.get("request"));
+            log.info("    Success: {}", result.get("success"));
+            log.info("    Total Stages: {}", result.get("total_stages"));
+
+            // Log stage-by-stage progression
+            @SuppressWarnings("unchecked")
+            java.util.List<String> stageLog = (java.util.List<String>) result.get("stage_log");
+            if (stageLog != null) {
+                log.info("    Stage Log:");
+                for (String entry : stageLog) {
+                    log.info("      → {}", entry);
+                }
+            }
+
+            // Log any flags raised during processing
+            @SuppressWarnings("unchecked")
+            java.util.List<String> flags = (java.util.List<String>) result.get("flags");
+            if (flags != null && !flags.isEmpty()) {
+                log.info("    Flags Raised: {}", flags);
+            }
+
+            // Log the final report (truncated)
+            String report = (String) result.get("final_report");
+            log.info("    Final Report Preview: {}", truncate(report));
+
+        } catch (Exception e) {
+            log.warn("    Workflow demo skipped — API unavailable: {}", e.getMessage());
         }
     }
 
