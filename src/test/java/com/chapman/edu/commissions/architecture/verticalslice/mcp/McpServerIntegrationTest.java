@@ -1,7 +1,13 @@
 package com.chapman.edu.commissions.verticalslice.mcp;
 
-import com.chapman.edu.commissions.verticalslice.features.deals.CreateDealRequest;
-import com.chapman.edu.commissions.verticalslice.features.deals.DealService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CalculateCommissionRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.CreateDisputeRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.AddRuleToPlanRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CreateCommissionPlanRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.CreateDealRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -172,7 +178,7 @@ public class McpServerIntegrationTest {
 
         // Extract the deal ID from response
         var dealResponse = objectMapper.readValue(createResponse,
-            com.chapman.edu.commissions.verticalslice.features.deals.DealResponse.class);
+            DealResponse.class);
         String dealId = dealResponse.id();
 
         // Step 2: Retrieve the deal
@@ -194,7 +200,7 @@ public class McpServerIntegrationTest {
     @Test
     public void testCommissionPlanToolsViaRestApi() throws Exception {
         // Test commission plan tools
-        var createPlanRequest = new com.chapman.edu.commissions.verticalslice.features.plans.CreateCommissionPlanRequest(
+        var createPlanRequest = new CreateCommissionPlanRequest(
             "MCP Test Plan",
             "USD",
             java.time.LocalDate.now(),
@@ -212,7 +218,7 @@ public class McpServerIntegrationTest {
     @Test
     public void testDisputeToolsViaRestApi() throws Exception {
         // Test dispute tools
-        var createDisputeRequest = new com.chapman.edu.commissions.verticalslice.features.disputes.CreateDisputeRequest(
+        var createDisputeRequest = new CreateDisputeRequest(
             "CALC_MCP_TEST",
             "REP_MCP_TEST",
             "MCP Test Dispute",
@@ -247,10 +253,10 @@ public class McpServerIntegrationTest {
                 .getContentAsString();
 
         var deal = objectMapper.readValue(dealResponse,
-            com.chapman.edu.commissions.verticalslice.features.deals.DealResponse.class);
+            DealResponse.class);
 
         // Step 2: Create a commission plan
-        var planRequest = new com.chapman.edu.commissions.verticalslice.features.plans.CreateCommissionPlanRequest(
+        var planRequest = new CreateCommissionPlanRequest(
             "Test Calculation Plan",
             "USD",
             java.time.LocalDate.now(),
@@ -266,10 +272,10 @@ public class McpServerIntegrationTest {
                 .getContentAsString();
 
         var plan = objectMapper.readValue(planResponse,
-            com.chapman.edu.commissions.verticalslice.features.plans.CommissionPlanResponse.class);
+            CommissionPlanResponse.class);
 
         // Step 3: Add a rule to the plan
-        var ruleRequest = new com.chapman.edu.commissions.verticalslice.features.plans.AddRuleToPlanRequest(
+        var ruleRequest = new AddRuleToPlanRequest(
             "Test Rule",
             "5% commission",
             new BigDecimal("5.00"),
@@ -284,7 +290,7 @@ public class McpServerIntegrationTest {
                 .andExpect(jsonPath("$.rulesCount").value(1));
 
         // Step 4: Calculate commission
-        var calcRequest = new com.chapman.edu.commissions.verticalslice.features.calculations.CalculateCommissionRequest(
+        var calcRequest = new CalculateCommissionRequest(
             deal.id(),
             plan.id()
         );

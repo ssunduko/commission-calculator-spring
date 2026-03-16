@@ -151,10 +151,10 @@ curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/message \
 
 ## Documentation
 
-- **[MCP_INSPECTOR_SETUP.md](infrastructure/mcp/MCP_INSPECTOR_SETUP.md)** - Complete guide to using npx inspector
+- **[MCP_INSPECTOR_SETUP.md](../../../../../../../main/java/com/chapman/edu/commissions/architecture/verticalslice/infrastructure/mcp/MCP_INSPECTOR_SETUP.md)** - Complete guide to using npx inspector
 - **[SSE_TESTING.md](SSE_TESTING.md)** - SSE endpoint testing guide
 - **[CLAUDE_DESKTOP_SETUP.md](CLAUDE_DESKTOP_SETUP.md)** - Claude Desktop integration guide
-- **[MCP_SERVER_SETUP.md](infrastructure/mcp/MCP_SERVER_SETUP.md)** - General MCP server setup
+- **[MCP_SERVER_SETUP.md](../../../../../../../main/java/com/chapman/edu/commissions/architecture/verticalslice/infrastructure/mcp/MCP_SERVER_SETUP.md)** - General MCP server setup
 
 ## Architecture
 

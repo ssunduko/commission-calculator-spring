@@ -1,9 +1,10 @@
 package com.chapman.edu.commissions.verticalslice.features.deals;
 
-import com.chapman.edu.commissions.verticalslice.domain.Deal;
-import com.chapman.edu.commissions.verticalslice.domain.DealStatus;
-import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
-import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.ValidationException;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.Deal;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DealStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.*;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
