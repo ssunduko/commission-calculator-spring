@@ -1,6 +1,6 @@
-package com.chapman.edu.commissions.verticalslice.features.calculations;
+package com.chapman.edu.commissions.architecture.verticalslice.features.calculations;
 
-import com.chapman.edu.commissions.verticalslice.domain.CommissionCalculation;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.CommissionCalculation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

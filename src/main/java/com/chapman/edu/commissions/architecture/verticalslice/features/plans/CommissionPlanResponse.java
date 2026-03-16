@@ -1,7 +1,7 @@
-package com.chapman.edu.commissions.verticalslice.features.plans;
+package com.chapman.edu.commissions.architecture.verticalslice.features.plans;
 
-import com.chapman.edu.commissions.verticalslice.domain.CommissionPlan;
-import com.chapman.edu.commissions.verticalslice.domain.PlanStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.CommissionPlan;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.PlanStatus;
 
 import java.time.LocalDate;
 

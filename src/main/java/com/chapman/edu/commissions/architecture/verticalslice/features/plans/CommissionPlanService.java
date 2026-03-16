@@ -1,11 +1,11 @@
-package com.chapman.edu.commissions.verticalslice.features.plans;
+package com.chapman.edu.commissions.architecture.verticalslice.features.plans;
 
-import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
-import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.ValidationException;
-import com.chapman.edu.commissions.verticalslice.domain.CommissionPlan;
-import com.chapman.edu.commissions.verticalslice.domain.CommissionRule;
-import com.chapman.edu.commissions.verticalslice.domain.PlanStatus;
-import com.chapman.edu.commissions.verticalslice.domain.RuleType;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ValidationException;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.CommissionPlan;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.CommissionRule;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.PlanStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.RuleType;
 import org.springframework.stereotype.Service;
 
 import java.util.Currency;

@@ -103,9 +103,7 @@ public class EmbeddingSearchService {
      * AFTER the vector similarity search. This is efficient because:
      * 1. Vector search narrows down candidates by meaning
      * 2. Metadata filter removes candidates that don't match criteria
-     *
      * This is equivalent to: "Find documents similar to my query WHERE type = 'deal'"
-     *
      * FILTER EXPRESSION SYNTAX (Spring AI DSL):
      *   - .eq("field", value): Equals
      *   - .ne("field", value): Not equals
@@ -123,17 +121,14 @@ public class EmbeddingSearchService {
      */
     public List<Document> searchByType(String query, String documentType, int topK) {
         log.info("Performing filtered search: '{}' (type={}, topK={})", query, documentType, topK);
-
         // Build a metadata filter expression
         FilterExpressionBuilder builder = new FilterExpressionBuilder();
-
         SearchRequest request = SearchRequest.builder()
                 .query(query)
                 .topK(topK)
                 .similarityThreshold(0.5)
                 .filterExpression(builder.eq("type", documentType).build())
                 .build();
-
         List<Document> results = vectorStore.similaritySearch(request);
         log.info("Found {} results of type '{}' for query: '{}'", results.size(), documentType, query);
 

@@ -1,0 +1,330 @@
+@startuml C4_Level4_Code
+title Code Diagram — Domain Model Entity Relationships (Vertical Slice)
+
+' ============================================================
+' C4 LEVEL 4: CODE DIAGRAM
+' ============================================================
+' Zooms into the Domain Model to show entity classes, their
+' fields, relationships, and the enums that drive status and
+' classification throughout the system.
+'
+' PURPOSE:
+' Answer the question: "What do the domain entities look like,
+' and how are they related to each other?"
+'
+' NOTATION:
+' - Classes show key fields and their types
+' - Arrows show relationships (1:*, *:1, 1:1)
+' - Enums show all valid values for status/type fields
+' - All monetary values use BigDecimal (precision 19, scale 2)
+' - All IDs are UUIDs (String type, auto-generated)
+'
+' VERTICAL SLICE NOTE:
+' In the vertical slice architecture, these entities are shared
+' across all feature slices. Each slice accesses only the
+' entities it needs through its own repository interface.
+' Entity relationships use ID references (String fields) rather
+' than JPA @ManyToOne/@OneToMany foreign keys, keeping slices
+' loosely coupled at the data layer.
+' ============================================================
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 11
+skinparam packageFontSize 12
+
+' ============================================================
+' ENUMS
+' ============================================================
+
+package "Enums" {
+    enum UserRole {
+        SALES_REP
+        SALES_MANAGER
+        FINANCE_ADMIN
+        SYSTEM_ADMIN
+    }
+
+    enum DealStatus {
+        OPEN
+        WON
+        LOST
+        CANCELLED
+    }
+
+    enum PlanStatus {
+        DRAFT
+        ACTIVE
+        INACTIVE
+        ARCHIVED
+    }
+
+    enum CommissionStatus {
+        CALCULATED
+        APPROVED
+        PAID
+        DISPUTED
+        ADJUSTED
+        CANCELLED
+    }
+
+    enum DisputeStatus {
+        INITIATED
+        UNDER_REVIEW
+        ADDITIONAL_INFO_REQUESTED
+        ESCALATED
+        APPROVED
+        REJECTED
+        RESOLVED
+        CANCELLED
+    }
+
+    enum RuleType {
+        STANDARD
+        ACCELERATOR
+        DECELERATOR
+        BONUS
+        SPECIAL
+    }
+
+    enum BonusType {
+        FIXED
+        SPIF
+        ACCELERATOR
+        QUOTA_ACHIEVEMENT
+        TEAM_PERFORMANCE
+        SPECIAL_INCENTIVE
+    }
+
+    enum ConditionOperator {
+        EQUALS
+        NOT_EQUALS
+        GREATER_THAN
+        LESS_THAN
+        CONTAINS
+        IN
+        ...
+    }
+
+    enum LogicalOperator {
+        AND
+        OR
+    }
+}
+
+' ============================================================
+' CORE ENTITIES
+' ============================================================
+
+package "User Management" {
+    class User {
+        - id : String <<UUID>>
+        - username : String
+        - email : String
+        - firstName : String
+        - lastName : String
+        - department : String
+        - territory : String
+        - active : boolean
+        - role : UserRole
+        - managerId : String
+        - createdDate : LocalDateTime
+    }
+}
+
+package "Deal Management" {
+    class Deal {
+        - id : String <<UUID>>
+        - title : String
+        - value : BigDecimal
+        - status : DealStatus
+        - salesRepId : String
+        - createdDate : LocalDate
+        - closeDate : LocalDate
+        - products : List<DealProduct>
+    }
+
+    class DealProduct {
+        - id : String <<UUID>>
+        - name : String
+        - quantity : int
+        - unitPrice : BigDecimal
+        - discount : BigDecimal
+    }
+}
+
+package "Commission Plans" {
+    class CommissionPlan {
+        - id : String <<UUID>>
+        - name : String
+        - currency : String
+        - status : PlanStatus
+        - effectiveStartDate : LocalDate
+        - effectiveEndDate : LocalDate
+        - createdDate : LocalDateTime
+        - rules : List<CommissionRule>
+        - tiers : List<CommissionTier>
+        - bonuses : List<BonusRule>
+    }
+
+    class CommissionTier {
+        - id : String <<UUID>>
+        - name : String
+        - lowerBound : BigDecimal
+        - upperBound : BigDecimal
+        - rate : BigDecimal
+    }
+
+    class CommissionRule {
+        - id : String <<UUID>>
+        - name : String
+        - description : String
+        - rate : BigDecimal
+        - ruleType : RuleType
+        - priority : int
+        - conditions : List<RuleCondition>
+    }
+
+    class BonusRule {
+        - id : String <<UUID>>
+        - name : String
+        - bonusType : BonusType
+        - amount : BigDecimal
+        - percentage : BigDecimal
+        - startDate : LocalDate
+        - endDate : LocalDate
+        - conditions : List<RuleCondition>
+    }
+
+    class RuleCondition {
+        - id : String <<UUID>>
+        - field : String
+        - operator : ConditionOperator
+        - value : String
+        - logicalOperator : LogicalOperator
+    }
+}
+
+package "Commission Calculations" {
+    class CommissionCalculation {
+        - id : String <<UUID>>
+        - dealId : String
+        - salesRepId : String
+        - planId : String
+        - baseCommission : BigDecimal
+        - grossCommission : BigDecimal
+        - netCommission : BigDecimal
+        - status : CommissionStatus
+        - calculationDate : LocalDateTime
+        - bonuses : List<BonusCalculation>
+        - accelerators : List<AcceleratorCalculation>
+    }
+
+    class BonusCalculation {
+        - id : String <<UUID>>
+        - bonusName : String
+        - amount : BigDecimal
+        - bonusType : BonusType
+    }
+
+    class AcceleratorCalculation {
+        - id : String <<UUID>>
+        - name : String
+        - multiplier : BigDecimal
+        - amount : BigDecimal
+    }
+}
+
+package "Dispute Management" {
+    class Dispute {
+        - id : String <<UUID>>
+        - calculationId : String
+        - salesRepId : String
+        - title : String
+        - description : String
+        - status : DisputeStatus
+        - escalated : boolean
+        - createdDate : LocalDateTime
+        - resolvedDate : LocalDateTime
+        - resolution : String
+        - comments : List<DisputeComment>
+    }
+
+    class DisputeComment {
+        - id : String <<UUID>>
+        - author : String
+        - content : String
+        - system : boolean
+        - createdDate : LocalDateTime
+    }
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+User "1" --> "*" Deal : salesRepId
+User ..> UserRole : has role
+
+Deal "1" *-- "*" DealProduct : contains
+Deal ..> DealStatus : has status
+
+CommissionPlan "1" *-- "*" CommissionTier : defines tiers
+CommissionPlan "1" *-- "*" CommissionRule : defines rules
+CommissionPlan "1" *-- "*" BonusRule : defines bonuses
+CommissionPlan ..> PlanStatus : has status
+
+CommissionRule "1" *-- "*" RuleCondition : has conditions
+CommissionRule ..> RuleType : has type
+BonusRule "1" *-- "*" RuleCondition : has conditions
+BonusRule ..> BonusType : has type
+
+RuleCondition ..> ConditionOperator : uses
+RuleCondition ..> LogicalOperator : chains with
+
+Deal "1" --> "*" CommissionCalculation : dealId
+User "1" --> "*" CommissionCalculation : salesRepId
+CommissionPlan "1" --> "*" CommissionCalculation : planId
+CommissionCalculation "1" *-- "*" BonusCalculation : includes
+CommissionCalculation "1" *-- "*" AcceleratorCalculation : includes
+CommissionCalculation ..> CommissionStatus : has status
+
+CommissionCalculation "1" --> "*" Dispute : calculationId
+User "1" --> "*" Dispute : salesRepId
+Dispute "1" *-- "*" DisputeComment : has comments
+Dispute ..> DisputeStatus : has status
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' ENTITY DESIGN CHOICES:
+'
+' 1. ID REFERENCES (not JPA FK):
+'    Entities reference each other by String ID fields
+'    (e.g., Deal.salesRepId, not @ManyToOne User salesRep).
+'    This keeps vertical slices loosely coupled — the Deals
+'    slice doesn't need to import User entities.
+'
+' 2. TRANSIENT COLLECTIONS:
+'    Child collections (DealProduct, CommissionTier, etc.)
+'    are @Transient lists populated manually, not lazy-loaded
+'    JPA associations. This avoids N+1 query problems and
+'    keeps each slice in control of its data loading.
+'
+' 3. MONETARY PRECISION:
+'    All monetary fields use BigDecimal(19,2) to avoid
+'    floating-point rounding errors in financial calculations.
+'    Commission rates are also BigDecimal (e.g., 12.00 = 12%).
+'
+' 4. UUID STRATEGY:
+'    All entities use UUID.randomUUID().toString() for IDs,
+'    generated in @PrePersist. This ensures uniqueness across
+'    distributed systems without database sequences.
+'
+' 5. STATUS LIFECYCLES:
+'    - Deal: OPEN → WON/LOST/CANCELLED
+'    - Plan: DRAFT → ACTIVE → INACTIVE → ARCHIVED
+'    - Calculation: CALCULATED → APPROVED → PAID (or DISPUTED)
+'    - Dispute: INITIATED → UNDER_REVIEW → ESCALATED → RESOLVED
+' ============================================================
+
+@enduml

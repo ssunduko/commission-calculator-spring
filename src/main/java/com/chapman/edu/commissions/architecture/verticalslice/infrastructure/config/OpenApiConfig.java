@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.infrastructure.config;
+package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;

@@ -1,0 +1,81 @@
+@startuml C4_Level1_System_Context_Layered
+!include <C4/C4_Context>
+
+title System Context Diagram — Commission Calculator (Layered Architecture: SpringBoot + ORM)
+
+' ============================================================
+' C4 LEVEL 1: SYSTEM CONTEXT
+' ============================================================
+' Shows both layered implementations (springboot and orm) as a
+' unified system and the actors and external systems they
+' interact with.
+'
+' PURPOSE:
+' Answer: "What is the Commission Calculator and who uses it?"
+'
+' TWO LAYERED IMPLEMENTATIONS:
+' The project contains two layered architecture packages that
+' share the same commission domain but differ in persistence
+' and security:
+'
+'   springboot — HashMap repos, JWT auth, Thymeleaf web UI
+'   orm        — JPA/Hibernate repos, H2 DB, Flyway migrations,
+'                caching, permit-all security
+'
+' Both coexist in the same codebase as educational examples
+' of the same business domain implemented at different
+' levels of infrastructure maturity.
+' ============================================================
+
+Person(salesRep, "Sales Representative", "Creates deals, views commissions,\nfiles disputes")
+Person(salesManager, "Sales Manager", "Reviews team deals, approves\ncalculations, resolves disputes,\nmanages users")
+Person(financeAdmin, "Finance Admin", "Manages commission plans,\naudits calculations,\nprocesses payouts")
+Person(systemAdmin, "System Admin", "Full system access,\nuser management")
+
+System(springbootApp, "Commission Calculator\n(SpringBoot Module)", "REST API + Thymeleaf web UI.\nJWT-secured. In-memory HashMap\nrepositories. Demonstrates\nSpring Boot fundamentals.")
+
+System(ormApp, "Commission Calculator\n(ORM Module)", "REST API with JPA/Hibernate.\nFlyway-managed H2 database.\nSpring Cache. Demonstrates\nORM and data access patterns.")
+
+System_Ext(h2db, "H2 Database", "In-memory relational database\n(used by ORM module only)")
+System_Ext(swaggerUI, "Swagger UI", "Interactive API documentation\nand testing interface")
+System_Ext(browser, "Web Browser", "Thymeleaf HTML dashboard\n(SpringBoot module only)")
+
+Rel(salesRep, springbootApp, "REST API or web dashboard", "HTTPS + JWT / Form Login")
+Rel(salesRep, ormApp, "REST API", "HTTPS")
+Rel(salesManager, springbootApp, "REST API or web dashboard", "HTTPS + JWT / Form Login")
+Rel(salesManager, ormApp, "REST API", "HTTPS")
+Rel(financeAdmin, springbootApp, "REST API", "HTTPS + JWT")
+Rel(financeAdmin, ormApp, "REST API", "HTTPS")
+Rel(systemAdmin, springbootApp, "User management API", "HTTPS + JWT")
+
+Rel(ormApp, h2db, "Reads/writes domain data", "JDBC / JPA / Hibernate")
+Rel(springbootApp, swaggerUI, "Serves OpenAPI spec", "HTTP")
+Rel(ormApp, swaggerUI, "Serves OpenAPI spec", "HTTP")
+Rel(springbootApp, browser, "Serves HTML pages", "HTTP + Thymeleaf")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' MODULE COMPARISON:
+'
+' ┌──────────────────────┬────────────────────────────────────┐
+' │ SpringBoot Module     │ ORM Module                         │
+' ├──────────────────────┼────────────────────────────────────┤
+' │ ConcurrentHashMap     │ JPA/Hibernate + H2                 │
+' │ JWT + HTTP Basic      │ Permit-all (educational)           │
+' │ Thymeleaf web UI      │ REST API only                      │
+' │ Bean Validation       │ Flyway migrations                  │
+' │ DTO mapper            │ Spring Cache (@Cacheable)          │
+' │ Manual UUID gen       │ @EntityGraph, JOIN FETCH            │
+' │ 8 controllers         │ 4 controllers                      │
+' │ 5 services            │ 4 services                         │
+' │ 5 HashMap repos       │ 6 JPA repos + Specifications       │
+' └──────────────────────┴────────────────────────────────────┘
+'
+' Both modules share the same User/Deal/Plan/Calculation/Dispute
+' domain but the ORM module uses true JPA entities with
+' @ManyToOne/@OneToMany foreign key relationships while the
+' SpringBoot module uses plain models with String ID references.
+' ============================================================
+
+@enduml

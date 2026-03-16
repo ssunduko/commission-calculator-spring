@@ -1,0 +1,130 @@
+@startuml C4_Supplementary_Deployment
+!include <C4/C4_Deployment>
+
+title Supplementary: Deployment Diagram — Commission Calculator
+
+' ============================================================
+' SUPPLEMENTARY DIAGRAM: DEPLOYMENT
+' ============================================================
+' Shows the runtime deployment topology of the Commission
+' Calculator application across environments.
+'
+' PURPOSE:
+' Answer: "How is the application deployed, what processes
+' run, and how do they communicate?"
+'
+' DEPLOYMENT PROFILES:
+'   Development (port 8082): DevTools, debug logging, H2 console
+'   Production  (port 8080): GZIP, caching, no H2 console
+'   Default     (port 8081): Base configuration
+' ============================================================
+
+Deployment_Node(devMachine, "Developer Machine", "Windows / macOS / Linux") {
+
+    Deployment_Node(jvm, "JVM", "Java 21 (OpenJDK)") {
+
+        Deployment_Node(springBoot, "Spring Boot 3.4.5", "Embedded Tomcat") {
+
+            Container(app, "Commission Calculator", "Spring Boot Application", "Single deployable JAR\ncontaining all modules:\nSpringBoot, ORM, AI,\nVertical Slice")
+
+            Container(actuator, "Spring Boot Actuator", "Monitoring", "Health: /actuator/health\nInfo: /actuator/info\nMetrics: /actuator/prometheus")
+        }
+    }
+
+    Deployment_Node(h2Node, "H2 Database Engine", "Embedded / In-Memory") {
+
+        ContainerDb(h2db, "H2 Database", "jdbc:h2:mem:commissiondb", "In-memory database.\nFlyway-managed schema.\n14+ tables, 40+ indexes.\nH2 Console on /h2-console")
+    }
+
+    Deployment_Node(filesystem, "Local Filesystem", "Persistent Storage") {
+
+        Container(vectorStore, "Vector Store", "JSON File", "Path: /data/vectorstore.json\nStores document embeddings\nfor AI semantic search")
+    }
+}
+
+Deployment_Node(externalServices, "External Services", "Cloud APIs") {
+
+    Deployment_Node(anthropicCloud, "Anthropic API", "api.anthropic.com") {
+
+        Container(claudeApi, "Claude Sonnet", "LLM API", "Model: claude-sonnet-4-20250514\nMax tokens: 1024\nTemperature: 0.3\nUsed by: ReAct agent,\nWorkflow agents, MCP tools")
+    }
+}
+
+Deployment_Node(observability, "Observability Stack", "Docker Compose") {
+
+    Deployment_Node(grafanaNode, "Grafana OTEL LGTM", "Container: grafana/otel-lgtm") {
+
+        Container(grafana, "Grafana", "Dashboard", "Port 3000\nMetrics visualization\nLogs, traces")
+
+        Container(otelCollector, "OpenTelemetry Collector", "Telemetry", "OTLP gRPC: port 4317\nOTLP HTTP: port 4318\nCollects traces + metrics")
+    }
+}
+
+Deployment_Node(clientMachines, "Client Machines", "End Users") {
+
+    Deployment_Node(browserNode, "Web Browser", "Chrome / Firefox / Edge") {
+
+        Container(swaggerUi, "Swagger UI", "OpenAPI", "Path: /swagger-ui/\nInteractive API explorer\nJWT auth support")
+
+        Container(thymeleaf, "Thymeleaf Dashboard", "HTML/CSS", "Path: /springboot/**\nForm-based login\nSession cookies")
+
+        Container(h2Console, "H2 Database Console", "Web UI", "Path: /h2-console\nSQL query interface\nDev profile only")
+    }
+
+    Deployment_Node(apiClientNode, "API Client", "Postman / curl / Frontend App") {
+
+        Container(restClient, "REST Client", "HTTP/JSON", "Base: /api/** (SpringBoot)\nBase: /api/orm/** (ORM)\nBase: /api/ai/** (AI)\nAuth: Bearer JWT token")
+    }
+
+    Deployment_Node(mcpClientNode, "MCP Client", "Claude Desktop / IDE Plugin") {
+
+        Container(mcpClient, "MCP Client", "SSE Protocol", "Connects to /api/mcp\n27 tools, 7 prompts,\n8+ resources\nServer-Sent Events")
+    }
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+Rel(app, h2db, "JDBC", "jdbc:h2:mem:commissiondb")
+Rel(app, vectorStore, "File I/O", "Read/Write JSON")
+Rel(app, claudeApi, "HTTPS", "REST API calls")
+Rel(app, otelCollector, "OTLP", "gRPC :4317 / HTTP :4318")
+
+Rel(swaggerUi, app, "HTTPS", "REST API")
+Rel(thymeleaf, app, "HTTPS", "Form login + pages")
+Rel(h2Console, h2db, "HTTPS", "SQL queries via web UI")
+Rel(restClient, app, "HTTPS", "JWT-authenticated REST")
+Rel(mcpClient, app, "SSE", "MCP protocol over HTTP")
+
+' ============================================================
+' DEPLOYMENT NOTES
+' ============================================================
+
+note as profiles
+    **SPRING PROFILES**
+
+    | Setting | Default (8081) | Dev (8082) | Prod (8080) |
+    | DevTools | Off | On | Off |
+    | Logging | INFO | DEBUG | WARN |
+    | H2 Console | On | On | Off |
+    | Stack traces | Shown | Shown | Hidden |
+    | Template cache | Off | Off | On |
+    | GZIP | Off | Off | On |
+    | JWT expiry | 24h | 1h | 24h |
+end note
+
+note as techStack
+    **TECHNOLOGY STACK**
+
+    Runtime: Java 21, Spring Boot 3.4.5
+    Build: Maven, Spring Cloud 2024.0.0
+    AI: Spring AI 1.1.0, Anthropic Claude
+    Security: Spring Security, JJWT 0.12.6
+    Database: H2 (embedded), Flyway migrations
+    API Docs: Springdoc OpenAPI 2.7.0
+    Monitoring: Micrometer, Prometheus, OTEL
+    Observability: Grafana OTEL LGTM (Docker)
+end note
+
+@enduml

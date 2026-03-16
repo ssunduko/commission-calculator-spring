@@ -1,9 +1,12 @@
-package com.chapman.edu.commissions.verticalslice.infrastructure.mcp;
+package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp;
 
-import com.chapman.edu.commissions.verticalslice.features.calculations.CommissionCalculationService;
-import com.chapman.edu.commissions.verticalslice.features.deals.DealService;
-import com.chapman.edu.commissions.verticalslice.features.disputes.DisputeService;
-import com.chapman.edu.commissions.verticalslice.features.plans.CommissionPlanService;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DealStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.PlanStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CommissionCalculationService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.DisputeService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
@@ -203,8 +206,8 @@ public class McpResources {
                 case "deals://active":
                     content = objectMapper.writeValueAsString(
                         dealService.getAllDeals().stream()
-                            .filter(deal -> deal.status() == com.chapman.edu.commissions.verticalslice.domain.DealStatus.OPEN ||
-                                          deal.status() == com.chapman.edu.commissions.verticalslice.domain.DealStatus.WON)
+                            .filter(deal -> deal.status() == DealStatus.OPEN ||
+                                          deal.status() == DealStatus.WON)
                             .toList()
                     );
                     break;
@@ -216,7 +219,7 @@ public class McpResources {
                 case "plans://active":
                     content = objectMapper.writeValueAsString(
                         planService.getPlansByStatus(
-                            com.chapman.edu.commissions.verticalslice.domain.PlanStatus.ACTIVE
+                            PlanStatus.ACTIVE
                         )
                     );
                     break;
@@ -228,7 +231,7 @@ public class McpResources {
                 case "disputes://open":
                     content = objectMapper.writeValueAsString(
                         disputeService.getDisputesByStatus(
-                            com.chapman.edu.commissions.verticalslice.domain.DisputeStatus.INITIATED
+                            DisputeStatus.INITIATED
                         )
                     );
                     break;

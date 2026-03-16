@@ -1,6 +1,6 @@
-package com.chapman.edu.commissions.verticalslice.features.plans;
+package com.chapman.edu.commissions.architecture.verticalslice.features.plans;
 
-import com.chapman.edu.commissions.verticalslice.domain.PlanStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.PlanStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

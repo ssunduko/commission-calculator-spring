@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.infrastructure.mcp;
+package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp;
 
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Value;

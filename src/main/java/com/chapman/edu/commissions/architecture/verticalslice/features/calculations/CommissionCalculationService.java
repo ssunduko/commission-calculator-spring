@@ -1,12 +1,12 @@
-package com.chapman.edu.commissions.verticalslice.features.calculations;
+package com.chapman.edu.commissions.architecture.verticalslice.features.calculations;
 
-import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
-import com.chapman.edu.commissions.verticalslice.features.deals.DealRepository;
-import com.chapman.edu.commissions.verticalslice.features.plans.CommissionPlanRepository;
-import com.chapman.edu.commissions.verticalslice.domain.CommissionCalculation;
-import com.chapman.edu.commissions.verticalslice.domain.CommissionPlan;
-import com.chapman.edu.commissions.verticalslice.domain.CommissionRule;
-import com.chapman.edu.commissions.verticalslice.domain.Deal;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealRepository;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanRepository;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.CommissionCalculation;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.CommissionPlan;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.CommissionRule;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.Deal;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;

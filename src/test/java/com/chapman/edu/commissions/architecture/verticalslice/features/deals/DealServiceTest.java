@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.features.deals;
+package com.chapman.edu.commissions.architecture.verticalslice.features.deals;
 
 import com.chapman.edu.commissions.architecture.verticalslice.domain.Deal;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DealStatus;

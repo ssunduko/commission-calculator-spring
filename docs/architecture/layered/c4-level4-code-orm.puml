@@ -1,0 +1,344 @@
+@startuml C4_Level4_Code_ORM
+title Code Diagram — ORM Module: JPA Entity Relationships & Repository Strategies
+
+' ============================================================
+' C4 LEVEL 4: CODE DIAGRAM — ORM MODULE
+' ============================================================
+' Shows the JPA entity relationships with full annotation
+' detail, the repository query strategy hierarchy, and the
+' transaction/cache configuration at the code level.
+'
+' PURPOSE:
+' Answer: "What do the JPA entities look like, how are they
+' related via FK annotations, and what query strategies does
+' each repository use?"
+'
+' KEY DIFFERENCE FROM VERTICAL SLICE ENTITIES:
+' The vertical slice domain model uses String ID references
+' (loose coupling). The ORM entities use true JPA annotations
+' (@ManyToOne, @OneToMany, @ManyToMany) with foreign keys,
+' cascade rules, and fetch strategies.
+' ============================================================
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 10
+skinparam packageFontSize 12
+
+' ============================================================
+' USER DOMAIN
+' ============================================================
+
+package "User Domain" {
+    class User {
+        - id : String <<@Id, UUID>>
+        - username : String <<unique>>
+        - email : String <<unique>>
+        - firstName : String
+        - lastName : String
+        - passwordHash : String
+        - department : String
+        - territory : String
+        - active : boolean
+        - createdDate : LocalDateTime
+        --
+        <<@ElementCollection>>
+        - roles : Set<UserRole>
+        <<@OneToOne(cascade=ALL, orphanRemoval)>>
+        - profile : UserProfile
+        <<@ManyToOne(LAZY)>>
+        - manager : User  __(self-referential)__
+        <<@OneToMany(mappedBy="manager")>>
+        - directReports : List<User>
+        <<@ManyToMany(mappedBy)>>
+        - companies : Set<Company>
+        <<@OneToMany(mappedBy)>>
+        - deals : List<Deal>
+    }
+
+    class UserProfile {
+        - id : String <<@Id, UUID>>
+        - phoneNumber : String
+        - avatarUrl : String
+        - bio : String
+        - linkedinUrl : String
+        - startDate : LocalDate
+        - hireDate : LocalDate
+        --
+        <<@OneToOne>>
+        <<@JoinColumn(unique=true)>>
+        - user : User
+    }
+
+    class Company {
+        - id : String <<@Id, UUID>>
+        - name : String
+        - industry : String
+        - website : String
+        - active : boolean
+        --
+        <<@ManyToMany>>
+        <<@JoinTable(user_companies)>>
+        - users : Set<User>
+    }
+
+    enum UserRole {
+        SALES_REP
+        SALES_MANAGER
+        FINANCE_ADMIN
+        SYSTEM_ADMIN
+    }
+}
+
+' ============================================================
+' DEAL DOMAIN
+' ============================================================
+
+package "Deal Domain" {
+    class Deal {
+        - id : String <<@Id, UUID>>
+        - title : String
+        - value : BigDecimal(19,2)
+        - status : DealStatus
+        - createdDate : LocalDate
+        - closeDate : LocalDate
+        --
+        <<@ManyToOne(LAZY)>>
+        <<@JoinColumn(sales_rep_id)>>
+        - salesRep : User
+        <<@OneToMany(cascade=ALL, orphanRemoval)>>
+        - products : List<DealProduct>
+        <<@OneToMany(mappedBy)>>
+        - calculations : List<CommissionCalculation>
+        --
+        <<@NamedEntityGraph>>
+        Deal.withProductsAndSalesRep
+    }
+
+    class DealProduct {
+        - id : String <<@Id, UUID>>
+        - name : String
+        - quantity : int
+        - unitPrice : BigDecimal(19,2)
+        - discount : BigDecimal(5,2)
+        --
+        <<@ManyToOne(LAZY)>>
+        - deal : Deal
+    }
+}
+
+' ============================================================
+' COMMISSION PLAN DOMAIN (Aggregate Root)
+' ============================================================
+
+package "Commission Plan (Aggregate Root)" {
+    class CommissionPlan {
+        - id : String <<@Id, UUID>>
+        - name : String
+        - currency : String
+        - status : PlanStatus
+        - effectiveStartDate : LocalDate
+        - effectiveEndDate : LocalDate
+        - createdBy : String
+        - createdDate : LocalDateTime
+        --
+        <<@OneToMany(cascade=ALL, orphanRemoval)>>
+        <<@OrderBy("priority ASC")>>
+        - rules : List<CommissionRule>
+        <<@OneToMany(cascade=ALL, orphanRemoval)>>
+        <<@OrderBy("lowerBound ASC")>>
+        - tiers : List<CommissionTier>
+        <<@OneToMany(cascade=ALL, orphanRemoval)>>
+        - bonuses : List<BonusRule>
+    }
+
+    class CommissionTier {
+        - id : String <<@Id, UUID>>
+        - name : String
+        - lowerBound : BigDecimal(19,2)
+        - upperBound : BigDecimal(19,2)
+        - rate : BigDecimal(5,4)
+        --
+        <<@ManyToOne(LAZY)>>
+        - plan : CommissionPlan
+    }
+
+    class CommissionRule {
+        - id : String <<@Id, UUID>>
+        - name : String
+        - description : String
+        - rate : BigDecimal(5,4)
+        - ruleType : RuleType
+        - priority : int
+        --
+        <<@ManyToOne(LAZY)>>
+        - plan : CommissionPlan
+        <<@OneToMany(cascade=ALL, orphanRemoval)>>
+        - conditions : List<RuleCondition>
+    }
+
+    class RuleCondition {
+        - id : String <<@Id, UUID>>
+        - field : String
+        - operator : ConditionOperator
+        - value : String
+        - logicalOperator : LogicalOperator
+        --
+        <<@ManyToOne(LAZY)>>
+        - rule : CommissionRule
+    }
+
+    class BonusRule {
+        - id : String <<@Id, UUID>>
+        - name : String
+        - bonusType : BonusType
+        - amount : BigDecimal(19,2)
+        - percentage : BigDecimal(5,4)
+        - startDate : LocalDate
+        - endDate : LocalDate
+        --
+        <<@ManyToOne(LAZY)>>
+        - plan : CommissionPlan
+    }
+}
+
+' ============================================================
+' CALCULATION DOMAIN
+' ============================================================
+
+package "Calculation Domain" {
+    class CommissionCalculation {
+        - id : String <<@Id, UUID>>
+        - baseCommission : BigDecimal(19,2)
+        - grossCommission : BigDecimal(19,2)
+        - netCommission : BigDecimal(19,2)
+        - status : CommissionStatus
+        - calculationDate : LocalDateTime
+        - payoutDate : LocalDateTime
+        --
+        <<@ManyToOne(LAZY)>> <<idx_calc_deal_id>>
+        - deal : Deal
+        <<@ManyToOne(LAZY)>> <<idx_calc_rep_id>>
+        - salesRep : User
+        <<@ManyToOne(LAZY)>> <<idx_calc_plan_id>>
+        - plan : CommissionPlan
+        <<@OneToMany(cascade=ALL, orphanRemoval)>>
+        - bonuses : List<BonusCalculation>
+        <<@OneToMany(cascade=ALL, orphanRemoval)>>
+        - accelerators : List<AcceleratorCalculation>
+    }
+
+    class BonusCalculation {
+        - id : String <<@Id, UUID>>
+        - bonusName : String
+        - amount : BigDecimal(19,2)
+        - bonusType : BonusType
+        --
+        <<@ManyToOne(LAZY)>>
+        - commissionCalculation
+    }
+
+    class AcceleratorCalculation {
+        - id : String <<@Id, UUID>>
+        - name : String
+        - multiplier : BigDecimal(5,4)
+        - amount : BigDecimal(19,2)
+        --
+        <<@ManyToOne(LAZY)>>
+        - commissionCalculation
+    }
+}
+
+' ============================================================
+' DISPUTE DOMAIN
+' ============================================================
+
+package "Dispute Domain" {
+    class Dispute {
+        - id : String <<@Id, UUID>>
+        - title : String
+        - description : String
+        - status : DisputeStatus
+        - escalated : boolean
+        - createdDate : LocalDateTime
+        - resolvedDate : LocalDateTime
+        - resolution : String
+        --
+        <<@ManyToOne>> - calculation
+        <<@ManyToOne>> - salesRep : User
+        <<@ManyToOne>> - manager : User
+        <<@OneToMany(cascade=ALL, orphanRemoval)>>
+        <<@OrderBy("createdDate ASC")>>
+        - comments : List<DisputeComment>
+    }
+
+    class DisputeComment {
+        - id : String <<@Id, UUID>>
+        - author : String
+        - content : String
+        - systemGenerated : boolean
+        - createdDate : LocalDateTime
+        --
+        <<@ManyToOne>> - dispute
+    }
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+User "1" *-- "*" UserRole : @ElementCollection
+User "1" *-- "0..1" UserProfile : @OneToOne(cascade ALL)
+User "1" --> "0..1" User : manager\n@ManyToOne(self-ref)
+Company "*" <--> "*" User : @ManyToMany\n(join table)
+
+User "1" --> "*" Deal : @OneToMany
+Deal "1" *-- "*" DealProduct : @OneToMany\n(cascade ALL)
+
+CommissionPlan "1" *-- "*" CommissionTier : @OneToMany\n(cascade ALL)
+CommissionPlan "1" *-- "*" CommissionRule : @OneToMany\n(cascade ALL)
+CommissionPlan "1" *-- "*" BonusRule : @OneToMany\n(cascade ALL)
+CommissionRule "1" *-- "*" RuleCondition : @OneToMany\n(cascade ALL)
+
+Deal "1" --> "*" CommissionCalculation : @ManyToOne
+User "1" --> "*" CommissionCalculation : @ManyToOne
+CommissionPlan "1" --> "*" CommissionCalculation : @ManyToOne
+CommissionCalculation "1" *-- "*" BonusCalculation : cascade ALL
+CommissionCalculation "1" *-- "*" AcceleratorCalculation : cascade ALL
+
+CommissionCalculation "1" --> "*" Dispute : @ManyToOne
+User "1" --> "*" Dispute : salesRep
+User "1" --> "*" Dispute : manager
+Dispute "1" *-- "*" DisputeComment : cascade ALL
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' JPA RELATIONSHIP PATTERNS DEMONSTRATED:
+'
+' @OneToOne:     User ↔ UserProfile (bidirectional, unique FK)
+' @OneToMany:    Deal → DealProducts (cascade ALL, orphan removal)
+' @ManyToOne:    Deal → User (LAZY, indexed FK)
+' @ManyToMany:   User ↔ Company (join table: user_companies)
+' @ElementCollection: User → Set<UserRole> (user_roles table)
+' Self-referential: User → User (manager/directReports)
+'
+' AGGREGATE ROOT (CommissionPlan):
+' CommissionPlan owns Rules, Tiers, and Bonuses. Child entities
+' have no independent lifecycle — they are created and deleted
+' only through the Plan (cascade ALL + orphanRemoval). The
+' repository only exists for CommissionPlan, not for Tiers
+' or Rules individually.
+'
+' FETCH STRATEGY:
+' All @ManyToOne and @OneToMany use LAZY by default. Eager
+' loading is handled via @EntityGraph and JOIN FETCH in
+' repository queries to prevent N+1 problems while keeping
+' the default lazy for operations that don't need children.
+'
+' DATABASE SCHEMA (Flyway V1):
+' 14 tables with 40+ indexes on FK columns, status fields,
+' and date ranges. ON DELETE CASCADE for child entities.
+' V4 adds companies and user_profiles tables.
+' ============================================================
+
+@enduml

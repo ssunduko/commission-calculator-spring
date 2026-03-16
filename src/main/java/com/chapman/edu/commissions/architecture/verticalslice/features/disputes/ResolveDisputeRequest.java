@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.features.disputes;
+package com.chapman.edu.commissions.architecture.verticalslice.features.disputes;
 
 /**
  * Request DTO for resolving a dispute.

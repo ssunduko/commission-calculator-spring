@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.features.calculations;
+package com.chapman.edu.commissions.architecture.verticalslice.features.calculations;
 
 /**
  * Request DTO for calculating commission on a deal.

@@ -123,18 +123,13 @@ public class CommissionDocumentService {
      */
     public void loadAllDocuments() {
         log.info("Loading commission domain data into vector store...");
-
         List<Document> documents = new ArrayList<>();
-
         // Load deals as documents
         documents.addAll(loadDealDocuments());
-
         // Load commission plans as documents
         documents.addAll(loadPlanDocuments());
-
         // Load commission calculations as documents
         documents.addAll(loadCalculationDocuments());
-
         // Load user profiles as documents
         documents.addAll(loadUserDocuments());
 
@@ -144,7 +139,6 @@ public class CommissionDocumentService {
             // 2. Stores the resulting vectors alongside the text and metadata
             vectorStore.add(documents);
             log.info("Successfully loaded {} documents into vector store", documents.size());
-
             // Persist the vector store to disk so subsequent startups skip re-embedding
             persistVectorStore();
         } else {
@@ -188,8 +182,8 @@ public class CommissionDocumentService {
         List<Document> documents = new ArrayList<>();
         List<Deal> deals = dealRepository.findAll();
 
+        // 1. CREATE natural language content (better than raw data)
         for (Deal deal : deals) {
-            // Create natural language content from the entity
             String content = String.format(
                     "Sales deal titled '%s' with a value of $%s. " +
                     "Current status is %s. Created on %s.",
@@ -203,13 +197,14 @@ public class CommissionDocumentService {
                 content += String.format(" Closed on %s.", deal.getCloseDate());
             }
 
-            // Metadata enables filtering without re-searching
+            // 2. ADD metadata for filtering
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("type", "deal");
             metadata.put("entityId", deal.getId());
             metadata.put("status", deal.getStatus().name());
             metadata.put("value", deal.getValue().doubleValue());
 
+            // 3. CREATE the Document
             documents.add(new Document(content, metadata));
         }
 

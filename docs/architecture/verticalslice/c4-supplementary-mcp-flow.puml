@@ -1,0 +1,176 @@
+@startuml C4_Supplementary_MCP_Flow
+title Supplementary: MCP Protocol Flow — AI Agent Integration
+
+' ============================================================
+' SUPPLEMENTARY DIAGRAM: MCP (Model Context Protocol) FLOW
+' ============================================================
+' This diagram details how AI agents interact with the
+' Commission Calculator through the MCP protocol. It shows
+' the three MCP primitives (Tools, Prompts, Resources) and
+' the two transport options (REST and SSE).
+'
+' PURPOSE:
+' The MCP integration is a distinguishing architectural feature
+' of the vertical slice implementation. This diagram answers:
+' "How do AI agents discover and invoke commission operations?"
+'
+' MCP PROTOCOL OVERVIEW:
+' MCP is a standard protocol for connecting AI models to
+' external data and capabilities. It defines three primitives:
+'   - Tools: Functions the AI can invoke (27 total)
+'   - Prompts: Pre-built prompt templates (7 total)
+'   - Resources: Data the AI can read (8+ URIs)
+' ============================================================
+
+skinparam actorFontSize 11
+skinparam participantFontSize 10
+skinparam sequenceMessageAlign center
+
+actor "AI Agent\n(LLM Client)" as agent
+participant "McpSseController\n/api/mcp/sse" as sse
+participant "McpProtocolController\n/api/mcp/**" as proto
+participant "McpCommissionTools\n(27 @Tool methods)" as tools
+participant "McpPrompts\n(7 prompts)" as prompts
+participant "McpResources\n(8+ URIs)" as resources
+participant "Feature Services\n(Deal, Plan, Calc, Dispute)" as services
+database "H2 Database" as db
+
+' ============================================================
+' FLOW 1: SSE CONNECTION ESTABLISHMENT
+' ============================================================
+group SSE Transport — Persistent Connection
+    agent -> sse : GET /api/mcp/sse
+    sse --> agent : SSE stream opened\n(connection ID assigned)
+    note right of sse
+        SSE provides real-time
+        streaming. Connection
+        persists for multiple
+        tool invocations.
+    end note
+end
+
+' ============================================================
+' FLOW 2: MCP INITIALIZATION
+' ============================================================
+group MCP Session Initialization
+    agent -> proto : POST /api/mcp/initialize
+    proto --> agent : Server capabilities\n(tools, prompts, resources)
+    note right of proto
+        Returns server info:
+        name: commission-calculator
+        version: 1.0.0
+        27 tools, 7 prompts, 8+ resources
+    end note
+end
+
+' ============================================================
+' FLOW 3: TOOL DISCOVERY AND INVOCATION
+' ============================================================
+group Tool Discovery & Invocation
+    agent -> proto : POST /api/mcp/tools/list
+    proto -> tools : List registered tools
+    tools --> proto : 27 tool definitions\n(name, description, schema)
+    proto --> agent : Tool catalog
+
+    note over agent
+        AI agent selects appropriate
+        tool based on user query and
+        tool descriptions
+    end note
+
+    agent -> proto : POST /api/mcp/tools/call\n{"name": "getDealById",\n "arguments": {"id": "abc-123"}}
+    proto -> tools : invoke getDealById("abc-123")
+    tools -> services : dealService.getDeal("abc-123")
+    services -> db : SELECT * FROM deal WHERE id=?
+    db --> services : Deal entity
+    services --> tools : DealResponse DTO
+    tools --> proto : Tool result (JSON)
+    proto --> agent : {"content": [{"text": "..."}]}
+end
+
+' ============================================================
+' FLOW 4: PROMPT TEMPLATE USAGE
+' ============================================================
+group Prompt Templates
+    agent -> proto : POST /api/mcp/prompts/list
+    proto -> prompts : List available prompts
+    prompts --> proto : 7 prompt definitions
+    proto --> agent : Prompt catalog
+
+    agent -> proto : POST /api/mcp/prompts/get\n{"name": "analyze-sales-performance"}
+    proto -> prompts : getPrompt("analyze-sales-performance")
+    prompts --> proto : Prompt with arguments\n& message templates
+    proto --> agent : Formatted prompt text
+
+    note over agent
+        Prompts available:
+        - analyze-sales-performance
+        - create-commission-workflow
+        - dispute-resolution
+        - setup-commission-plan
+        - monthly-commission-report
+        - compare-plans
+        - audit-calculation
+    end note
+end
+
+' ============================================================
+' FLOW 5: RESOURCE ACCESS
+' ============================================================
+group Resource Access
+    agent -> proto : POST /api/mcp/resources/list
+    proto -> resources : List available resources
+    resources --> proto : Static + template URIs
+    proto --> agent : Resource catalog
+
+    agent -> proto : POST /api/mcp/resources/read\n{"uri": "deals://all"}
+    proto -> resources : readResource("deals://all")
+    resources -> services : dealService.getAllDeals()
+    services -> db : SELECT * FROM deal
+    db --> services : List<Deal>
+    services --> resources : Deal data
+    resources --> proto : Resource content (JSON)
+    proto --> agent : {"contents": [{"text": "..."}]}
+
+    note over resources
+        Static resources:
+          deals://all
+          plans://active
+          disputes://open
+          calculations://all
+          schemas://...
+
+        Template resources:
+          deal://{id}
+          plan://{id}
+          dispute://{id}
+          calculations-by-rep://{id}
+    end note
+end
+
+' ============================================================
+' TOOL CATALOG (27 TOOLS)
+' ============================================================
+note over tools
+    **DEAL MANAGEMENT (7 tools)**
+    createDeal, getDealById, getAllDeals,
+    getDealsBySalesRep, getDealsByStatus,
+    updateDeal, deleteDeal
+
+    **COMMISSION PLAN MANAGEMENT (7 tools)**
+    createPlan, getPlanById, getAllPlans,
+    getPlansByStatus, activatePlan,
+    addRuleToPlan, deletePlan
+
+    **DISPUTE MANAGEMENT (8 tools)**
+    createDispute, getDisputeById, getAllDisputes,
+    getDisputesBySalesRep, getDisputesByStatus,
+    resolveDispute, escalateDispute, deleteDispute
+
+    **COMMISSION CALCULATIONS (5 tools)**
+    calculateCommission, getCalculationById,
+    getAllCalculations, getCalculationsByDeal,
+    getCalculationsBySalesRep
+end note
+
+@enduml

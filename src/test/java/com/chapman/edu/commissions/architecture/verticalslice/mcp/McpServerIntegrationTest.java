@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.mcp;
+package com.chapman.edu.commissions.architecture.verticalslice.mcp;
 
 import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CalculateCommissionRequest;
 import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealResponse;

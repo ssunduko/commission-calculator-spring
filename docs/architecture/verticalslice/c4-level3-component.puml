@@ -1,0 +1,190 @@
+@startuml C4_Level3_Component
+!include <C4/C4_Component>
+
+title Component Diagram — Commission Calculator (Vertical Slice)
+
+' ============================================================
+' C4 LEVEL 3: COMPONENT DIAGRAM
+' ============================================================
+' Zooms into the Feature Slices and Infrastructure containers
+' to show individual Spring components and their relationships.
+'
+' PURPOSE:
+' Answer the question: "What components exist inside the
+' Commission Calculator, and how do they collaborate?"
+'
+' NOTATION:
+' - Components = Spring beans (@Controller, @Service, etc.)
+' - Boundaries = Logical groupings (feature slices, infra)
+' - Arrows = Dependencies and data flow
+'
+' VERTICAL SLICE KEY INSIGHT:
+' Each feature (Deals, Plans, Calculations, Disputes) is a
+' self-contained slice with its own Controller → Service →
+' Repository. Slices share the domain model but do NOT
+' depend on each other's services directly. Cross-cutting
+' concerns live in Infrastructure.
+' ============================================================
+
+Person(user, "User", "Human actor")
+Person(aiAgent, "AI Agent", "LLM client")
+
+Container_Boundary(app, "Commission Calculator Application") {
+
+    ' ============================================================
+    ' FEATURE SLICE: DEALS
+    ' ============================================================
+    Component_Boundary(deals, "Deals Feature Slice") {
+        Component(dealCtrl, "DealController", "@RestController", "POST/GET/PUT/DELETE\n/api/deals/**")
+        Component(dealSvc, "DealService", "@Service", "CRUD + filtering by\nsales rep and status")
+        Component(dealRepo, "DealRepository", "JpaRepository", "findBySalesRepId()\nfindByStatus()")
+    }
+
+    ' ============================================================
+    ' FEATURE SLICE: COMMISSION PLANS
+    ' ============================================================
+    Component_Boundary(plans, "Plans Feature Slice") {
+        Component(planCtrl, "CommissionPlanController", "@RestController", "POST/GET/DELETE\n/api/plans/**\nPOST activate, add rule")
+        Component(planSvc, "CommissionPlanService", "@Service", "Plan lifecycle:\ncreate, activate,\nadd rules, delete")
+        Component(planRepo, "CommissionPlanRepository", "JpaRepository", "findByStatus()")
+    }
+
+    ' ============================================================
+    ' FEATURE SLICE: COMMISSION CALCULATIONS
+    ' ============================================================
+    Component_Boundary(calcs, "Calculations Feature Slice") {
+        Component(calcCtrl, "CommissionCalculationController", "@RestController", "POST /api/calculations\nGET by deal or rep")
+        Component(calcSvc, "CommissionCalculationService", "@Service", "Applies plan tiers\nto deal values.\nBase commission logic.")
+        Component(calcRepo, "CommissionCalculationRepository", "JpaRepository", "findByDealId()\nfindBySalesRepId()")
+    }
+
+    ' ============================================================
+    ' FEATURE SLICE: DISPUTES
+    ' ============================================================
+    Component_Boundary(disputes, "Disputes Feature Slice") {
+        Component(disputeCtrl, "DisputeController", "@RestController", "POST/GET/DELETE\n/api/disputes/**\nresolve, escalate")
+        Component(disputeSvc, "DisputeService", "@Service", "Dispute lifecycle:\ncreate, review,\nescalate, resolve")
+        Component(disputeRepo, "DisputeRepository", "JpaRepository", "findBySalesRepId()\nfindByStatus()\nfindByCalculationId()")
+    }
+
+    ' ============================================================
+    ' MCP INTEGRATION (AI Agent Interface)
+    ' ============================================================
+    Component_Boundary(mcp, "MCP Server") {
+        Component(mcpTools, "McpCommissionTools", "@Component", "Facade: 27 @Tool methods\nwrapping all 4 feature\nslice services")
+        Component(mcpPrompts, "McpPrompts", "@Component", "7 predefined AI prompts:\nanalyze-sales, create-workflow,\ndispute-resolution, etc.")
+        Component(mcpResources, "McpResources", "@Component", "Static + template resources:\ndeals://all, plan://{id},\nschemas, etc.")
+        Component(mcpProtoCtrl, "McpProtocolController", "@RestController", "JSON-RPC endpoints:\n/api/mcp/tools/call\n/api/mcp/initialize")
+        Component(mcpSseCtrl, "McpSseController", "@RestController", "SSE transport:\n/api/mcp/sse\n/api/mcp/message")
+    }
+
+    ' ============================================================
+    ' INFRASTRUCTURE (Cross-cutting Concerns)
+    ' ============================================================
+    Component_Boundary(infra, "Infrastructure") {
+        Component(secConfig, "SecurityConfig", "@Configuration", "HTTP Basic auth\nCSRF disabled for /api/**\nPublic: Swagger, H2")
+        Component(openApiCfg, "OpenApiConfig", "@Configuration", "Swagger/OpenAPI\ndocumentation setup")
+        Component(exHandler, "GlobalExceptionHandler", "@RestControllerAdvice", "ResourceNotFoundException → 404\nValidationException → 400\nGeneric → 500")
+        Component(dataInit, "DataInitializer", "CommandLineRunner", "Seeds 2 plans, 6 deals,\n4 calculations, 2 disputes\non startup")
+    }
+
+    ' ============================================================
+    ' DOMAIN MODEL (Shared across all slices)
+    ' ============================================================
+    Component_Boundary(domain, "Domain Model (23 Entities)") {
+        Component(userEntity, "User", "JPA @Entity", "Roles, department,\nterritory, manager")
+        Component(dealEntity, "Deal + DealProduct", "JPA @Entity", "Title, value, status,\nsales rep, products")
+        Component(planEntity, "CommissionPlan +\nTier + Rule + Bonus", "JPA @Entity", "Tiered rates, rules\nwith conditions, bonuses")
+        Component(calcEntity, "CommissionCalculation +\nBonus + Accelerator", "JPA @Entity", "Base, gross, net\ncommission amounts")
+        Component(disputeEntity, "Dispute +\nDisputeComment", "JPA @Entity", "Status lifecycle,\nescalation, resolution")
+    }
+}
+
+ContainerDb(db, "H2 Database", "In-memory")
+
+' ============================================================
+' RELATIONSHIPS — Feature Slices (Controller → Service → Repo)
+' ============================================================
+Rel(user, dealCtrl, "REST", "HTTPS")
+Rel(user, planCtrl, "REST", "HTTPS")
+Rel(user, calcCtrl, "REST", "HTTPS")
+Rel(user, disputeCtrl, "REST", "HTTPS")
+
+Rel(dealCtrl, dealSvc, "Delegates")
+Rel(dealSvc, dealRepo, "Queries")
+Rel(planCtrl, planSvc, "Delegates")
+Rel(planSvc, planRepo, "Queries")
+Rel(calcCtrl, calcSvc, "Delegates")
+Rel(calcSvc, calcRepo, "Queries")
+Rel(disputeCtrl, disputeSvc, "Delegates")
+Rel(disputeSvc, disputeRepo, "Queries")
+
+' ============================================================
+' RELATIONSHIPS — Cross-slice dependencies
+' ============================================================
+Rel(calcSvc, dealRepo, "Reads deal data", "for calculation")
+Rel(calcSvc, planRepo, "Reads plan tiers", "for rate lookup")
+
+' ============================================================
+' RELATIONSHIPS — MCP wraps feature slices
+' ============================================================
+Rel(aiAgent, mcpProtoCtrl, "JSON-RPC", "REST")
+Rel(aiAgent, mcpSseCtrl, "SSE stream", "HTTP")
+Rel(mcpProtoCtrl, mcpTools, "Routes tool calls")
+Rel(mcpProtoCtrl, mcpPrompts, "Routes prompt gets")
+Rel(mcpProtoCtrl, mcpResources, "Routes resource reads")
+Rel(mcpTools, dealSvc, "Invokes")
+Rel(mcpTools, planSvc, "Invokes")
+Rel(mcpTools, calcSvc, "Invokes")
+Rel(mcpTools, disputeSvc, "Invokes")
+Rel(mcpResources, dealRepo, "Reads")
+Rel(mcpResources, planRepo, "Reads")
+
+' ============================================================
+' RELATIONSHIPS — Domain and persistence
+' ============================================================
+Rel(dealRepo, dealEntity, "Maps")
+Rel(planRepo, planEntity, "Maps")
+Rel(calcRepo, calcEntity, "Maps")
+Rel(disputeRepo, disputeEntity, "Maps")
+Rel(dealRepo, db, "JDBC")
+Rel(planRepo, db, "JDBC")
+Rel(calcRepo, db, "JDBC")
+Rel(disputeRepo, db, "JDBC")
+
+' ============================================================
+' RELATIONSHIPS — Infrastructure
+' ============================================================
+Rel(dataInit, dealRepo, "Seeds data")
+Rel(dataInit, planRepo, "Seeds data")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' VERTICAL SLICE BOUNDARIES:
+' Each feature slice (Deals, Plans, Calculations, Disputes)
+' is a self-contained unit. The only cross-slice dependency
+' is CommissionCalculationService, which reads from DealRepo
+' and PlanRepo to calculate commissions (it needs the deal
+' value and the plan's tier structure).
+'
+' MCP FACADE PATTERN:
+' McpCommissionTools is a facade that wraps all four feature
+' services into 27 discrete @Tool-annotated methods. This
+' provides a uniform interface for AI agents without exposing
+' internal service structure. The tools are registered as
+' ToolCallback beans in the main application class.
+'
+' DTO ISOLATION:
+' Each feature slice defines its own Request/Response DTOs.
+' Controllers accept DTOs, services convert between DTOs and
+' entities, repositories work with entities. This prevents
+' domain model leakage into the API contract.
+'
+' EXCEPTION FLOW:
+' Service methods throw ResourceNotFoundException or
+' ValidationException. GlobalExceptionHandler catches these
+' and returns standardized HTTP error responses (404, 400, 500).
+' ============================================================
+
+@enduml

@@ -1,0 +1,88 @@
+@startuml C4_Level2_Container
+!include <C4/C4_Container>
+
+title Container Diagram — Commission Calculator (Vertical Slice)
+
+' ============================================================
+' C4 LEVEL 2: CONTAINER DIAGRAM
+' ============================================================
+' Zooms into the Commission Calculator system to show the
+' high-level technical building blocks (containers) and how
+' they interact. In this monolithic Spring Boot app, the
+' "containers" are logical layers within a single deployable.
+'
+' PURPOSE:
+' Answer the question: "What are the major technical pieces
+' inside the Commission Calculator, and how do they communicate?"
+'
+' NOTATION:
+' - Blue boxes = Containers (deployable/runnable units)
+' - Dashed boundary = The system boundary
+' - Arrows = Communication protocols and data flow
+'
+' NOTE ON MONOLITH vs. CONTAINERS:
+' Although this is a single Spring Boot JAR, C4 containers
+' represent independently replaceable technical components.
+' Here we show the logical containers that could be split
+' into microservices if the system scales.
+' ============================================================
+
+Person(user, "User", "Sales rep, manager,\nor finance admin")
+Person(aiAgent, "AI Agent", "LLM client using\nMCP protocol")
+
+System_Boundary(commCalc, "Commission Calculator System") {
+
+    Container(restApi, "REST API Layer", "Spring MVC Controllers", "Exposes CRUD endpoints for\ndeals, plans, calculations,\nand disputes at /api/**.\nHTTP Basic authentication.")
+
+    Container(mcpServer, "MCP Server", "SSE + REST Transport", "Exposes 27 tools, 7 prompts,\nand 8+ resources for AI agents.\nSupports SSE streaming and\nJSON-RPC message handling.")
+
+    Container(featureSlices, "Feature Slices", "Services + DTOs", "Four vertical slices containing\nbusiness logic: Deals, Plans,\nCalculations, Disputes.\nEach slice is self-contained.")
+
+    Container(domainModel, "Domain Model", "JPA Entities + Enums", "23 entity classes and 6 enums\nmodeling the commission domain:\nUsers, Deals, Plans, Tiers,\nRules, Calculations, Disputes.")
+
+    Container(infrastructure, "Infrastructure", "Spring Configuration", "Security (HTTP Basic),\nOpenAPI/Swagger config,\nexception handling,\ndata initialization.")
+
+    ContainerDb(h2db, "H2 Database", "In-memory RDBMS", "Stores all domain entities.\nRe-initialized on startup\nvia DataInitializer.")
+}
+
+System_Ext(swaggerUI, "Swagger UI", "API documentation\nand testing")
+
+Rel(user, restApi, "CRUD operations on\ndeals, plans, disputes", "HTTPS + HTTP Basic")
+Rel(aiAgent, mcpServer, "Tool invocation,\nresource reads,\nprompt templates", "MCP / SSE + JSON-RPC")
+
+Rel(restApi, featureSlices, "Delegates to", "Method calls")
+Rel(mcpServer, featureSlices, "Delegates to", "Method calls")
+Rel(featureSlices, domainModel, "Creates/reads/updates", "JPA entities")
+Rel(domainModel, h2db, "Persists via", "Spring Data JPA / Hibernate")
+Rel(infrastructure, restApi, "Secures, configures", "Spring Security filters")
+Rel(restApi, swaggerUI, "Serves OpenAPI spec", "HTTP")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' VERTICAL SLICE PATTERN:
+' The Feature Slices container is organized by business
+' capability, NOT by technical layer. Each slice owns its
+' full stack: Controller → Service → Repository → DTOs.
+'
+' MCP INTEGRATION:
+' The MCP Server wraps feature slice services through a
+' McpCommissionTools facade. It registers 27 @Tool methods
+' that AI agents can discover and invoke. The MCP server
+' supports both REST transport (/api/mcp/**) and SSE
+' streaming (/api/mcp/sse) for real-time connections.
+'
+' SECURITY:
+' - /api/** requires HTTP Basic authentication
+' - /swagger-ui/** and /h2-console/** are public
+' - CSRF is disabled for API and H2 console endpoints
+' - All roles: SALES_REP, SALES_MANAGER, FINANCE_ADMIN,
+'   SYSTEM_ADMIN
+'
+' DATA LIFECYCLE:
+' H2 is in-memory — DataInitializer creates sample data
+' (2 plans, 6 deals, 4 calculations, 2 disputes) on every
+' startup. Production would swap H2 for PostgreSQL/MySQL.
+' ============================================================
+
+@enduml

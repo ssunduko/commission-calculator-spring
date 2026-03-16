@@ -1,0 +1,308 @@
+@startuml C4_Level4_Code_SpringBoot
+title Code Diagram — SpringBoot Module: DTO & Security Class Structure
+
+' ============================================================
+' C4 LEVEL 4: CODE DIAGRAM — SPRINGBOOT MODULE
+' ============================================================
+' Shows the class-level detail for the SpringBoot module's
+' distinctive features: the DTO layer, security components,
+' and the generic API response wrapper.
+'
+' PURPOSE:
+' Answer: "What do the DTOs, security classes, and API
+' response wrappers look like at the code level?"
+'
+' NOTE:
+' The domain entities (User, Deal, CommissionPlan, etc.) are
+' shared with the ORM module and are documented in the ORM
+' Level 4 code diagram. This diagram focuses on what is
+' UNIQUE to the SpringBoot module.
+' ============================================================
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 11
+
+' ============================================================
+' API RESPONSE WRAPPERS
+' ============================================================
+
+package "Response Wrappers" {
+    class "ApiResponse" as ApiResponse {
+        - success : boolean
+        - message : String
+        - data : T
+        - timestamp : LocalDateTime
+        + {static} success(data, message) : ApiResponse
+        + {static} success(data) : ApiResponse
+        + {static} error(message) : ApiResponse
+    }
+
+    class ApiErrorResponse {
+        - status : int
+        - error : String
+        - message : String
+        - validationErrors : Map
+        - path : String
+        - timestamp : LocalDateTime
+    }
+}
+
+' ============================================================
+' REQUEST DTOs (with Bean Validation)
+' ============================================================
+
+package "Request DTOs" {
+    class LoginRequest {
+        - username : String <<@NotBlank>>
+        - password : String <<@NotBlank>>
+    }
+
+    class CreateUserRequest {
+        - username : String <<@NotBlank, @Size(3,50)>>
+        - email : String <<@NotBlank, @Email>>
+        - firstName : String <<@NotBlank>>
+        - lastName : String <<@NotBlank>>
+        - password : String <<@NotBlank, @Size(8,100)>>
+        - roles : Set of String
+        - department : String
+        - territory : String
+        - managerId : String
+    }
+
+    class CreateDealRequest {
+        - title : String <<@NotBlank>>
+        - value : BigDecimal <<@DecimalMin("0.01")>>
+        - salesRepId : String <<@NotBlank>>
+    }
+
+    class CreatePlanRequest {
+        - name : String <<@NotBlank>>
+        - currencyCode : String <<@Size(3,3)>>
+        - effectiveStartDate : LocalDate <<@NotNull>>
+        - effectiveEndDate : LocalDate <<@NotNull>>
+        - createdBy : String
+    }
+
+    class CalculateCommissionRequest {
+        - dealId : String <<@NotBlank>>
+        - planId : String <<@NotBlank>>
+        - calculatedBy : String <<@NotBlank>>
+    }
+
+    class CreateDisputeRequest {
+        - calculationId : String <<@NotBlank>>
+        - salesRepId : String <<@NotBlank>>
+        - title : String <<@NotBlank, @Size(5,200)>>
+        - description : String <<@NotBlank, @Size(10,2000)>>
+    }
+}
+
+' ============================================================
+' RESPONSE DTOs
+' ============================================================
+
+package "Response DTOs" {
+    class AuthResponse {
+        - token : String
+        - tokenType : String = "Bearer"
+        - username : String
+        - roles : Set of String
+    }
+
+    class UserResponse {
+        - id : String
+        - username : String
+        - email : String
+        - firstName : String
+        - lastName : String
+        - roles : Set of String
+        - active : boolean
+        - department : String
+        - territory : String
+        - createdDate : LocalDateTime
+        .. security note ..
+        passwordHash is EXCLUDED
+    }
+
+    class DealResponse {
+        - id : String
+        - title : String
+        - value : BigDecimal
+        - status : String
+        - salesRepId : String
+        - products : List of ProductInfo
+        - closeDate : LocalDate
+        - createdDate : LocalDate
+    }
+
+    class ProductInfo {
+        - name : String
+        - quantity : int
+        - unitPrice : BigDecimal
+    }
+
+    class CommissionCalculationResponse {
+        - id : String
+        - dealId : String
+        - salesRepId : String
+        - baseCommission : BigDecimal
+        - grossCommission : BigDecimal
+        - netCommission : BigDecimal
+        - status : String
+        - calculationDate : LocalDateTime
+        - payoutDate : LocalDateTime
+        - planId : String
+        - calculatedBy : String
+        - bonusCount : int
+        - acceleratorCount : int
+    }
+
+    class DisputeResponse {
+        - id : String
+        - calculationId : String
+        - salesRepId : String
+        - title : String
+        - description : String
+        - status : String
+        - escalated : boolean
+        - commentCount : int
+        - createdDate : LocalDateTime
+        - resolvedDate : LocalDateTime
+        - resolution : String
+    }
+}
+
+' ============================================================
+' SECURITY COMPONENTS
+' ============================================================
+
+package "Security" {
+    class JwtTokenProvider {
+        - secretKey : SecretKey
+        - jwtExpiration : long = 86400000
+        + generateToken(Authentication) : String
+        + getUsernameFromToken(String) : String
+        + validateToken(String) : boolean
+        - buildToken(String) : String
+    }
+
+    class JwtAuthenticationFilter {
+        - jwtTokenProvider : JwtTokenProvider
+        - userDetailsService : UserDetailsService
+        # doFilterInternal(request, response, chain)
+        - getTokenFromRequest(request) : String
+    }
+
+    class CustomUserDetailsService {
+        - userRepository : UserRepository
+        + loadUserByUsername(String) : UserDetails
+    }
+
+    class SecurityConfig {
+        + apiSecurityFilterChain() : SecurityFilterChain
+        + webSecurityFilterChain() : SecurityFilterChain
+        + passwordEncoder() : PasswordEncoder
+        + authenticationManager() : AuthenticationManager
+    }
+}
+
+' ============================================================
+' MAPPER
+' ============================================================
+
+package "Mapper" {
+    class DtoMapper {
+        + toDealResponse(Deal) : DealResponse
+        + toCommissionPlanResponse(Plan) : PlanResponse
+        + toCommissionCalculationResponse(Calc) : CalcResponse
+        + toUserResponse(User) : UserResponse
+        + toDisputeResponse(Dispute) : DisputeResponse
+    }
+}
+
+' ============================================================
+' EXCEPTION HIERARCHY
+' ============================================================
+
+package "Exceptions" {
+    class ResourceNotFoundException {
+        - resourceName : String
+        - fieldName : String
+        - fieldValue : Object
+    }
+
+    class BusinessValidationException {
+        - message : String
+    }
+
+    class UnauthorizedException {
+        - message : String
+    }
+
+    class GlobalExceptionHandler {
+        + handleValidation() : 400
+        + handleNotFound() : 404
+        + handleBusiness() : 422
+        + handleUnauthorized() : 401
+        + handleAccessDenied() : 403
+        + handleGeneric() : 500
+    }
+
+    RuntimeException <|-- ResourceNotFoundException
+    RuntimeException <|-- BusinessValidationException
+    RuntimeException <|-- UnauthorizedException
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+DealResponse *-- ProductInfo : contains
+
+JwtAuthenticationFilter --> JwtTokenProvider : validates tokens
+JwtAuthenticationFilter --> CustomUserDetailsService : loads user
+SecurityConfig --> JwtAuthenticationFilter : registers
+AuthResponse ..> JwtTokenProvider : generated by
+
+GlobalExceptionHandler ..> ResourceNotFoundException : catches
+GlobalExceptionHandler ..> BusinessValidationException : catches
+GlobalExceptionHandler ..> UnauthorizedException : catches
+GlobalExceptionHandler ..> ApiErrorResponse : returns
+
+DtoMapper ..> UserResponse : creates
+DtoMapper ..> DealResponse : creates
+DtoMapper ..> CommissionCalculationResponse : creates
+DtoMapper ..> DisputeResponse : creates
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' DTO DESIGN PRINCIPLES:
+'
+' 1. REQUEST DTOs:
+'    - Use Jakarta Bean Validation annotations
+'    - Controllers use @Valid to trigger validation
+'    - Validation failures to GlobalExceptionHandler to 400
+'    - Field-level errors returned in validationErrors map
+'
+' 2. RESPONSE DTOs:
+'    - Exclude sensitive fields (passwordHash)
+'    - Include computed fields (bonusCount, commentCount)
+'    - Nested DTOs for collections (ProductInfo)
+'    - Wrapped in ApiResponse for consistency
+'
+' 3. SECURITY:
+'    - JWT signed with HMAC-SHA256 (256-bit key from JJWT)
+'    - 24-hour expiration
+'    - Bearer token in Authorization header
+'    - BCrypt for password hashing (strength 10)
+'    - Roles mapped with "ROLE_" prefix for Spring Security
+'
+' 4. ERROR RESPONSES:
+'    - Consistent ApiErrorResponse structure
+'    - HTTP status code in body AND response status
+'    - Validation errors as field-to-message map
+'    - Timestamps for debugging
+' ============================================================
+
+@enduml

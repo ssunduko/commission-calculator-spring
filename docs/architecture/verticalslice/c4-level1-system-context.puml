@@ -1,0 +1,53 @@
+@startuml C4_Level1_System_Context
+!include <C4/C4_Context>
+
+title System Context Diagram — Commission Calculator (Vertical Slice)
+
+' ============================================================
+' C4 LEVEL 1: SYSTEM CONTEXT
+' ============================================================
+' Shows the Commission Calculator system and the people and
+' external systems it interacts with. This is the highest level
+' of abstraction — the "zoomed out" view.
+'
+' PURPOSE:
+' Answer the question: "What is the Commission Calculator and
+' who/what does it interact with?"
+'
+' NOTATION:
+' - Blue boxes = People (actors who use the system)
+' - Dark blue box = The system under discussion
+' - Gray boxes = External systems it depends on
+' ============================================================
+
+Person(salesRep, "Sales Representative", "Creates deals, views\ncommission calculations,\nfiles disputes")
+Person(salesManager, "Sales Manager", "Reviews team performance,\napproves commissions,\nresolves disputes")
+Person(financeAdmin, "Finance Admin", "Manages commission plans,\naudits calculations,\napproves payouts")
+Person(aiAgent, "AI Agent / LLM Client", "Invokes MCP tools to query\nand manage commission data\nprogrammatically")
+
+System(commCalc, "Commission Calculator", "Manages sales deals, commission plans,\ncalculations, and disputes.\nExposes REST API and MCP protocol\nfor human and AI-agent interaction.")
+
+System_Ext(h2db, "H2 Database", "In-memory relational database\nfor deal, plan, calculation,\nand dispute persistence")
+System_Ext(swaggerUI, "Swagger UI", "Interactive API documentation\nand testing interface")
+
+Rel(salesRep, commCalc, "Creates deals, views commissions,\nfiles disputes", "REST API / HTTPS")
+Rel(salesManager, commCalc, "Reviews deals, resolves disputes,\nescalates issues", "REST API / HTTPS")
+Rel(financeAdmin, commCalc, "Manages plans, audits calculations", "REST API / HTTPS")
+Rel(aiAgent, commCalc, "Invokes 27 MCP tools,\nreads resources, uses prompts", "MCP Protocol / SSE + REST")
+
+Rel(commCalc, h2db, "Reads/writes domain data", "JDBC / JPA")
+Rel(commCalc, swaggerUI, "Serves OpenAPI spec", "HTTP")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' - All human actors authenticate via HTTP Basic
+' - AI agents connect via MCP SSE transport or REST endpoints
+' - H2 runs in-memory (data is re-initialized on each startup
+'   via DataInitializer CommandLineRunner)
+' - Swagger UI is publicly accessible (no auth required)
+' - The system is a monolithic Spring Boot application with
+'   feature-based internal organization (vertical slices)
+' ============================================================
+
+@enduml

@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.infrastructure.exceptions;
+package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +13,7 @@ import java.util.Map;
  * Global exception handler for REST API controllers only.
  * Limited to API package to avoid interfering with Swagger and H2 console.
  */
-@RestControllerAdvice(basePackages = "com.chapman.edu.commissions.verticalslice.features")
+@RestControllerAdvice(basePackages = "com.chapman.edu.commissions.architecture.verticalslice.features")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)

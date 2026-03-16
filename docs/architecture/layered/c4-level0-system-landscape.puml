@@ -1,0 +1,112 @@
+@startuml C4_Level0_System_Landscape
+!include <C4/C4_Context>
+
+title System Landscape Diagram -- Commission Calculator Platform
+
+' ============================================================
+' C4 LEVEL 0: SYSTEM LANDSCAPE
+' ============================================================
+' Shows the entire Commission Calculator platform in context:
+' all modules, external systems, and actor types.
+'
+' PURPOSE:
+' Answer: "What systems exist in the Commission Calculator
+' platform and how do they fit together?"
+'
+' This is the highest-level view. Each system shown here
+' is expanded in the Level 1 System Context diagrams.
+' ============================================================
+
+' ============================================================
+' ACTORS
+' ============================================================
+
+Person(salesRep, "Sales Representative", "Creates deals, views\nown commissions,\nfiles disputes")
+
+Person(salesMgr, "Sales Manager", "Manages team deals,\napproves calculations,\nresolves disputes")
+
+Person(finAdmin, "Finance Admin", "Processes commission\npayments, views all\ncalculations")
+
+Person(sysAdmin, "System Admin", "Manages users,\nfull system access")
+
+Person(aiUser, "AI / MCP Client", "Claude Desktop, IDE plugins,\nor API consumers using\nMCP protocol or REST")
+
+' ============================================================
+' CORE SYSTEMS
+' ============================================================
+
+System(springbootMod, "SpringBoot Module", "Layered architecture with\nJWT security, Thymeleaf UI,\nConcurrentHashMap repos,\nDTO layer with validation.\n8 controllers, 5 services.")
+
+System(ormMod, "ORM Module", "Layered architecture with\nJPA/Hibernate, Flyway migrations,\nSpring Cache, @Transactional\nwith isolation levels.\n4 controllers, 4 services.")
+
+System(aiMod, "AI Module", "Spring AI integration with\nReAct agent, Agentic Workflow,\nMCP server (27 tools, 7 prompts),\nvector store, embeddings.")
+
+System(vsMod, "Vertical Slice Module", "Feature-based architecture.\nSelf-contained slices for\ndeals, plans, calculations,\ndisputes. Shared kernel.")
+
+' ============================================================
+' EXTERNAL SYSTEMS
+' ============================================================
+
+System_Ext(anthropic, "Anthropic Claude API", "LLM service for AI-powered\ncommission analysis,\ncompliance checks,\nanomaly detection")
+
+System_Ext(h2, "H2 Database", "Embedded in-memory database.\nFlyway-managed schema\nwith 14+ tables, 40+ indexes")
+
+System_Ext(grafana, "Grafana OTEL LGTM", "Observability stack via\nDocker Compose.\nMetrics, logs, traces.\nPorts 3000, 4317, 4318")
+
+System_Ext(swagger, "Swagger / OpenAPI", "Interactive API documentation\nat /swagger-ui/ with\nJWT security scheme")
+
+' ============================================================
+' RELATIONSHIPS -- Actors to Systems
+' ============================================================
+
+Rel(salesRep, springbootMod, "REST + Web UI", "HTTPS + JWT / Form login")
+Rel(salesRep, ormMod, "REST API", "HTTPS")
+Rel(salesMgr, springbootMod, "REST + Web UI", "HTTPS + JWT / Form login")
+Rel(salesMgr, ormMod, "REST API", "HTTPS")
+Rel(finAdmin, springbootMod, "REST API", "HTTPS + JWT")
+Rel(finAdmin, ormMod, "REST API", "HTTPS")
+Rel(sysAdmin, springbootMod, "REST + Web UI", "HTTPS + JWT / Form login")
+Rel(aiUser, aiMod, "MCP / REST", "SSE + HTTPS")
+
+' ============================================================
+' RELATIONSHIPS -- Between Systems
+' ============================================================
+
+Rel(aiMod, anthropic, "LLM calls", "HTTPS REST API")
+Rel(aiMod, springbootMod, "Reads domain data", "Internal beans")
+Rel(ormMod, h2, "JDBC queries", "jdbc:h2:mem:commissiondb")
+Rel(vsMod, h2, "JDBC queries", "jdbc:h2:mem:commissiondb")
+
+Rel(springbootMod, swagger, "Serves API docs", "/swagger-ui/")
+Rel(ormMod, swagger, "Serves API docs", "/swagger-ui/")
+Rel(aiMod, swagger, "Serves API docs", "/swagger-ui/")
+
+Rel_L(springbootMod, grafana, "Exports telemetry", "OTLP gRPC/HTTP")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' MODULE ARCHITECTURE STYLES:
+'
+'   SpringBoot Module -- Layered (Controllers to Services to HashMap Repos)
+'   ORM Module        -- Layered (Controllers to Services to JPA Repos to DB)
+'   AI Module         -- Agent-based (ReAct + Workflow + MCP)
+'   Vertical Slice    -- Feature-based (each slice self-contained)
+'
+' SINGLE DEPLOYABLE:
+'   All four modules are packaged in a single Spring Boot JAR.
+'   They share the same JVM process and embedded Tomcat.
+'   Each module has its own API prefix:
+'     SpringBoot: /api/**
+'     ORM:        /api/orm/**
+'     AI:         /api/ai/**
+'     Vertical:   /api/vertical/**
+'
+' SECURITY MODEL:
+'   SpringBoot -- JWT + Form Login (full RBAC)
+'   ORM        -- Permit all (educational)
+'   AI         -- Permit all (educational)
+'   Vertical   -- Permit all (educational)
+' ============================================================
+
+@enduml

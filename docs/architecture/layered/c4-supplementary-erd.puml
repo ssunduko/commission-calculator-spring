@@ -1,0 +1,341 @@
+@startuml C4_Supplementary_ERD
+title Supplementary: Entity-Relationship Diagram — ORM Module Database Schema
+
+' ============================================================
+' SUPPLEMENTARY DIAGRAM: ENTITY-RELATIONSHIP DIAGRAM
+' ============================================================
+' Shows the full database schema managed by Flyway migrations,
+' including all 15 tables, their columns, primary/foreign keys,
+' and cardinality relationships.
+'
+' PURPOSE:
+' Answer: "What does the database schema look like and how
+' are the tables related?"
+'
+' FLYWAY MIGRATIONS:
+'   V1: 14 core tables + 40+ indexes
+'   V2: Seed sample data
+'   V3: Audit columns (created_at, updated_at)
+'   V4: Companies + user_profiles tables
+' ============================================================
+
+skinparam classFontSize 10
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+' ============================================================
+' USER MANAGEMENT TABLES
+' ============================================================
+
+package "User Management" {
+    entity "users" as users {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * username : VARCHAR(50) <<UNIQUE>>
+        * email : VARCHAR(100)
+        * password_hash : VARCHAR(255)
+        * first_name : VARCHAR(50)
+        * last_name : VARCHAR(50)
+        * department : VARCHAR(50)
+        * territory : VARCHAR(50)
+        * active : BOOLEAN
+        manager_id : VARCHAR(36) <<FK>>
+        created_date : TIMESTAMP
+        updated_date : TIMESTAMP
+    }
+
+    entity "user_roles" as user_roles {
+        * **user_id** : VARCHAR(36) <<FK, PK>>
+        * **role** : VARCHAR(30) <<PK>>
+        --
+        Enum values:
+        SALES_REP, SALES_MANAGER,
+        FINANCE_ADMIN, SYSTEM_ADMIN
+    }
+
+    entity "user_profiles" as user_profiles {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * user_id : VARCHAR(36) <<FK, UNIQUE>>
+        phone : VARCHAR(20)
+        bio : TEXT
+        avatar_url : VARCHAR(255)
+        timezone : VARCHAR(50)
+        locale : VARCHAR(10)
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+
+    entity "companies" as companies {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * name : VARCHAR(100)
+        industry : VARCHAR(50)
+        website : VARCHAR(255)
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+
+    entity "user_companies" as user_companies {
+        * **user_id** : VARCHAR(36) <<FK, PK>>
+        * **company_id** : VARCHAR(36) <<FK, PK>>
+        --
+        Join table for
+        User <-> Company M:N
+    }
+}
+
+' ============================================================
+' DEAL TABLES
+' ============================================================
+
+package "Deal Management" {
+    entity "deals" as deals {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * title : VARCHAR(200)
+        * value : DECIMAL(15,2)
+        * status : VARCHAR(20)
+        * sales_rep_id : VARCHAR(36) <<FK>>
+        close_date : DATE
+        created_date : TIMESTAMP
+        updated_date : TIMESTAMP
+        --
+        Status enum: PROSPECTING,
+        QUALIFICATION, PROPOSAL,
+        NEGOTIATION, WON,
+        LOST, CANCELLED
+    }
+
+    entity "deal_products" as deal_products {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * deal_id : VARCHAR(36) <<FK>>
+        * name : VARCHAR(100)
+        * quantity : INT
+        * unit_price : DECIMAL(15,2)
+    }
+}
+
+' ============================================================
+' COMMISSION PLAN TABLES
+' ============================================================
+
+package "Commission Plans" {
+    entity "commission_plans" as plans {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * name : VARCHAR(100)
+        * status : VARCHAR(20)
+        * currency_code : VARCHAR(3)
+        * effective_start_date : DATE
+        * effective_end_date : DATE
+        description : TEXT
+        created_by : VARCHAR(50)
+        created_date : TIMESTAMP
+        updated_date : TIMESTAMP
+        --
+        Status enum: DRAFT,
+        ACTIVE, ARCHIVED
+    }
+
+    entity "commission_tiers" as tiers {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * plan_id : VARCHAR(36) <<FK>>
+        * tier_name : VARCHAR(50)
+        * min_value : DECIMAL(15,2)
+        * max_value : DECIMAL(15,2)
+        * rate : DECIMAL(5,4)
+        * order_index : INT
+    }
+
+    entity "commission_rules" as rules {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * plan_id : VARCHAR(36) <<FK>>
+        * rule_name : VARCHAR(100)
+        * rule_type : VARCHAR(30)
+        * priority : INT
+        description : TEXT
+        --
+        RuleType enum: STANDARD,
+        OVERRIDE, SPLIT, DRAW
+    }
+
+    entity "rule_conditions" as conditions {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * rule_id : VARCHAR(36) <<FK>>
+        * field : VARCHAR(50)
+        * operator : VARCHAR(20)
+        * value : VARCHAR(100)
+        * logical_operator : VARCHAR(5)
+        --
+        Operator enum: EQUALS,
+        GREATER_THAN, LESS_THAN,
+        CONTAINS, BETWEEN
+    }
+
+    entity "bonus_rules" as bonuses {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * plan_id : VARCHAR(36) <<FK>>
+        * bonus_name : VARCHAR(100)
+        * bonus_type : VARCHAR(30)
+        * threshold : DECIMAL(15,2)
+        * bonus_amount : DECIMAL(15,2)
+        * bonus_percentage : DECIMAL(5,4)
+        --
+        BonusType enum: FLAT,
+        PERCENTAGE, TIERED
+    }
+}
+
+' ============================================================
+' COMMISSION CALCULATION TABLES
+' ============================================================
+
+package "Calculations" {
+    entity "commission_calculations" as calcs {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * deal_id : VARCHAR(36) <<FK>>
+        * sales_rep_id : VARCHAR(36) <<FK>>
+        * plan_id : VARCHAR(36) <<FK>>
+        * base_commission : DECIMAL(15,2)
+        * gross_commission : DECIMAL(15,2)
+        * net_commission : DECIMAL(15,2)
+        * status : VARCHAR(20)
+        calculated_by : VARCHAR(50)
+        calculation_date : TIMESTAMP
+        approved_date : TIMESTAMP
+        payout_date : TIMESTAMP
+        --
+        Status enum: PENDING,
+        APPROVED, PAID, REJECTED
+    }
+
+    entity "bonus_calculations" as bonus_calcs {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * calculation_id : VARCHAR(36) <<FK>>
+        * bonus_name : VARCHAR(100)
+        * bonus_amount : DECIMAL(15,2)
+    }
+
+    entity "accelerator_calculations" as accel_calcs {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * calculation_id : VARCHAR(36) <<FK>>
+        * accelerator_name : VARCHAR(100)
+        * multiplier : DECIMAL(5,4)
+        * additional_amount : DECIMAL(15,2)
+    }
+}
+
+' ============================================================
+' DISPUTE TABLES
+' ============================================================
+
+package "Disputes" {
+    entity "disputes" as disputes {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * calculation_id : VARCHAR(36) <<FK>>
+        * sales_rep_id : VARCHAR(36) <<FK>>
+        manager_id : VARCHAR(36) <<FK>>
+        * title : VARCHAR(200)
+        * description : TEXT
+        * status : VARCHAR(20)
+        * escalated : BOOLEAN
+        resolution : TEXT
+        created_date : TIMESTAMP
+        resolved_date : TIMESTAMP
+        --
+        Status enum: OPEN,
+        UNDER_REVIEW, RESOLVED,
+        ESCALATED, CLOSED
+    }
+
+    entity "dispute_comments" as comments {
+        * **id** : VARCHAR(36) <<PK>>
+        --
+        * dispute_id : VARCHAR(36) <<FK>>
+        * author : VARCHAR(50)
+        * content : TEXT
+        * created_date : TIMESTAMP
+    }
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' User self-referential
+users ||--o{ users : "manager_id\n(self-ref)"
+
+' User roles (ElementCollection)
+users ||--|{ user_roles : "user_id"
+
+' User profile (1:1)
+users ||--o| user_profiles : "user_id"
+
+' User-Company (M:N via join table)
+users }|--|{ user_companies : "user_id"
+companies }|--|{ user_companies : "company_id"
+
+' Deals
+users ||--o{ deals : "sales_rep_id"
+deals ||--o{ deal_products : "deal_id"
+
+' Commission Plans (aggregate root)
+plans ||--o{ tiers : "plan_id"
+plans ||--o{ rules : "plan_id"
+plans ||--o{ bonuses : "plan_id"
+rules ||--o{ conditions : "rule_id"
+
+' Calculations
+deals ||--o{ calcs : "deal_id"
+users ||--o{ calcs : "sales_rep_id"
+plans ||--o{ calcs : "plan_id"
+calcs ||--o{ bonus_calcs : "calculation_id"
+calcs ||--o{ accel_calcs : "calculation_id"
+
+' Disputes
+calcs ||--o{ disputes : "calculation_id"
+users ||--o{ disputes : "sales_rep_id"
+users ||--o{ disputes : "manager_id"
+disputes ||--o{ comments : "dispute_id"
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' SCHEMA CONVENTIONS:
+'   - All PKs are UUID (VARCHAR(36))
+'   - All FKs have database indexes
+'   - Monetary values use DECIMAL(15,2)
+'   - Rates/percentages use DECIMAL(5,4)
+'   - Status columns are VARCHAR enums
+'   - Timestamps for audit trails
+'
+' AGGREGATE ROOTS:
+'   CommissionPlan owns Tiers, Rules, Bonuses
+'   (cascade ALL + orphan removal)
+'   All children created/deleted through Plan only
+'
+' FLYWAY MIGRATION ORDER:
+'   V1: Core 14 tables + 40+ indexes
+'   V2: Seed sample data (users, deals, plans)
+'   V3: Add audit columns (created_at, updated_at)
+'   V4: Add companies + user_profiles tables
+'
+' INDEX STRATEGY:
+'   - All FK columns indexed
+'   - Status columns indexed (frequent filter)
+'   - Username + email unique indexes
+'   - Composite index on deals(sales_rep_id, status)
+'   - Composite index on calcs(sales_rep_id, status)
+' ============================================================
+
+@enduml

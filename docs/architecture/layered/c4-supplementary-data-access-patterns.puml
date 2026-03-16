@@ -1,0 +1,211 @@
+@startuml C4_Supplementary_Data_Access_Patterns
+title Supplementary: Data Access Patterns — ORM Module Query & Transaction Strategies
+
+' ============================================================
+' SUPPLEMENTARY DIAGRAM: DATA ACCESS PATTERNS
+' ============================================================
+' Shows the ORM module's JPA query strategies, transaction
+' management, and caching patterns in sequence form.
+'
+' PURPOSE:
+' Answer: "How does the ORM module query the database, manage
+' transactions, and cache results?"
+'
+' This is a distinguishing feature of the ORM module and
+' warrants its own diagram to explain the five query strategies,
+' transaction isolation/propagation, and cache integration.
+' ============================================================
+
+skinparam participantFontSize 10
+
+participant "Controller" as ctrl
+participant "Service\n(@Transactional)" as svc
+participant "Spring Cache\n(ConcurrentMap)" as cache
+participant "JPA Repository" as repo
+participant "Hibernate\nSession" as session
+participant "H2 Database" as db
+
+' ============================================================
+' PATTERN 1: DERIVED QUERY METHOD
+' ============================================================
+group "1. Derived Query — findByStatus(DealStatus.WON)"
+    ctrl -> svc : getDealsByStatus(WON)
+    svc -> repo : findByStatus(WON)
+    note right of repo
+        Spring Data auto-generates:
+        SELECT d FROM Deal d
+        WHERE d.status = :status
+    end note
+    repo -> session : createQuery()
+    session -> db : SELECT * FROM deals\nWHERE status = 'WON'
+    db --> session : ResultSet
+    session --> repo : List<Deal>
+    repo --> svc : List<Deal>
+    svc --> ctrl : List<Deal>
+end
+
+' ============================================================
+' PATTERN 2: JPQL WITH @QUERY
+' ============================================================
+group "2. JPQL @Query — findActiveUsersByRole"
+    ctrl -> svc : getActiveUsersByRole(SALES_REP)
+    svc -> repo : findActiveUsersByRole(SALES_REP)
+    note right of repo
+        @Query("SELECT u FROM User u
+                WHERE u.active = true
+                AND :role MEMBER OF u.roles")
+    end note
+    repo -> session : createQuery(jpql)
+    session -> db : SELECT u.* FROM users u\nJOIN user_roles ur ON ...\nWHERE u.active = true\nAND ur.role = 'SALES_REP'
+    db --> session : ResultSet
+    session --> repo : List<User>
+    repo --> svc : List<User>
+    svc --> ctrl : List<User>
+end
+
+' ============================================================
+' PATTERN 3: @ENTITYGRAPH (N+1 prevention)
+' ============================================================
+group "3. @EntityGraph — findWithProductsAndSalesRepById"
+    ctrl -> svc : getDealWithDetails(id)
+    svc -> repo : findWithProductsAndSalesRepById(id)
+    note right of repo
+        @EntityGraph(attributePaths =
+          {"products", "salesRep"})
+        Overrides LAZY → EAGER
+        for this query only
+    end note
+    repo -> session : createQuery + fetchGraph
+    session -> db : SELECT d.*, p.*, u.*\nFROM deals d\nLEFT JOIN deal_products p\n  ON d.id = p.deal_id\nLEFT JOIN users u\n  ON d.sales_rep_id = u.id\nWHERE d.id = ?
+    note right of db
+        Single query loads Deal
+        + products + salesRep
+        (prevents N+1)
+    end note
+    db --> session : ResultSet (joined)
+    session --> repo : Deal (fully loaded)
+    repo --> svc : Deal
+    svc --> ctrl : Deal
+end
+
+' ============================================================
+' PATTERN 4: SPECIFICATIONS (Dynamic queries)
+' ============================================================
+group "4. Specifications — dynamic search"
+    ctrl -> svc : searchDeals(status=WON,\nminValue=50000, title="Acme")
+    svc -> svc : Build Specification chain
+
+    note right of svc
+        Specification<Deal> spec =
+          DealSpecifications
+            .hasStatus(WON)
+            .and(valueGreaterThan(50000))
+            .and(titleContains("Acme"));
+    end note
+
+    svc -> repo : findAll(spec, pageable)
+    repo -> session : createQuery(criteriaQuery)
+    session -> db : SELECT * FROM deals\nWHERE status = 'WON'\nAND value > 50000\nAND title LIKE '%Acme%'\nORDER BY ... LIMIT ...
+    db --> session : ResultSet
+    session --> repo : Page<Deal>
+    repo --> svc : Page<Deal>
+    svc --> ctrl : Page<Deal>
+end
+
+' ============================================================
+' PATTERN 5: CACHE INTEGRATION
+' ============================================================
+group "5. @Cacheable — cache hit"
+    ctrl -> svc : findById("abc-123")
+    svc -> cache : get("users", "abc-123")
+    cache --> svc : User (cache HIT)
+    note right of cache
+        @Cacheable(value = "users",
+                   key = "#id")
+        Cache hit → skip DB entirely
+    end note
+    svc --> ctrl : User
+end
+
+group "5b. @Cacheable — cache miss"
+    ctrl -> svc : findById("xyz-999")
+    svc -> cache : get("users", "xyz-999")
+    cache --> svc : null (cache MISS)
+    svc -> repo : findById("xyz-999")
+    repo -> db : SELECT * FROM users WHERE id = ?
+    db --> repo : User
+    repo --> svc : User
+    svc -> cache : put("users", "xyz-999", user)
+    svc --> ctrl : User
+end
+
+group "5c. @CacheEvict — invalidation"
+    ctrl -> svc : updateUser(id, data)
+    svc -> repo : save(user)
+    repo -> db : UPDATE users SET ...
+    db --> repo : OK
+    svc -> cache : evict("users", id)
+    note right of cache
+        @CacheEvict(value = "users",
+                    key = "#id")
+        Stale data removed from cache.
+        Next read will hit DB.
+    end note
+    svc --> ctrl : updated User
+end
+
+' ============================================================
+' TRANSACTION PATTERNS
+' ============================================================
+group "6. Transaction Isolation — REPEATABLE_READ"
+    ctrl -> svc : calculateCommission(dealId, planId)
+
+    note right of svc
+        @Transactional(
+          isolation = REPEATABLE_READ,
+          readOnly = false
+        )
+        Prevents non-repeatable reads
+        during multi-step calculation:
+        1. Read deal value
+        2. Read plan tiers
+        3. Find matching tier
+        4. Calculate commission
+        All reads see same snapshot.
+    end note
+
+    svc -> repo : findById(dealId) → Deal
+    svc -> repo : findByIdWithTiers(planId) → Plan
+    svc -> svc : match tier, calculate base
+    svc -> repo : save(CommissionCalculation)
+    repo -> db : INSERT INTO commission_calculations
+    svc -> cache : evict all calculations
+    svc --> ctrl : CommissionCalculation
+end
+
+group "7. Propagation — REQUIRES_NEW (audit comment)"
+    ctrl -> svc : resolveDispute(id, resolution)
+
+    note right of svc
+        @Transactional(rollbackFor = Exception.class)
+        Main transaction: update dispute status
+    end note
+
+    svc -> repo : save(dispute) → status = RESOLVED
+    svc -> svc : addComment("Resolved by ...")
+
+    note right of svc
+        addComment uses:
+        @Transactional(
+          propagation = REQUIRES_NEW
+        )
+        Runs in SEPARATE transaction.
+        Even if main tx rolls back,
+        the audit comment persists.
+    end note
+
+    svc -> repo : save(comment) → committed independently
+    svc --> ctrl : Dispute (resolved)
+end
+
+@enduml

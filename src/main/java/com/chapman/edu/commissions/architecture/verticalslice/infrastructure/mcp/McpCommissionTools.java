@@ -1,14 +1,23 @@
-package com.chapman.edu.commissions.verticalslice.infrastructure.mcp;
+package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp;
 
-import com.chapman.edu.commissions.verticalslice.domain.DealStatus;
-import com.chapman.edu.commissions.verticalslice.domain.DisputeStatus;
-import com.chapman.edu.commissions.verticalslice.domain.PlanStatus;
-import com.chapman.edu.commissions.verticalslice.features.calculations.CalculateCommissionRequest;
-import com.chapman.edu.commissions.verticalslice.features.calculations.CommissionCalculationResponse;
-import com.chapman.edu.commissions.verticalslice.features.calculations.CommissionCalculationService;
-import com.chapman.edu.commissions.verticalslice.features.deals.*;
-import com.chapman.edu.commissions.verticalslice.features.disputes.*;
-import com.chapman.edu.commissions.verticalslice.features.plans.*;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DealStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.PlanStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CalculateCommissionRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CommissionCalculationResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CommissionCalculationService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.CreateDealRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.UpdateDealRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.CreateDisputeRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.DisputeResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.DisputeService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.ResolveDisputeRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.AddRuleToPlanRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CreateCommissionPlanRequest;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 

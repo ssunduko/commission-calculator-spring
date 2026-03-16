@@ -1,10 +1,10 @@
-package com.chapman.edu.commissions.verticalslice.infrastructure.data;
+package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.data;
 
-import com.chapman.edu.commissions.verticalslice.domain.*;
-import com.chapman.edu.commissions.verticalslice.features.calculations.CommissionCalculationRepository;
-import com.chapman.edu.commissions.verticalslice.features.deals.DealRepository;
-import com.chapman.edu.commissions.verticalslice.features.disputes.DisputeRepository;
-import com.chapman.edu.commissions.verticalslice.features.plans.CommissionPlanRepository;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.*;
+import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CommissionCalculationRepository;
+import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealRepository;
+import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.DisputeRepository;
+import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -22,17 +22,20 @@ public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
+    private final UserRepository userRepository;
     private final DealRepository dealRepository;
     private final CommissionPlanRepository planRepository;
     private final CommissionCalculationRepository calculationRepository;
     private final DisputeRepository disputeRepository;
 
     public DataInitializer(
+            UserRepository userRepository,
             DealRepository dealRepository,
             CommissionPlanRepository planRepository,
             CommissionCalculationRepository calculationRepository,
             DisputeRepository disputeRepository
     ) {
+        this.userRepository = userRepository;
         this.dealRepository = dealRepository;
         this.planRepository = planRepository;
         this.calculationRepository = calculationRepository;
@@ -43,17 +46,22 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         log.info("Initializing sample data...");
 
+        // Create sample users (must exist before deals due to FK constraint)
+        User rep1 = createUser("rep001", "rep001@company.com", "Alice", "Johnson");
+        User rep2 = createUser("rep002", "rep002@company.com", "Bob", "Smith");
+        User rep3 = createUser("rep003", "rep003@company.com", "Carol", "Williams");
+
         // Create sample commission plans
         CommissionPlan standardPlan = createStandardPlan();
         CommissionPlan premiumPlan = createPremiumPlan();
 
-        // Create sample deals
-        Deal deal1 = createDeal("Enterprise Software License", new BigDecimal("150000"), "REP001", DealStatus.WON);
-        Deal deal2 = createDeal("Cloud Services Contract", new BigDecimal("85000"), "REP001", DealStatus.WON);
-        Deal deal3 = createDeal("Consulting Services", new BigDecimal("45000"), "REP002", DealStatus.WON);
-        Deal deal4 = createDeal("Hardware Procurement", new BigDecimal("120000"), "REP002", DealStatus.OPEN);
-        Deal deal5 = createDeal("Annual Support Renewal", new BigDecimal("25000"), "REP003", DealStatus.WON);
-        Deal deal6 = createDeal("Training Package", new BigDecimal("15000"), "REP003", DealStatus.LOST);
+        // Create sample deals (using actual user IDs from saved entities)
+        Deal deal1 = createDeal("Enterprise Software License", new BigDecimal("150000"), rep1.getId(), DealStatus.WON);
+        Deal deal2 = createDeal("Cloud Services Contract", new BigDecimal("85000"), rep1.getId(), DealStatus.WON);
+        Deal deal3 = createDeal("Consulting Services", new BigDecimal("45000"), rep2.getId(), DealStatus.WON);
+        Deal deal4 = createDeal("Hardware Procurement", new BigDecimal("120000"), rep2.getId(), DealStatus.OPEN);
+        Deal deal5 = createDeal("Annual Support Renewal", new BigDecimal("25000"), rep3.getId(), DealStatus.WON);
+        Deal deal6 = createDeal("Training Package", new BigDecimal("15000"), rep3.getId(), DealStatus.LOST);
 
         // Add products to deals
         addProductToDeal(deal1, "Software License - Enterprise", 10, new BigDecimal("15000"));
@@ -69,12 +77,18 @@ public class DataInitializer implements CommandLineRunner {
         CommissionCalculation calc5 = createCalculation(deal5, standardPlan, new BigDecimal("2500"));
 
         // Create sample disputes
-        createDispute(calc1, "REP001", "Commission Rate Disagreement",
+        createDispute(calc1, rep1.getId(), "Commission Rate Disagreement",
                 "The commission rate applied does not match my contract terms for enterprise deals.");
-        createDispute(calc2, "REP001", "Missing Bonus Calculation",
+        createDispute(calc2, rep1.getId(), "Missing Bonus Calculation",
                 "My Q4 performance bonus was not included in this calculation.");
 
-        log.info("Sample data initialization completed! Created: 2 Plans, 6 Deals, 4 Calculations, 2 Disputes");
+        log.info("Sample data initialization completed! Created: 3 Users, 2 Plans, 6 Deals, 4 Calculations, 2 Disputes");
+    }
+
+    private User createUser(String username, String email, String firstName, String lastName) {
+        User user = new User(username, email, firstName, lastName);
+        user.setPasswordHash("$2a$10$placeholder");
+        return userRepository.save(user);
     }
 
     private CommissionPlan createStandardPlan() {

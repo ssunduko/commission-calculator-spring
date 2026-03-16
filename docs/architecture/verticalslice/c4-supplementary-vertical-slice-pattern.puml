@@ -1,0 +1,177 @@
+@startuml C4_Supplementary_Vertical_Slice_Pattern
+title Supplementary: Vertical Slice vs Layered Architecture — Pattern Comparison
+
+' ============================================================
+' SUPPLEMENTARY DIAGRAM: VERTICAL SLICE PATTERN EXPLAINED
+' ============================================================
+' This diagram contrasts the vertical slice architecture used
+' in this project with a traditional layered (horizontal)
+' architecture, showing why the vertical slice approach was
+' chosen for the Commission Calculator.
+'
+' PURPOSE:
+' Explain the architectural pattern choice and how code is
+' organized by FEATURE rather than by TECHNICAL LAYER.
+' ============================================================
+
+skinparam packageFontSize 12
+skinparam noteFontSize 10
+
+' ============================================================
+' TRADITIONAL LAYERED ARCHITECTURE (for comparison)
+' ============================================================
+
+package "Traditional Layered Architecture\n(NOT used here)" as layered {
+    package "Controllers" as layCtrl {
+        [DealController] as ldc
+        [PlanController] as lpc
+        [CalcController] as lcc
+        [DisputeController] as ldic
+    }
+    package "Services" as laySvc {
+        [DealService] as lds
+        [PlanService] as lps
+        [CalcService] as lcs
+        [DisputeService] as ldis
+    }
+    package "Repositories" as layRepo {
+        [DealRepo] as ldr
+        [PlanRepo] as lpr
+        [CalcRepo] as lcr
+        [DisputeRepo] as ldir
+    }
+
+    ldc --> lds
+    lpc --> lps
+    lcc --> lcs
+    ldic --> ldis
+    lds --> ldr
+    lps --> lpr
+    lcs --> lcr
+    ldis --> ldir
+}
+
+note bottom of layered
+    **LAYERED (Horizontal Slices)**
+
+    Organized by TECHNICAL CONCERN:
+    all controllers together, all services
+    together, all repositories together.
+
+    PROBLEMS:
+    - Adding a feature touches every layer
+    - Changes ripple across packages
+    - Hard to see feature boundaries
+    - Tight coupling between layers
+end note
+
+' ============================================================
+' VERTICAL SLICE ARCHITECTURE (used in this project)
+' ============================================================
+
+package "Vertical Slice Architecture\n(USED in this project)" as vertical {
+
+    package "features/deals/" as vDeals {
+        [DealController] as vdc
+        [DealService] as vds
+        [DealRepository] as vdr
+        [CreateDealRequest] as vdcr
+        [DealResponse] as vdresp
+        vdc --> vds
+        vds --> vdr
+    }
+
+    package "features/plans/" as vPlans {
+        [PlanController] as vpc
+        [PlanService] as vps
+        [PlanRepository] as vpr
+        [CreatePlanRequest] as vpcr
+        [PlanResponse] as vpresp
+        vpc --> vps
+        vps --> vpr
+    }
+
+    package "features/calculations/" as vCalcs {
+        [CalcController] as vcc
+        [CalcService] as vcs
+        [CalcRepository] as vcr
+        [CalcRequest] as vccr
+        [CalcResponse] as vcresp
+        vcc --> vcs
+        vcs --> vcr
+    }
+
+    package "features/disputes/" as vDisputes {
+        [DisputeController] as vdic
+        [DisputeService] as vdis
+        [DisputeRepository] as vdir
+        [DisputeRequest] as vdicr
+        [DisputeResponse] as vdiresp
+        vdic --> vdis
+        vdis --> vdir
+    }
+
+    package "domain/" as vDomain {
+        [Shared Entities] as entities
+    }
+
+    package "infrastructure/" as vInfra {
+        [Config + Exceptions] as infra
+    }
+
+    vdr --> entities
+    vpr --> entities
+    vcr --> entities
+    vdir --> entities
+}
+
+note bottom of vertical
+    **VERTICAL SLICES (Feature-based)**
+
+    Organized by BUSINESS CAPABILITY:
+    each feature owns its full stack
+    (Controller + Service + Repo + DTOs).
+
+    BENEFITS:
+    - Adding a feature = one new package
+    - Changes are contained within a slice
+    - Clear feature boundaries
+    - Slices can evolve independently
+    - Easy to understand and navigate
+    - Natural mapping to MCP tools
+
+    SHARED CONCERNS:
+    - Domain entities (shared, read-only)
+    - Infrastructure (security, exceptions)
+end note
+
+' ============================================================
+' PROJECT DIRECTORY MAPPING
+' ============================================================
+
+note as dirNote
+    **PROJECT DIRECTORY STRUCTURE**
+
+    architecture/verticalslice/
+    ├── CommissionCalculatorApplication.java
+    ├── domain/                    ← Shared entities (23 classes)
+    │   ├── User.java
+    │   ├── Deal.java, DealProduct.java
+    │   ├── CommissionPlan.java, CommissionTier.java
+    │   ├── CommissionRule.java, RuleCondition.java
+    │   ├── CommissionCalculation.java
+    │   ├── Dispute.java, DisputeComment.java
+    │   └── (enums: UserRole, DealStatus, PlanStatus, ...)
+    ├── features/                  ← 4 vertical slices
+    │   ├── deals/                 ← Controller + Service + Repo + DTOs
+    │   ├── plans/                 ← Controller + Service + Repo + DTOs
+    │   ├── calculations/          ← Controller + Service + Repo + DTOs
+    │   └── disputes/              ← Controller + Service + Repo + DTOs
+    └── infrastructure/            ← Cross-cutting concerns
+        ├── config/                ← SecurityConfig, OpenApiConfig
+        ├── data/                  ← DataInitializer
+        ├── exceptions/            ← GlobalExceptionHandler
+        └── mcp/                   ← McpCommissionTools, McpPrompts, McpResources
+end note
+
+@enduml

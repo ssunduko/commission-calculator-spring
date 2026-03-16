@@ -1,6 +1,6 @@
-package com.chapman.edu.commissions.verticalslice;
+package com.chapman.edu.commissions.architecture.verticalslice;
 
-import com.chapman.edu.commissions.verticalslice.infrastructure.mcp.McpCommissionTools;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp.McpCommissionTools;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.boot.SpringApplication;
@@ -11,14 +11,22 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Main Spring Boot Application
- * Registers MCP tool callbacks for AI agent integration
+ * Main Spring Boot Application for the Vertical Slice module.
+ * Registers MCP tool callbacks for AI agent integration.
+ *
+ * Uses scanBasePackages to restrict component scanning to only this module,
+ * preventing interference from other @SpringBootApplication classes
+ * (ORM, SpringBoot, AI) that coexist in the same JAR.
  */
-@SpringBootApplication
+@SpringBootApplication(
+    scanBasePackages = "com.chapman.edu.commissions.architecture.verticalslice"
+)
 public class CommissionCalculatorApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(CommissionCalculatorApplication.class, args);
+        SpringApplication app = new SpringApplication(CommissionCalculatorApplication.class);
+        app.setAdditionalProfiles("verticalslice");
+        app.run(args);
     }
 
     /**

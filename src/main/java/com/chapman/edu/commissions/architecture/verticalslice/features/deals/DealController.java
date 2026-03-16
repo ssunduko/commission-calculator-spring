@@ -1,6 +1,6 @@
-package com.chapman.edu.commissions.verticalslice.features.deals;
+package com.chapman.edu.commissions.architecture.verticalslice.features.deals;
 
-import com.chapman.edu.commissions.verticalslice.domain.DealStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DealStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

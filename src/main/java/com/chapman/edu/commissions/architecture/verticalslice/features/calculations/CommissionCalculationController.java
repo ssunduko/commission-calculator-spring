@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.features.calculations;
+package com.chapman.edu.commissions.architecture.verticalslice.features.calculations;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

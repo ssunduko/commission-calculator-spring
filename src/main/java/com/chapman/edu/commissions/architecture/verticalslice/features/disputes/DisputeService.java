@@ -1,9 +1,9 @@
-package com.chapman.edu.commissions.verticalslice.features.disputes;
+package com.chapman.edu.commissions.architecture.verticalslice.features.disputes;
 
-import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
-import com.chapman.edu.commissions.verticalslice.infrastructure.exceptions.ValidationException;
-import com.chapman.edu.commissions.verticalslice.domain.Dispute;
-import com.chapman.edu.commissions.verticalslice.domain.DisputeStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ValidationException;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.Dispute;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

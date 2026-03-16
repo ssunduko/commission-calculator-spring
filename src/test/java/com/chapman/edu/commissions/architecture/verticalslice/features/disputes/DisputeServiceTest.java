@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.features.disputes;
+package com.chapman.edu.commissions.architecture.verticalslice.features.disputes;
 
 import com.chapman.edu.commissions.architecture.verticalslice.domain.Dispute;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;

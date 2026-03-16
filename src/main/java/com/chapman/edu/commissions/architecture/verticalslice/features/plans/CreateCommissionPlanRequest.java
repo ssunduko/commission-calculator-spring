@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.features.plans;
+package com.chapman.edu.commissions.architecture.verticalslice.features.plans;
 
 import java.time.LocalDate;
 

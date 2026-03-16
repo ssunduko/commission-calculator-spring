@@ -1,7 +1,7 @@
-package com.chapman.edu.commissions.verticalslice.features.deals;
+package com.chapman.edu.commissions.architecture.verticalslice.features.deals;
 
-import com.chapman.edu.commissions.verticalslice.domain.Deal;
-import com.chapman.edu.commissions.verticalslice.domain.DealStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.Deal;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DealStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

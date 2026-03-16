@@ -1,0 +1,185 @@
+@startuml C4_Level3_Component_ORM
+!include <C4/C4_Component>
+
+title Component Diagram — ORM Module (Layered Architecture)
+
+' ============================================================
+' C4 LEVEL 3: COMPONENT DIAGRAM — ORM MODULE
+' ============================================================
+' Shows every Spring component in the ORM module, emphasizing
+' the data access patterns: JPA repositories, caching,
+' transaction management, and query strategies.
+'
+' PURPOSE:
+' Answer: "What components exist in the ORM module's layers
+' and how do they interact with the database?"
+'
+' KEY ARCHITECTURAL FEATURES:
+' - Spring Data JPA repositories (not HashMap)
+' - @Transactional with isolation/propagation control
+' - Spring Cache (@Cacheable, @CacheEvict)
+' - Flyway schema migrations
+' - JPA Specifications for dynamic queries
+' - @EntityGraph and JOIN FETCH for N+1 prevention
+' ============================================================
+
+Person(user, "User")
+
+Container_Boundary(app, "ORM Module") {
+
+    ' ============================================================
+    ' CONTROLLER LAYER
+    ' ============================================================
+    Boundary(controllers, "Controller Layer") {
+        Component(userCtrl, "UserController", "@RestController", "GET/POST/PUT\n/api/orm/users/**\nSearch, deactivate,\ndirect reports")
+        Component(dealCtrl, "DealController", "@RestController", "GET/POST/PUT\n/api/orm/deals/**\nPaginated search,\nSpecifications filter")
+        Component(commCtrl, "CommissionController", "@RestController", "GET/POST/PUT\n/api/orm/commissions/**\nCalculate, approve, pay.\nPlans: create, activate.")
+        Component(disputeCtrl, "DisputeController", "@RestController", "GET/POST/PUT\n/api/orm/disputes/**\nFile, resolve, comment.\nPaginated by status.")
+    }
+
+    ' ============================================================
+    ' SERVICE LAYER (Transaction + Cache Management)
+    ' ============================================================
+    Boundary(services, "Service Layer") {
+        Component(userSvc, "UserService", "@Service @Transactional", "@Cacheable: findById,\nfindByUsername\n@CacheEvict: update, deactivate\nIsolation.READ_COMMITTED\nPropagation.REQUIRES_NEW:\nrecordLogin")
+        Component(dealSvc, "DealService", "@Service @Transactional", "@Cacheable: findById\n@CacheEvict: updateStatus,\naddProduct\nSpecifications for\ndynamic search queries")
+        Component(commSvc, "CommissionService", "@Service @Transactional", "Core calculation engine.\nIsolation.REPEATABLE_READ\nfor calculateCommission.\n@Caching: approve + evict.\nPlan management.")
+        Component(disputeSvc, "DisputeService", "@Service @Transactional", "fileDispute: all-or-nothing.\nresolveDispute: rollbackFor.\naddComment:\nPropagation.REQUIRES_NEW\n(audit persists on rollback)")
+    }
+
+    ' ============================================================
+    ' CACHE LAYER
+    ' ============================================================
+    Boundary(cacheLayer, "Cache Layer") {
+        Component(cacheConfig, "CacheConfig", "@Configuration @EnableCaching", "ConcurrentMapCacheManager.\n4 regions: users, deals,\ncalculations, commissionPlans.\nallowNullValues = false.")
+    }
+
+    ' ============================================================
+    ' REPOSITORY LAYER (Spring Data JPA)
+    ' ============================================================
+    Boundary(repos, "Repository Layer") {
+        Component(userRepo, "UserRepository", "JpaRepository", "Derived: findByUsername,\nfindByEmail, existsByUsername\nJPQL: findActiveUsersByRole,\nsearchByName, countByDept\nNative: findTopPerformers")
+        Component(dealRepo, "DealRepository", "JpaRepository + JpaSpecificationExecutor", "Derived: findByStatus (Pageable)\n@EntityGraph: products + rep\nJOIN FETCH: products by rep\nAnti-join: WON without calcs\nMonthly summary aggregation")
+        Component(dealSpecs, "DealSpecifications", "Specification builder", "hasStatus, valueGreaterThan,\nvalueLessThan, closedAfter,\nbelongsToSalesRep, titleContains.\nComposed with .and() / .or()")
+        Component(planRepo, "CommissionPlanRepository", "JpaRepository", "JOIN FETCH (split fetches\nto avoid MultipleBag):\nfindByIdWithRules,\nfindByIdWithTiers,\nfindByIdWithBonuses.\nfindActivePlansForDate")
+        Component(calcRepo, "CommissionCalculationRepository", "JpaRepository", "Derived: findByStatus (Pageable)\nJPQL aggregates: totalBySalesRep,\nsummaryBySalesRep\n@Modifying: bulkUpdateStatus\nJOIN FETCH: pendingPayout")
+        Component(disputeRepo, "DisputeRepository", "JpaRepository", "JOIN FETCH: findByIdWithComments\nComplex: openByManagerId\n(status NOT IN clause)\nAggregate: countByStatus")
+    }
+
+    ' ============================================================
+    ' ENTITY LAYER (JPA Domain Model)
+    ' ============================================================
+    Boundary(entities, "Entity Layer (29 Classes)") {
+        Component(userEntities, "User + UserProfile + Company", "@Entity", "@OneToOne, @ManyToMany,\n@ElementCollection(UserRole),\nself-referential @ManyToOne")
+        Component(dealEntities, "Deal + DealProduct", "@Entity", "@ManyToOne(User),\n@OneToMany(Products,\ncascade ALL, orphan removal)")
+        Component(planEntities, "CommissionPlan + Tier + Rule + Bonus + RuleCondition", "@Entity", "Aggregate root pattern.\n@OneToMany(cascade ALL)\n@OrderBy for tiers/rules")
+        Component(calcEntities, "CommissionCalculation + BonusCalc + AcceleratorCalc", "@Entity", "@ManyToOne(Deal, User, Plan)\n@OneToMany(bonus + accel,\ncascade ALL)")
+        Component(disputeEntities, "Dispute + DisputeComment", "@Entity", "@ManyToOne(Calculation,\nUser salesRep, User manager)\n@OneToMany(comments)")
+    }
+
+    ' ============================================================
+    ' INFRASTRUCTURE
+    ' ============================================================
+    Boundary(infra, "Infrastructure") {
+        Component(secConfig, "SecurityConfig", "@Configuration", "Permits all /api/**,\n/h2-console/**, /actuator/**.\nDisables CSRF + frames\nfor H2 console.")
+        Component(flyway, "Flyway Migrations", "SQL Scripts", "V1: 14 tables, 40+ indexes\nV4: companies + user_profiles\nRuns automatically on startup")
+    }
+
+    ' ============================================================
+    ' DEMO PROCESSORS
+    ' ============================================================
+    Boundary(processors, "Demo Processors") {
+        Component(ormProc, "OrmProcessor", "CommandLineRunner", "Demonstrates entity\nrelationships, cascade,\naggregate patterns")
+        Component(jpaProc, "JpaProcessor", "CommandLineRunner", "Demonstrates 5 query\nstrategies: derived, JPQL,\npagination, specs, joins")
+        Component(cacheProc, "CacheProcessor", "CommandLineRunner", "Demonstrates cache hits,\nmisses, eviction,\nmanager inspection")
+    }
+}
+
+ContainerDb(h2, "H2 Database", "In-memory")
+
+' ============================================================
+' RELATIONSHIPS — Controller to Service
+' ============================================================
+Rel(user, userCtrl, "REST", "HTTPS")
+Rel(user, dealCtrl, "REST", "HTTPS")
+Rel(user, commCtrl, "REST", "HTTPS")
+Rel(user, disputeCtrl, "REST", "HTTPS")
+
+Rel(userCtrl, userSvc, "Delegates")
+Rel(dealCtrl, dealSvc, "Delegates")
+Rel(commCtrl, commSvc, "Delegates")
+Rel(disputeCtrl, disputeSvc, "Delegates")
+
+' ============================================================
+' RELATIONSHIPS — Service to Cache to Repository
+' ============================================================
+Rel(userSvc, cacheConfig, "@Cacheable / @CacheEvict")
+Rel(dealSvc, cacheConfig, "@Cacheable / @CacheEvict")
+Rel(commSvc, cacheConfig, "@Cacheable / @CacheEvict")
+
+Rel(userSvc, userRepo, "Queries")
+Rel(dealSvc, dealRepo, "Queries")
+Rel(dealSvc, dealSpecs, "Builds dynamic filters")
+Rel(dealRepo, dealSpecs, "Executes specs")
+Rel(commSvc, planRepo, "Reads plans + tiers")
+Rel(commSvc, calcRepo, "Persists calculations")
+Rel(disputeSvc, disputeRepo, "Queries")
+
+' Cross-service
+Rel(commSvc, dealSvc, "Reads deal data", "for calculation")
+
+' ============================================================
+' RELATIONSHIPS — Repository to Entity to DB
+' ============================================================
+Rel(userRepo, userEntities, "Maps")
+Rel(dealRepo, dealEntities, "Maps")
+Rel(planRepo, planEntities, "Maps")
+Rel(calcRepo, calcEntities, "Maps")
+Rel(disputeRepo, disputeEntities, "Maps")
+
+Rel(userRepo, h2, "JDBC")
+Rel(dealRepo, h2, "JDBC")
+Rel(planRepo, h2, "JDBC")
+Rel(calcRepo, h2, "JDBC")
+Rel(disputeRepo, h2, "JDBC")
+Rel(flyway, h2, "DDL migrations")
+
+' Processors
+Rel(jpaProc, userRepo, "Exercises queries")
+Rel(jpaProc, dealRepo, "Exercises queries")
+Rel(cacheProc, userSvc, "Demonstrates caching")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' JPA QUERY STRATEGY COMPARISON:
+'
+' ┌──────────────────┬─────────────────────────────────────────┐
+' │ Strategy          │ When to Use                             │
+' ├──────────────────┼─────────────────────────────────────────┤
+' │ Derived Methods   │ Simple filters (findByStatus)           │
+' │ JPQL @Query       │ Custom joins, aggregations              │
+' │ Native SQL        │ DB-specific features (window functions) │
+' │ @EntityGraph      │ Control eager/lazy loading per query    │
+' │ Specifications    │ Dynamic search with optional filters    │
+' │ JOIN FETCH        │ Prevent N+1 on known associations       │
+' └──────────────────┴─────────────────────────────────────────┘
+'
+' TRANSACTION ISOLATION LEVELS USED:
+'   DEFAULT        — Most read operations
+'   READ_COMMITTED — User deactivation (prevent dirty reads)
+'   REPEATABLE_READ — Commission calculation (consistent tier reads)
+'
+' AGGREGATE ROOT PATTERN:
+' CommissionPlan is an aggregate root that owns Rules, Tiers,
+' and Bonuses via cascade ALL + orphan removal. All child
+' entities are created/deleted through the Plan — never
+' through their own repositories.
+'
+' N+1 PREVENTION STRATEGIES:
+'   @EntityGraph("Deal.withProductsAndSalesRep")
+'   JOIN FETCH in JPQL queries
+'   Split fetches for CommissionPlan (avoid MultipleBagFetchException)
+' ============================================================
+
+@enduml

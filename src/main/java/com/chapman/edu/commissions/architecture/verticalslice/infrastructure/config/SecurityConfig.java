@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.infrastructure.config;
+package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

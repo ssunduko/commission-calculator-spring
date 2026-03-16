@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.domain;
+package com.chapman.edu.commissions.architecture.verticalslice.domain;
 
 /**
  * Enum representing the possible statuses of a commission plan.

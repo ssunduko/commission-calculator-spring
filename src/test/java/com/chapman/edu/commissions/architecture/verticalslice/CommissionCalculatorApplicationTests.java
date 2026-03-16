@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice;
+package com.chapman.edu.commissions.architecture.verticalslice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

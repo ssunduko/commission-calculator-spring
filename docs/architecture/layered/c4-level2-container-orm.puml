@@ -1,0 +1,98 @@
+@startuml C4_Level2_Container_ORM
+!include <C4/C4_Container>
+
+title Container Diagram — ORM Module (Layered Architecture)
+
+' ============================================================
+' C4 LEVEL 2: CONTAINER DIAGRAM — ORM MODULE
+' ============================================================
+' Shows the major technical building blocks inside the ORM
+' layered module. This module emphasizes data access patterns:
+' JPA/Hibernate, Flyway migrations, Spring Cache, and advanced
+' query strategies.
+'
+' PURPOSE:
+' Answer: "What are the technical layers in the ORM module
+' and how do they interact with the database?"
+'
+' KEY DIFFERENCE FROM SPRINGBOOT MODULE:
+' Where the SpringBoot module uses HashMap repos and focuses
+' on REST/security fundamentals, the ORM module uses real
+' JPA entities with foreign key relationships, Flyway-managed
+' schema migrations, and Spring Cache for performance.
+' ============================================================
+
+Person(user, "User", "Sales rep, manager,\nor finance admin")
+
+System_Boundary(orm, "ORM Module") {
+
+    Container(restApi, "REST API Controllers", "Spring MVC @RestController", "4 controllers at /api/orm/**.\nPagination, filtering,\ndynamic search parameters.")
+
+    Container(services, "Service Layer", "Spring @Service + @Transactional", "4 services with transaction\nmanagement: isolation levels,\npropagation, rollback rules.\nSpring Cache integration.")
+
+    Container(cache, "Cache Layer", "Spring Cache + ConcurrentMap", "4 cache regions: users, deals,\ncalculations, commissionPlans.\n@Cacheable, @CachePut,\n@CacheEvict with SpEL keys.")
+
+    Container(repos, "Repository Layer", "Spring Data JPA", "6 JPA repositories with\nderived queries, JPQL,\nnative SQL, @EntityGraph,\nJOIN FETCH, Specifications.")
+
+    Container(entities, "Entity Layer", "JPA @Entity (29 classes)", "Full JPA mapping: @ManyToOne,\n@OneToMany, @ManyToMany,\n@OneToOne, @ElementCollection.\nCascade + orphan removal.")
+
+    Container(config, "Configuration", "Spring @Configuration", "SecurityConfig (permit all),\nCacheConfig (4 regions).\nFlyway auto-configured.")
+
+    Container(processors, "Demo Processors", "CommandLineRunner", "OrmProcessor, JpaProcessor,\nCacheProcessor, TransactionProcessor,\nMigrationProcessor. Educational\nstartup demonstrations.")
+}
+
+ContainerDb(h2, "H2 Database", "In-memory RDBMS", "14+ tables, 40+ indexes.\nFlyway-managed schema.\nFK constraints with\nON DELETE CASCADE.")
+
+ContainerDb(flyway, "Flyway Migrations", "SQL Scripts", "V1: Core schema (14 tables)\nV4: Companies + UserProfiles\nVersioned, repeatable.")
+
+System_Ext(swagger, "Swagger UI", "API docs")
+
+Rel(user, restApi, "CRUD + search operations", "HTTPS")
+
+Rel(restApi, services, "Delegates", "Method calls")
+Rel(services, cache, "Cache reads/writes", "@Cacheable / @CacheEvict")
+Rel(services, repos, "Data access", "Spring Data JPA")
+Rel(repos, entities, "Maps to/from", "JPA/Hibernate")
+Rel(entities, h2, "Persists via", "JDBC / Hibernate SQL")
+Rel(flyway, h2, "Manages schema", "SQL DDL")
+Rel(restApi, swagger, "Serves OpenAPI spec", "HTTP")
+Rel(processors, services, "Demonstrates patterns", "Method calls")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' JPA ENTITY RELATIONSHIPS:
+' The ORM module uses true JPA relationships (not String IDs):
+'   User ←→ Deal         (@ManyToOne / @OneToMany)
+'   User ←→ User         (self-referential: manager/reports)
+'   User ←→ UserProfile  (@OneToOne, cascade ALL)
+'   User ←→ Company      (@ManyToMany, join table)
+'   CommissionPlan → Rules/Tiers/Bonuses (aggregate root)
+'   Deal → DealProducts   (cascade ALL, orphan removal)
+'   CommissionCalculation → Bonus/Accelerator calcs
+'   Dispute → DisputeComments (cascade ALL)
+'
+' QUERY STRATEGIES:
+' The repository layer demonstrates 5 JPA query approaches:
+'   1. Derived methods (findByStatus, findByUsername)
+'   2. JPQL (@Query with entity names)
+'   3. Native SQL (@Query nativeQuery=true)
+'   4. @EntityGraph (avoid N+1 with fetch graphs)
+'   5. Specifications (Criteria API for dynamic queries)
+'
+' TRANSACTION MANAGEMENT:
+'   - Class-level @Transactional(readOnly=true) default
+'   - Method-level overrides for writes
+'   - Isolation.REPEATABLE_READ for commission calculations
+'   - Propagation.REQUIRES_NEW for audit trail comments
+'   - rollbackFor = Exception.class for critical operations
+'
+' CACHING:
+'   - @Cacheable: Read-through cache (check cache → DB)
+'   - @CachePut: Write-through (always write to DB + cache)
+'   - @CacheEvict: Invalidate on mutation
+'   - SpEL keys: #id, 'username:' + #username
+'   - allEntries=true for bulk invalidation
+' ============================================================
+
+@enduml

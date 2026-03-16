@@ -1,4 +1,4 @@
-package com.chapman.edu.commissions.verticalslice.infrastructure.mcp;
+package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp;
 
 import org.springframework.stereotype.Service;
 

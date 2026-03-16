@@ -1,0 +1,200 @@
+@startuml C4_Supplementary_SpringBoot_vs_ORM
+title Supplementary: SpringBoot Module vs ORM Module — Architecture Comparison
+
+' ============================================================
+' SUPPLEMENTARY DIAGRAM: MODULE COMPARISON
+' ============================================================
+' Side-by-side comparison of the two layered architecture
+' implementations in the Commission Calculator project.
+'
+' Both modules implement the same commission domain but at
+' different levels of infrastructure maturity, demonstrating
+' how a Spring Boot application evolves from simple in-memory
+' storage to full JPA/Hibernate persistence.
+'
+' PURPOSE:
+' Answer: "What are the architectural differences between the
+' SpringBoot and ORM modules, and why do both exist?"
+' ============================================================
+
+skinparam packageFontSize 12
+skinparam noteFontSize 10
+
+' ============================================================
+' SPRINGBOOT MODULE
+' ============================================================
+
+package "SpringBoot Module" as sb {
+
+    package "Presentation" as sbPres {
+        [7 REST Controllers\n+ 1 Web Controller\n(DashboardController)] as sbCtrl
+    }
+
+    package "Security" as sbSec {
+        [JWT Auth Filter\nJwtTokenProvider\nCustomUserDetailsService\nDual Filter Chains\n(API + Web)] as sbJwt
+    }
+
+    package "DTO Layer" as sbDto {
+        [6 Request DTOs\n(@Valid validation)\n8 Response DTOs\nDtoMapper] as sbDtos
+    }
+
+    package "Service Layer" as sbSvc {
+        [5 Services\n(business validation,\ncross-service orchestration)] as sbServices
+    }
+
+    package "Repository Layer" as sbRepo {
+        [5 ConcurrentHashMap\nRepositories\n(manual UUID generation,\nthread-safe CRUD)] as sbRepos
+    }
+
+    package "Domain" as sbDomain {
+        [Shared models from\ncom.chapman.model\n(plain POJOs,\nString ID references)] as sbModels
+    }
+
+    sbCtrl --> sbJwt
+    sbCtrl --> sbDtos
+    sbCtrl --> sbServices
+    sbServices --> sbRepos
+    sbRepos --> sbModels
+}
+
+' ============================================================
+' ORM MODULE
+' ============================================================
+
+package "ORM Module" as orm {
+
+    package "Presentation" as ormPres {
+        [4 REST Controllers\n(pagination support,\ndynamic search params)] as ormCtrl
+    }
+
+    package "Security" as ormSec {
+        [SecurityConfig\n(permit all requests,\nH2 console access)] as ormSecCfg
+    }
+
+    package "Service Layer" as ormSvc {
+        [4 Services\n@Transactional\n(isolation, propagation)\nSpring Cache\n(@Cacheable, @CacheEvict)] as ormServices
+    }
+
+    package "Cache Layer" as ormCache {
+        [ConcurrentMapCacheManager\n4 regions: users, deals,\ncalculations, commissionPlans] as ormCacheMgr
+    }
+
+    package "Repository Layer" as ormRepo {
+        [6 JPA Repositories\n+ DealSpecifications\n(derived, JPQL, native,\n@EntityGraph, JOIN FETCH,\nSpecification API)] as ormRepos
+    }
+
+    package "Entity Layer" as ormEntity {
+        [29 JPA @Entity classes\n(@ManyToOne, @OneToMany,\n@ManyToMany, @OneToOne,\n@ElementCollection,\ncascade, orphan removal)] as ormEntities
+    }
+
+    package "Persistence" as ormPersist {
+        [H2 Database\n+\nFlyway Migrations\n(V1: 14 tables, 40+ idx\nV4: companies, profiles)] as ormDB
+    }
+
+    ormCtrl --> ormServices
+    ormServices --> ormCacheMgr
+    ormServices --> ormRepos
+    ormRepos --> ormEntities
+    ormEntities --> ormDB
+}
+
+' ============================================================
+' COMPARISON TABLE
+' ============================================================
+
+note as comparison
+    **FEATURE-BY-FEATURE COMPARISON**
+
+    ┌──────────────────────┬─────────────────────┬──────────────────────────┐
+    │ Feature               │ SpringBoot Module    │ ORM Module                │
+    ├──────────────────────┼─────────────────────┼──────────────────────────┤
+    │ **Persistence**       │ ConcurrentHashMap    │ JPA/Hibernate + H2 DB    │
+    │ **Schema**            │ None (in-memory)     │ Flyway SQL migrations    │
+    │ **Security**          │ JWT + Form Login     │ Permit All (educational) │
+    │ **Authentication**    │ JwtAuthFilter + RBAC │ None                     │
+    │ **Web UI**            │ Thymeleaf dashboard  │ REST API only            │
+    │ **DTOs**              │ Request + Response   │ Direct entity return     │
+    │ **Validation**        │ Bean Validation      │ JPA constraints          │
+    │ **Caching**           │ None                 │ Spring Cache (4 regions) │
+    │ **Transactions**      │ None (HashMap)       │ @Transactional + levels  │
+    │ **Query Strategies**  │ Stream/filter        │ 5 JPA strategies         │
+    │ **Entity Relations**  │ String ID refs       │ JPA FK annotations       │
+    │ **N+1 Prevention**    │ N/A (no DB)          │ @EntityGraph, JOIN FETCH │
+    │ **Controllers**       │ 8 (7 REST + 1 MVC)   │ 4 REST                   │
+    │ **Services**          │ 5                    │ 4                        │
+    │ **Repositories**      │ 5 (HashMap)          │ 6 (JPA) + Specifications │
+    │ **API Prefix**        │ /api/                │ /api/orm/                │
+    │ **Exception Handler** │ 7 exception types    │ Basic (via Spring)       │
+    │ **Sample Data**       │ SampleDataLoader     │ OrmProcessor + Flyway    │
+    └──────────────────────┴─────────────────────┴──────────────────────────┘
+end note
+
+' ============================================================
+' EVOLUTION NARRATIVE
+' ============================================================
+
+note as evolution
+    **EVOLUTION PATH**
+
+    The two modules represent stages in application maturity:
+
+    **Stage 1: SpringBoot Module**
+    "Get the API right first"
+    - Focus on REST design, DTO contracts, security
+    - HashMap repos keep persistence simple
+    - Fast startup, easy to test
+    - No database to manage
+
+           ↓ when persistence matters ↓
+
+    **Stage 2: ORM Module**
+    "Now make it production-ready"
+    - Replace HashMap with JPA/Hibernate
+    - Add Flyway for schema versioning
+    - Add caching for performance
+    - Add transactions for data integrity
+    - Real FK relationships in database
+    - Advanced query strategies
+
+    **Key Insight:**
+    Because the SpringBoot module used the Repository pattern,
+    switching from HashMap to JPA required changing ONLY the
+    repository implementations — controllers and services
+    remained untouched. This demonstrates the value of the
+    layered architecture's dependency inversion.
+end note
+
+' ============================================================
+' DIRECTORY STRUCTURE
+' ============================================================
+
+note as dirs
+    **DIRECTORY STRUCTURE**
+
+    com.chapman.edu.commissions.springboot/
+    ├── config/        (5 configs)
+    ├── controller/    (8 controllers)
+    ├── dto/request/   (6 request DTOs)
+    ├── dto/response/  (8 response DTOs)
+    ├── exception/     (3 custom + handler)
+    ├── mapper/        (DtoMapper)
+    ├── processor/     (5 demo processors)
+    ├── repository/    (5 HashMap repos)
+    ├── security/      (JWT filter + provider + UserDetails)
+    ├── service/       (5 services)
+    └── util/          (SampleDataLoader)
+
+    com.chapman.edu.commissions.orm/
+    ├── config/        (SecurityConfig, CacheConfig)
+    ├── controller/    (4 controllers)
+    ├── entity/        (29 JPA entities + enums)
+    ├── processor/     (5 demo processors)
+    ├── repository/    (6 JPA repos + Specifications)
+    └── service/       (4 services)
+
+    src/main/resources/db/migration/
+    ├── V1__create_commission_schema.sql
+    └── V4__add_companies_and_user_profiles.sql
+end note
+
+@enduml

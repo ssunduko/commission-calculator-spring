@@ -4,6 +4,7 @@ import com.chapman.edu.commissions.ai.service.agent.AgentResult;
 import com.chapman.edu.commissions.ai.service.agent.AgentStep;
 import com.chapman.edu.commissions.ai.service.agent.CommissionReActAgent;
 import com.chapman.edu.commissions.ai.service.agent.Tool;
+import com.chapman.edu.commissions.ai.service.workflow.CommissionWorkflowOrchestrator;
 import com.chapman.edu.commissions.ai.service.ml.AnomalyDetectionService;
 import com.chapman.edu.commissions.ai.service.ml.CommissionExplainerService;
 import com.chapman.edu.commissions.ai.service.ml.DisputeAnalysisService;
@@ -56,6 +57,9 @@ class CommissionControllerTest {
 
     @MockitoBean
     private CommissionReActAgent reActAgent;
+
+    @MockitoBean
+    private CommissionWorkflowOrchestrator workflowOrchestrator;
 
     // ============================================================
     // RAG Endpoints

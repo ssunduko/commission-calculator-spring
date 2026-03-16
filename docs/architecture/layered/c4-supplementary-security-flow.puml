@@ -1,0 +1,204 @@
+@startuml C4_Supplementary_Security_Flow
+title Supplementary: JWT Authentication Flow
+
+' ============================================================
+' SUPPLEMENTARY DIAGRAM: JWT SECURITY FLOW
+' ============================================================
+' Sequence diagram showing the complete JWT authentication
+' and authorization flow in the SpringBoot module.
+'
+' PURPOSE:
+' Answer: "How does the dual security chain work, and what
+' happens step-by-step when a user authenticates and makes
+' API requests?"
+'
+' DUAL FILTER CHAINS:
+' The SpringBoot module has TWO SecurityFilterChain beans:
+'   @Order(1) API chain: /api/** JWT stateless
+'   @Order(2) Web chain: /** Form login + session
+' ============================================================
+
+skinparam participantFontSize 10
+skinparam sequenceMessageAlign center
+
+actor "API Client" as apiClient
+actor "Browser User" as browser
+participant "SecurityFilterChain\n@Order(1) API" as apiChain
+participant "SecurityFilterChain\n@Order(2) Web" as webChain
+participant "JwtAuthenticationFilter" as jwtFilter
+participant "JwtTokenProvider" as jwtProvider
+participant "AuthController" as authCtrl
+participant "AuthenticationManager" as authMgr
+participant "CustomUserDetailsService" as userDetails
+participant "UserRepository" as userRepo
+participant "SecurityContext" as secCtx
+participant "DealController" as dealCtrl
+
+' ============================================================
+' FLOW 1: API AUTHENTICATION (JWT)
+' ============================================================
+== API Authentication ==
+
+apiClient -> authCtrl : POST /api/auth/login\nusername="alice", password="password123"
+
+authCtrl -> authMgr : authenticate(\nUsernamePasswordAuthToken)
+
+authMgr -> userDetails : loadUserByUsername("alice")
+userDetails -> userRepo : findByUsername("alice")
+userRepo --> userDetails : User (with passwordHash)
+userDetails --> authMgr : UserDetails\n(roles SALES_REP)
+
+note right of authMgr
+    BCrypt.matches(
+      "password123",
+      user.passwordHash
+    )
+end note
+
+authMgr --> authCtrl : Authentication (success)
+authCtrl -> jwtProvider : generateToken(authentication)
+
+note right of jwtProvider
+    JWT payload:
+      sub: "alice"
+      iat: 1710000000
+      exp: 1710086400
+    Signed: HMAC-SHA256
+end note
+
+jwtProvider --> authCtrl : JWT token string
+
+authCtrl --> apiClient : AuthResponse\ntoken="eyJhbG...",\ntokenType="Bearer",\nroles=SALES_REP
+
+' ============================================================
+' FLOW 2: AUTHORIZED API REQUEST
+' ============================================================
+== Authorized API Request ==
+
+apiClient -> apiChain : GET /api/deals\nAuthorization: Bearer eyJhbG...
+
+apiChain -> jwtFilter : doFilterInternal()
+
+jwtFilter -> jwtFilter : getTokenFromRequest()\nextracts "Bearer " prefix
+
+jwtFilter -> jwtProvider : validateToken("eyJhbG...")
+
+note right of jwtProvider
+    Validates:
+    1. Signature (HMAC-SHA256)
+    2. Expiration (within 24h)
+    3. Malformation check
+end note
+
+jwtProvider --> jwtFilter : true (valid)
+
+jwtFilter -> jwtProvider : getUsernameFromToken()
+jwtProvider --> jwtFilter : "alice"
+
+jwtFilter -> userDetails : loadUserByUsername("alice")
+userDetails --> jwtFilter : UserDetails(roles)
+
+jwtFilter -> secCtx : setAuthentication(\nUsernamePasswordAuthToken)
+
+note right of secCtx
+    SecurityContext now holds:
+    principal: "alice"
+    authorities: ROLE_SALES_REP
+end note
+
+jwtFilter -> dealCtrl : filterChain.doFilter()\nGET /api/deals
+
+dealCtrl --> apiClient : ApiResponse with List of DealResponse
+
+' ============================================================
+' FLOW 3: UNAUTHORIZED REQUEST
+' ============================================================
+== Unauthorized Request ==
+
+apiClient -> apiChain : GET /api/deals\n(no Authorization header)
+
+apiChain -> jwtFilter : doFilterInternal()
+jwtFilter -> jwtFilter : getTokenFromRequest()\nreturns null
+
+note right of jwtFilter
+    No token found.
+    Skip authentication.
+    SecurityContext stays empty.
+end note
+
+jwtFilter -> apiChain : filterChain.doFilter()
+
+note right of apiChain
+    Spring Security checks:
+    /api/deals requires authenticated()
+    SecurityContext is empty
+    triggers AuthenticationEntryPoint
+end note
+
+apiChain --> apiClient : 401 Unauthorized\nerror: "Authentication required"
+
+' ============================================================
+' FLOW 4: ROLE-BASED ACCESS DENIAL
+' ============================================================
+== Access Denied ==
+
+apiClient -> apiChain : PATCH /api/calculations/123/pay\nAuthorization: Bearer alice_token
+
+apiChain -> jwtFilter : validates JWT, sets alice SALES_REP
+
+note right of apiChain
+    Endpoint requires:
+    @PreAuthorize(hasRole FINANCE_ADMIN)
+
+    Alice has: ROLE_SALES_REP
+    triggers AccessDeniedException
+end note
+
+apiChain --> apiClient : 403 Forbidden\nerror: "Access denied"
+
+' ============================================================
+' FLOW 5: WEB FORM LOGIN (separate chain)
+' ============================================================
+== Web Form Login ==
+
+browser -> webChain : GET /springboot/dashboard
+
+note right of webChain
+    @Order(2) Web chain handles /**
+    Redirects to login form
+end note
+
+webChain --> browser : 302 redirect to /login
+
+browser -> webChain : POST /login\nusername=alice, password=pass
+
+webChain -> authMgr : authenticate()
+authMgr -> userDetails : loadUserByUsername("alice")
+userDetails --> authMgr : UserDetails
+
+webChain --> browser : 302 redirect to /springboot/dashboard\nSet-Cookie: JSESSIONID
+
+browser -> webChain : GET /springboot/dashboard\nCookie: JSESSIONID=abc
+
+webChain --> browser : 200 OK (Thymeleaf HTML)
+
+' ============================================================
+' RBAC MATRIX
+' ============================================================
+
+note over apiClient, dealCtrl
+    RBAC MATRIX
+    ....
+    auth/login:        Public  Public   Public   Public
+    health:            Public  Public   Public   Public
+    GET deals:         REP     MGR      FIN      ADMIN
+    POST deals:        REP     MGR      FIN      ADMIN
+    GET plans:         REP     MGR      FIN      ADMIN
+    POST calculations: REP     MGR      FIN      ADMIN
+    approve:           --      MGR      FIN      ADMIN
+    pay:               --      --       FIN      ADMIN
+    GET users:         --      MGR      --       ADMIN
+    POST users:        --      --       --       ADMIN
+end note
+
+@enduml

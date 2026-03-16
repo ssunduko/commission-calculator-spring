@@ -1,0 +1,178 @@
+@startuml C4_Level3_Component_SpringBoot
+!include <C4/C4_Component>
+
+title Component Diagram — SpringBoot Module (Layered Architecture)
+
+' ============================================================
+' C4 LEVEL 3: COMPONENT DIAGRAM — SPRINGBOOT MODULE
+' ============================================================
+' Shows every Spring component in the SpringBoot module and
+' how they interact across the layered architecture.
+'
+' PURPOSE:
+' Answer: "What components exist in each layer and how do
+' they depend on each other?"
+'
+' LAYERED DEPENDENCY RULE:
+' Each layer depends only on the layer directly below it.
+' Controllers → Services → Repositories → Domain Models.
+' Cross-cutting concerns (security, exceptions) span all layers.
+' ============================================================
+
+Person(user, "User")
+Person(browserUser, "Browser User")
+
+Container_Boundary(app, "SpringBoot Module") {
+
+    ' ============================================================
+    ' PRESENTATION LAYER
+    ' ============================================================
+    Boundary(presentation, "Presentation Layer") {
+        Component(authCtrl, "AuthController", "@RestController", "POST /api/auth/login\nPublic. Returns JWT + roles.")
+        Component(healthCtrl, "HealthController", "@RestController", "GET /api/health\nPublic. Status check.")
+        Component(userCtrl, "UserController", "@RestController", "GET/POST/PATCH/DELETE\n/api/users/**\nADMIN + MANAGER only")
+        Component(dealCtrl, "DealController", "@RestController", "GET/POST/PATCH/DELETE\n/api/deals/**\nAuthenticated")
+        Component(planCtrl, "CommissionPlanController", "@RestController", "GET/POST/PATCH/DELETE\n/api/plans/**\nAuthenticated")
+        Component(calcCtrl, "CommissionCalculationController", "@RestController", "GET/POST/PATCH\n/api/calculations/**\napprove: MANAGER+\npay: FINANCE+")
+        Component(disputeCtrl, "DisputeController", "@RestController", "GET/POST/PATCH\n/api/disputes/**\nAuthenticated")
+        Component(dashCtrl, "DashboardController", "@Controller", "GET/POST /springboot/**\nThymeleaf views for\ndeals, plans, calcs")
+    }
+
+    ' ============================================================
+    ' SECURITY LAYER
+    ' ============================================================
+    Boundary(securityLayer, "Security Layer") {
+        Component(secConfig, "SecurityConfig", "@Configuration", "2 filter chains:\n@Order(1) API: JWT + stateless\n@Order(2) Web: form login")
+        Component(jwtFilter, "JwtAuthenticationFilter", "OncePerRequestFilter", "Extracts Bearer token,\nvalidates signature,\nsets SecurityContext")
+        Component(jwtProvider, "JwtTokenProvider", "@Component", "Generate JWT (HMAC-SHA256),\nvalidate, extract username.\n24h expiration.")
+        Component(userDetails, "CustomUserDetailsService", "@Service", "Loads UserDetails from\nUserRepository. Maps\nroles to GrantedAuthority.")
+    }
+
+    ' ============================================================
+    ' SERVICE LAYER
+    ' ============================================================
+    Boundary(serviceLayer, "Service Layer") {
+        Component(userSvc, "UserService", "@Service", "Create, deactivate, delete.\nPassword hashing.\nUsername uniqueness.")
+        Component(dealSvc, "DealService", "@Service", "CRUD + status transitions.\nCannot reopen cancelled.")
+        Component(planSvc, "CommissionPlanService", "@Service", "Plan lifecycle:\nDRAFT to ACTIVE to ARCHIVED.\nDate validation.")
+        Component(calcSvc, "CommissionCalculationService", "@Service", "Core engine: applies plan\ntiers to deal values.\nDeal must be WON,\nplan must be ACTIVE.")
+        Component(disputeSvc, "DisputeService", "@Service", "File, resolve, escalate.\nCannot resolve twice.")
+    }
+
+    ' ============================================================
+    ' DTO + MAPPER LAYER
+    ' ============================================================
+    Boundary(dtoLayer, "DTO Layer") {
+        Component(reqDtos, "Request DTOs", "Records", "LoginRequest, CreateUserRequest,\nCreateDealRequest, CreatePlanRequest,\nCalcRequest, CreateDisputeRequest.\nBean Validation (@Valid).")
+        Component(respDtos, "Response DTOs", "Records", "ApiResponse, ApiErrorResponse,\nAuthResponse, UserResponse,\nDealResponse, PlanResponse,\nCalcResponse, DisputeResponse.")
+        Component(mapper, "DtoMapper", "@Component", "Entity to Response conversion.\nExcludes passwordHash.\nIncludes nested collections.")
+    }
+
+    ' ============================================================
+    ' REPOSITORY LAYER
+    ' ============================================================
+    Boundary(repoLayer, "Repository Layer") {
+        Component(userRepo, "UserRepository", "@Repository", "ConcurrentHashMap.\nfindByUsername, findByRole,\nfindByDepartment, existsByUsername.")
+        Component(dealRepo, "DealRepository", "@Repository", "ConcurrentHashMap.\nfindBySalesRepId,\nfindByStatus.")
+        Component(planRepo, "CommissionPlanRepository", "@Repository", "ConcurrentHashMap.\nfindByStatus,\nfindActivePlansOnDate.")
+        Component(calcRepo, "CommissionCalculationRepository", "@Repository", "ConcurrentHashMap.\nfindByDealId,\nfindBySalesRepId.")
+        Component(disputeRepo, "DisputeRepository", "@Repository", "ConcurrentHashMap.\nfindBySalesRepId,\nfindByCalculationId.")
+    }
+
+    ' ============================================================
+    ' CROSS-CUTTING CONCERNS
+    ' ============================================================
+    Boundary(crossCutting, "Cross-Cutting Concerns") {
+        Component(exHandler, "GlobalExceptionHandler", "@ControllerAdvice", "ResourceNotFound: 404\nValidation: 400\nBusiness: 422\nUnauthorized: 401\nAccessDenied: 403\nGeneric: 500")
+        Component(dataLoader, "SampleDataLoader", "CommandLineRunner", "@Order(1). Seeds 6 users,\n3 plans, 6 deals, 4 calcs,\n1 dispute. BCrypt passwords.")
+        Component(openApi, "OpenApiConfig", "@Configuration", "Swagger with JWT\nsecurity scheme.")
+    }
+}
+
+' ============================================================
+' RELATIONSHIPS — Presentation to Service
+' ============================================================
+Rel(user, authCtrl, "POST /login", "HTTPS")
+Rel(user, dealCtrl, "REST", "HTTPS + JWT")
+Rel(user, planCtrl, "REST", "HTTPS + JWT")
+Rel(user, calcCtrl, "REST", "HTTPS + JWT")
+Rel(user, disputeCtrl, "REST", "HTTPS + JWT")
+Rel(user, userCtrl, "REST", "HTTPS + JWT")
+Rel(browserUser, dashCtrl, "Browse", "HTTPS + Form")
+
+Rel(authCtrl, jwtProvider, "Generate token")
+Rel(authCtrl, userDetails, "Authenticate")
+
+Rel(dealCtrl, dealSvc, "Delegates")
+Rel(planCtrl, planSvc, "Delegates")
+Rel(calcCtrl, calcSvc, "Delegates")
+Rel(disputeCtrl, disputeSvc, "Delegates")
+Rel(userCtrl, userSvc, "Delegates")
+Rel(dashCtrl, dealSvc, "Delegates")
+Rel(dashCtrl, planSvc, "Delegates")
+
+' ============================================================
+' RELATIONSHIPS — Security
+' ============================================================
+Rel(secConfig, jwtFilter, "Registers in chain")
+Rel(jwtFilter, jwtProvider, "Validates token")
+Rel(jwtFilter, userDetails, "Loads user details")
+Rel(userDetails, userRepo, "Reads users")
+
+' ============================================================
+' RELATIONSHIPS — Service to Repository
+' ============================================================
+Rel(userSvc, userRepo, "CRUD")
+Rel(dealSvc, dealRepo, "CRUD")
+Rel(planSvc, planRepo, "CRUD")
+Rel(calcSvc, calcRepo, "CRUD")
+Rel(disputeSvc, disputeRepo, "CRUD")
+
+' Cross-service dependencies (service orchestration)
+Rel(calcSvc, dealSvc, "Reads deal data", "for calculation")
+Rel(calcSvc, planSvc, "Reads plan tiers", "for rate lookup")
+
+' ============================================================
+' RELATIONSHIPS — DTO
+' ============================================================
+Rel(dealCtrl, reqDtos, "Accepts @Valid")
+Rel(dealCtrl, respDtos, "Returns")
+Rel(dealSvc, mapper, "Converts entities")
+
+' ============================================================
+' RELATIONSHIPS — Cross-cutting
+' ============================================================
+Rel(dataLoader, userRepo, "Seeds")
+Rel(dataLoader, dealRepo, "Seeds")
+Rel(dataLoader, planRepo, "Seeds")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' LAYERED DEPENDENCY FLOW:
+'   Controllers to Services to Repositories to Models
+'
+' Key observation: CommissionCalculationService is the only
+' service that depends on OTHER services (DealService and
+' CommissionPlanService). All other services depend only on
+' their own repository. This makes the calculation service
+' an "orchestrating" service.
+'
+' SECURITY FILTER ORDER:
+'   Request to JwtAuthenticationFilter to SecurityContext
+'   to @PreAuthorize check to Controller method
+'
+' DTO ISOLATION:
+' Controllers accept Request DTOs and return Response DTOs.
+' Services work with domain models internally. DtoMapper
+' handles the conversion. This prevents API contract changes
+' from affecting business logic.
+'
+' RBAC RULES:
+'   SALES_REP: Own deals, own calculations, file disputes
+'   SALES_MANAGER: Team deals, approve calculations, resolve disputes
+'   FINANCE_ADMIN: All calculations, process payments
+'   SYSTEM_ADMIN: User management, full access
+' ============================================================
+
+@enduml

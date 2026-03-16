@@ -1,6 +1,6 @@
-package com.chapman.edu.commissions.verticalslice.features.deals;
+package com.chapman.edu.commissions.architecture.verticalslice.features.deals;
 
-import com.chapman.edu.commissions.verticalslice.domain.DealStatus;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DealStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 

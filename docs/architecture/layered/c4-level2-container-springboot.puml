@@ -1,0 +1,98 @@
+@startuml C4_Level2_Container_SpringBoot
+!include <C4/C4_Container>
+
+title Container Diagram — SpringBoot Module (Layered Architecture)
+
+' ============================================================
+' C4 LEVEL 2: CONTAINER DIAGRAM — SPRINGBOOT MODULE
+' ============================================================
+' Shows the major technical building blocks inside the
+' SpringBoot layered module. Unlike the vertical slice module
+' which organizes by feature, this module organizes by
+' TECHNICAL LAYER: controllers, services, repositories, etc.
+'
+' PURPOSE:
+' Answer: "What are the technical layers in the SpringBoot
+' module and how do they stack?"
+'
+' LAYERED ARCHITECTURE:
+'   ┌─────────────────────────────────────────┐
+'   │     Presentation Layer (Controllers)     │
+'   ├─────────────────────────────────────────┤
+'   │     Security Layer (JWT + RBAC)          │
+'   ├─────────────────────────────────────────┤
+'   │     Business Layer (Services)            │
+'   ├─────────────────────────────────────────┤
+'   │     Data Access Layer (Repositories)     │
+'   ├─────────────────────────────────────────┤
+'   │     Domain Layer (Models + DTOs)         │
+'   └─────────────────────────────────────────┘
+' ============================================================
+
+Person(user, "User", "Sales rep, manager,\nfinance admin, or\nsystem admin")
+
+System_Boundary(springboot, "SpringBoot Module") {
+
+    Container(restApi, "REST API Controllers", "Spring MVC @RestController", "7 REST controllers exposing\nCRUD endpoints at /api/**.\nReturns JSON wrapped in\nApiResponse<T>.")
+
+    Container(webUi, "Web Dashboard", "Spring MVC @Controller + Thymeleaf", "DashboardController serving\nHTML pages at /springboot/**.\nForm-based login. Views for\ndeals, plans, calculations.")
+
+    Container(security, "Security Layer", "Spring Security + JWT", "Dual filter chains:\n1. API: JWT stateless auth\n2. Web: form-based login\nRBAC with 4 roles.\nBCrypt password hashing.")
+
+    Container(services, "Service Layer", "Spring @Service", "5 services containing\nbusiness logic, validation,\nand cross-service orchestration.\nCommissionCalculation depends\non Deal + Plan services.")
+
+    Container(dtos, "DTO Layer", "Request/Response DTOs + Mapper", "6 request DTOs with Bean\nValidation (@Valid). 8 response\nDTOs excluding sensitive data.\nDtoMapper converts entities.")
+
+    Container(repos, "Repository Layer", "ConcurrentHashMap @Repository", "5 repositories using in-memory\nConcurrentHashMap storage.\nThread-safe CRUD. UUID\ngeneration on save.")
+
+    Container(exceptions, "Exception Handling", "@ControllerAdvice", "GlobalExceptionHandler mapping\nexceptions to HTTP responses:\n404, 400, 401, 403, 422, 500.")
+
+    Container(config, "Configuration", "Spring @Configuration", "AppConfig, SecurityConfig,\nWebMvcConfig, OpenApiConfig,\nDevToolsConfig (profiles).")
+
+    Container(dataInit, "Data Initializer", "CommandLineRunner", "SampleDataLoader seeds 6 users,\n3 plans, 6 deals, 4 calcs,\n1 dispute on startup.")
+}
+
+System_Ext(swagger, "Swagger UI", "API docs")
+System_Ext(browser, "Web Browser", "HTML dashboard")
+
+Rel(user, restApi, "CRUD operations", "HTTPS + JWT Bearer")
+Rel(user, webUi, "Browse dashboard", "HTTPS + Form Login")
+
+Rel(restApi, security, "JWT validation", "Filter chain")
+Rel(webUi, security, "Session auth", "Filter chain")
+Rel(security, services, "After authentication", "Method calls")
+Rel(restApi, services, "Delegates business logic", "Method calls")
+Rel(webUi, services, "Delegates business logic", "Method calls")
+Rel(restApi, dtos, "Accepts/returns DTOs", "Serialization")
+Rel(services, repos, "CRUD operations", "Method calls")
+Rel(restApi, exceptions, "Exception → HTTP response", "AOP")
+Rel(restApi, swagger, "Serves OpenAPI spec", "HTTP")
+Rel(webUi, browser, "Renders HTML", "Thymeleaf")
+Rel(dataInit, repos, "Seeds sample data", "Method calls")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' PERSISTENCE MODEL:
+' This module intentionally uses ConcurrentHashMap instead of
+' a database. All data is in-memory and re-seeded on each
+' restart. This demonstrates the Repository pattern's
+' abstraction — swapping HashMap for JPA requires changing
+' only the repository implementations, not services or
+' controllers.
+'
+' DUAL SECURITY CHAINS:
+' Two SecurityFilterChain beans at different @Order levels:
+'   @Order(1) — API chain: /api/** → JWT + STATELESS
+'   @Order(2) — Web chain: /** → Form login + session
+' This enables both API clients and browser users to
+' authenticate with their preferred mechanism.
+'
+' JWT FLOW:
+' POST /api/auth/login → AuthResponse(token, roles)
+' Subsequent: Authorization: Bearer <token>
+' JwtAuthenticationFilter validates on every request.
+' Token signed with HMAC-SHA256 (256-bit secret key).
+' ============================================================
+
+@enduml
