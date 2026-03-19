@@ -27,7 +27,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * No concern knows about any other concern — true independence.
  */
 @SpringBootApplication(
-    scanBasePackages = "com.chapman.edu.commissions.architecture.orthogonal"
+    scanBasePackages = "com.chapman.edu.commissions.architecture.orthogonal",
+    exclude = {
+        org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class
+    }
 )
 @EntityScan(basePackages = {
     "com.chapman.edu.commissions.architecture.orthogonal.domain",

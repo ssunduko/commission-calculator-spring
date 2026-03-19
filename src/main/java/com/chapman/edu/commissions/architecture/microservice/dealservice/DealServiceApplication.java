@@ -13,7 +13,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * To start: java -jar app.jar --spring.profiles.active=deal-service
  * Or: mvn spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=deal-service"
  */
-@SpringBootApplication(scanBasePackages = "com.chapman.edu.commissions.architecture.microservice.dealservice")
+@SpringBootApplication(
+    scanBasePackages = "com.chapman.edu.commissions.architecture.microservice.dealservice",
+    exclude = {org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class}
+)
 public class DealServiceApplication {
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(DealServiceApplication.class);

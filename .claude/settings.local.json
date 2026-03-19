@@ -49,7 +49,19 @@
       "Bash(git status:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(find \"C:\\\\Commission Calculator\\\\commission-calculator-spring\" -type f -name \".env*\" -o -name \"*config*.java\" 2>/dev/null | head -20)",
+      "Bash(find \"C:\\\\Commission Calculator\\\\commission-calculator-spring/src/test/java/com/chapman/edu/commissions/architecture/verticalslice\" -type f -name \"*.java\" 2>/dev/null | head -50)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Commission Calculator/commission-calculator-spring/src/main/java/com/chapman/edu/commissions/architecture/cleanarchitecture/domain/model/**)",
+      "Bash(done)",
+      "Bash(cd \"C:/Commission Calculator/commission-calculator-spring\" && ./mvnw test -Dtest=\"CleanArchitectureIntegrationTest#createDeal_shouldReturn201\" -pl . 2>&1 | grep -A 5 \"500\\\\|Error\\\\|Exception\\\\|error\" | head -30)",
+      "Bash(cd \"C:/Commission Calculator/commission-calculator-spring\" && ./mvnw test -Dtest=\"CleanArchitectureIntegrationTest#createDeal_shouldReturn201\" -pl . 2>&1 | grep -i \"caused by\\\\|stacktrace\\\\|status.*500\\\\|MockHttpServletResponse\" | head -20)",
+      "Bash(cd \"C:/Commission Calculator/commission-calculator-spring\" && ./mvnw clean test -Dtest=\"CleanArchitectureIntegrationTest\" -pl . -q 2>&1 | tail -30)",
+      "Bash(grep -E \"\\\\.\\(st|txt|md|properties\\)$\")",
+      "Bash(for arch:*)",
+      "Read(//c/Commission Calculator/commission-calculator-spring/src/main/java/com/chapman/edu/commissions/architecture/**)"
     ],
     "deny": [],
     "ask": []

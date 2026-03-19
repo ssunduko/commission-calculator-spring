@@ -19,6 +19,9 @@ eventdriven/
 │   ├── plans/                # Plan service + CommissionPlanEventListener
 │   ├── calculations/         # Calculation service + CommissionCalculationEventListener
 │   └── disputes/             # Dispute service + DisputeEventListener
+├── processor/                 # STARTUP DEMOS — Showcases EDA concepts
+│   ├── EventDrivenProcessor.java      # Demonstrates all EDA patterns
+│   └── EventDrivenProcessorDemo.java  # CommandLineRunner for startup demos
 └── infrastructure/
     ├── config/               # Security, OpenAPI, AsyncConfig
     ├── data/                 # Data initialization
@@ -440,6 +443,20 @@ The integration test runs an 8-step ordered workflow:
 6. **Create event listener** for cross-cutting concerns
 7. **Define DTOs** for requests/responses
 8. **Write tests** — verify both logic and event publishing
+
+---
+
+## Processor Demos
+
+The `EventDrivenProcessor` runs at startup to demonstrate key EDA concepts:
+
+| Demo | Concept | What It Shows |
+|------|---------|---------------|
+| **Event Publishing** | Domain events | Creating a deal automatically publishes DealCreatedEvent |
+| **Event Store** | Audit trail | Append-only log of all events with type, aggregate, payload, timestamp |
+| **Event Listeners** | Sync vs Async | EventStoreListener (@Order(1), sync) vs feature listeners (@Order(10), @Async) |
+| **Event Replay** | History reconstruction | Query event store to reconstruct aggregate timeline |
+| **Decoupling** | Publisher independence | Services publish events without knowing who listens |
 
 ---
 

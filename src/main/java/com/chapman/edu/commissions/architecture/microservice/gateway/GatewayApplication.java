@@ -25,7 +25,8 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
  */
 @SpringBootApplication(
     scanBasePackages = "com.chapman.edu.commissions.architecture.microservice.gateway",
-    exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class}
+    exclude = {DataSourceAutoConfiguration.class, HibernateJpaAutoConfiguration.class,
+        org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class}
 )
 public class GatewayApplication {
     public static void main(String[] args) {

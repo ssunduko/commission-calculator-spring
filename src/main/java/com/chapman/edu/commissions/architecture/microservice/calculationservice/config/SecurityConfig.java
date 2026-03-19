@@ -10,12 +10,12 @@ import org.springframework.security.web.SecurityFilterChain;
  * Security configuration for the Calculation Service.
  * Permits all requests for microservice demo purposes.
  */
-@Configuration
+@Configuration("calculationServiceSecurityConfig")
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain calculationServiceSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/h2-console/**").permitAll()

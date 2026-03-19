@@ -3,7 +3,10 @@ package com.chapman.edu.commissions.architecture.microservice.disputeservice;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication(scanBasePackages = "com.chapman.edu.commissions.architecture.microservice.disputeservice")
+@SpringBootApplication(
+    scanBasePackages = "com.chapman.edu.commissions.architecture.microservice.disputeservice",
+    exclude = {org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class}
+)
 public class DisputeServiceApplication {
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(DisputeServiceApplication.class);

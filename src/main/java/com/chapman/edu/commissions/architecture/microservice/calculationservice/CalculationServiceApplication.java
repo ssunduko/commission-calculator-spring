@@ -3,10 +3,13 @@ package com.chapman.edu.commissions.architecture.microservice.calculationservice
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication(scanBasePackages = {
+@SpringBootApplication(
+    scanBasePackages = {
         "com.chapman.edu.commissions.architecture.microservice.calculationservice",
         "com.chapman.edu.commissions.architecture.microservice.common"
-})
+    },
+    exclude = {org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class}
+)
 public class CalculationServiceApplication {
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(CalculationServiceApplication.class);

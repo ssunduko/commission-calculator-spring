@@ -245,6 +245,10 @@ ddd/
 │   │   └── DisputeController.java
 │   └── GlobalExceptionHandler.java
 │
+├── processor/                               # STARTUP DEMOS — Showcases DDD concepts
+│   ├── DddProcessor.java                   # Demonstrates all DDD patterns
+│   └── DddProcessorDemo.java               # CommandLineRunner for startup demos
+│
 └── infrastructure/                           # INFRASTRUCTURE LAYER
     ├── persistence/                          # JPA Repository implementations
     │   ├── JpaDealRepository.java
@@ -477,6 +481,20 @@ mvn spring-boot:run -Dspring-boot.run.profiles=ddd
 ```
 
 The application will start on port 8080.
+
+---
+
+## Processor Demos
+
+The `DddProcessor` runs at startup to demonstrate key DDD concepts:
+
+| Demo | Concept | What It Shows |
+|------|---------|---------------|
+| **Aggregate Roots** | Aggregate boundaries | Deal, CommissionPlan as roots; internal entities accessed only through root |
+| **Domain Services** | Cross-aggregate logic | CommissionCalculationService — stateless, static, coordinates Deal + Plan |
+| **App vs Domain Service** | Layer responsibilities | Application service orchestrates; domain service calculates |
+| **Repository per Aggregate** | Persistence abstraction | One repo per root; no repo for DealProduct, CommissionRule, etc. |
+| **Full DDD Flow** | End-to-end | Request → Application Service → Domain Service → Aggregate → Repository |
 
 ---
 

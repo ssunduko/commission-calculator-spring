@@ -38,6 +38,9 @@ orthogonal/
 │   ├── calculations/         # Same pattern
 │   └── disputes/             # Same pattern
 ├── domain/                    # Entity classes and enums
+├── processor/                 # STARTUP DEMOS — Showcases CQRS + AOP concepts
+│   ├── OrthogonalProcessor.java       # Demonstrates all Orthogonal patterns
+│   └── OrthogonalProcessorDemo.java   # CommandLineRunner for startup demos
 └── infrastructure/            # Config, exceptions, data initialization
 ```
 
@@ -312,6 +315,20 @@ The integration test verifies:
 1. Create a `@Aspect @Component @Order(N)` class
 2. Define pointcuts targeting handler methods
 3. Done — applies to all existing and future handlers automatically
+
+---
+
+## Processor Demos
+
+The `OrthogonalProcessor` runs at startup to demonstrate key CQRS + AOP concepts:
+
+| Demo | Concept | What It Shows |
+|------|---------|---------------|
+| **CQRS** | Command/Query separation | Commands modify state; Queries read state — dispatched through separate buses |
+| **Pipeline Bus** | Auto-discovery | PipelineBus finds all handlers via @PostConstruct — no manual registration |
+| **AOP Aspect Chain** | Orthogonal concerns | @Order(1) Logging → @Order(2) Validation → @Order(3) Auditing → @Order(4) Performance |
+| **Audit Trail** | Automatic recording | AuditingAspect persists every command — handler code has zero auditing logic |
+| **Command Validation** | Aspect-driven validation | ValidationAspect auto-calls command.validate() before handler executes |
 
 ---
 

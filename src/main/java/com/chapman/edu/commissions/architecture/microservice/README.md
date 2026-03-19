@@ -299,9 +299,24 @@ microservice/
 │   ├── DisputeRepository.java
 │   ├── config/SecurityConfig.java
 │   └── domain/ (Dispute, DisputeComment, DisputeStatus)
-└── gateway/                     # API Gateway (port 8090)
-    ├── GatewayApplication.java
-    ├── GatewayController.java
-    ├── ServiceRegistry.java
-    └── config/SecurityConfig.java
+├── gateway/                     # API Gateway (port 8090)
+│   ├── GatewayApplication.java
+│   ├── GatewayController.java
+│   ├── ServiceRegistry.java
+│   └── config/SecurityConfig.java
+└── processor/                   # STARTUP DEMOS — Showcases Microservice concepts
+    ├── MicroserviceProcessor.java       # Demonstrates all Microservice patterns
+    └── MicroserviceProcessorDemo.java   # CommandLineRunner for startup demos
 ```
+
+## Processor Demos
+
+The `MicroserviceProcessor` runs at startup to demonstrate key Microservice concepts:
+
+| Demo | Concept | What It Shows |
+|------|---------|---------------|
+| **Service Topology** | Service registry | Each service has own port, database, and deployment lifecycle |
+| **Independent Services** | Service autonomy | Deal Service operates without knowledge of Plan or Calculation Service |
+| **Inter-Service Communication** | REST clients | CalculationService calls DealServiceClient/PlanServiceClient via HTTP |
+| **API Gateway** | Single entry point | Gateway routes /api/ms/** to appropriate service by URL path |
+| **Database per Service** | Data isolation | No cross-service JOINs; data accessed only via REST APIs |

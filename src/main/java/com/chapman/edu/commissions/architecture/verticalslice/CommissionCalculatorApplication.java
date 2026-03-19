@@ -19,7 +19,10 @@ import java.util.List;
  * (ORM, SpringBoot, AI) that coexist in the same JAR.
  */
 @SpringBootApplication(
-    scanBasePackages = "com.chapman.edu.commissions.architecture.verticalslice"
+    scanBasePackages = "com.chapman.edu.commissions.architecture.verticalslice",
+    exclude = {
+        org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class
+    }
 )
 public class CommissionCalculatorApplication {
 

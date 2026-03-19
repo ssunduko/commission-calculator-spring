@@ -24,6 +24,9 @@ cleanarchitecture/
 ├── adapter/                   # OUTERMOST LAYER — Framework integrations
 │   ├── in/web/               # Driving adapters (REST controllers)
 │   └── out/persistence/      # Driven adapters (JPA repositories)
+├── processor/                 # STARTUP DEMOS — Showcases architecture concepts
+│   ├── CleanArchitectureProcessor.java    # Demonstrates all Clean Arch patterns
+│   └── CleanArchitectureProcessorDemo.java # CommandLineRunner for startup demos
 └── infrastructure/            # Cross-cutting concerns
     ├── config/               # Security, OpenAPI configuration
     ├── data/                 # Data initialization
@@ -342,6 +345,22 @@ Always verify the dependency rule: search for imports in each layer to ensure:
 - `domain/` has zero imports from `application/`, `adapter/`, or `infrastructure/`
 - `application/` has zero imports from `adapter/` or `infrastructure/`
 - Only `adapter/` and `infrastructure/` import Spring framework classes
+
+---
+
+## Processor Demos
+
+The `CleanArchitectureProcessor` runs at startup to demonstrate key Clean Architecture concepts:
+
+| Demo | Concept | What It Shows |
+|------|---------|---------------|
+| **Dependency Inversion** | DIP via Input Ports | All calls go through use case interfaces, not concrete services |
+| **Command Pattern** | Immutable DTOs | Self-validating command records cross layer boundaries |
+| **Port & Adapter** | Hexagonal Architecture | Input ports (driving), output ports (driven), adapters for both |
+| **Full Use Case Flow** | Layer crossing | Command → Input Port → Service → Domain → Output Port → JPA |
+| **Layer Isolation** | Separation of concerns | Processor receives Results (records), not mutable JPA entities |
+
+The processor is itself a **driving adapter** — it drives the application through input ports, just like a REST controller does.
 
 ---
 

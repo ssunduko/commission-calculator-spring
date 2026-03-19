@@ -6,7 +6,10 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication(
-    scanBasePackages = "com.chapman.edu.commissions.architecture.cleanarchitecture"
+    scanBasePackages = "com.chapman.edu.commissions.architecture.cleanarchitecture",
+    exclude = {
+        org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class
+    }
 )
 @EntityScan("com.chapman.edu.commissions.architecture.cleanarchitecture.domain.model")
 @EnableJpaRepositories("com.chapman.edu.commissions.architecture.cleanarchitecture.adapter.out.persistence")

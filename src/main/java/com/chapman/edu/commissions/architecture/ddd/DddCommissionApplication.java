@@ -33,7 +33,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  *    with dependencies pointing inward
  */
 @SpringBootApplication(
-    scanBasePackages = "com.chapman.edu.commissions.architecture.ddd"
+    scanBasePackages = "com.chapman.edu.commissions.architecture.ddd",
+    exclude = {
+        org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class
+    }
 )
 @EntityScan(basePackages = {
     "com.chapman.edu.commissions.architecture.ddd.domain.deal",

@@ -18,6 +18,9 @@ verticalslice/
 │   ├── plans/          # Commission plan feature
 │   ├── calculations/   # Commission calculation feature
 │   └── disputes/       # Dispute management feature
+├── processor/           # STARTUP DEMOS — Showcases Vertical Slice concepts
+│   ├── VerticalSliceProcessor.java       # Demonstrates all VS patterns
+│   └── VerticalSliceProcessorDemo.java   # CommandLineRunner for startup demos
 └── infrastructure/      # Cross-cutting concerns
     ├── config/         # Configuration
     ├── data/           # Data initialization
@@ -478,6 +481,21 @@ For questions or issues:
 1. Check the Swagger documentation
 2. Review the test cases for examples
 3. Examine existing features as templates
+
+---
+
+## Processor Demos
+
+The `VerticalSliceProcessor` runs at startup to demonstrate key Vertical Slice concepts:
+
+| Demo | Concept | What It Shows |
+|------|---------|---------------|
+| **Feature-First Organization** | Package by feature | All code for a feature lives in one package — change one feature, touch one package |
+| **Minimal Abstractions** | Concrete classes | No interfaces, no ports — DealController → DealService → DealRepository directly |
+| **Cross-Feature Communication** | Direct dependencies | Calculation service injects deal and plan repositories — simple but coupled |
+| **Rapid Development** | Low ceremony | 5-6 files to add a feature vs 10+ in Clean Architecture |
+| **Full Feature Walkthrough** | End-to-end | Create deal → get plan → calculate commission — all through direct service calls |
+| **MCP Server** | AI Agent Integration | 27 @Tool methods expose all features to AI agents via Model Context Protocol |
 
 ---
 

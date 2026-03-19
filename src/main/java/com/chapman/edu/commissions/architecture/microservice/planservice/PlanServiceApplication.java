@@ -3,7 +3,10 @@ package com.chapman.edu.commissions.architecture.microservice.planservice;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication(scanBasePackages = "com.chapman.edu.commissions.architecture.microservice.planservice")
+@SpringBootApplication(
+    scanBasePackages = "com.chapman.edu.commissions.architecture.microservice.planservice",
+    exclude = {org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class}
+)
 public class PlanServiceApplication {
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(PlanServiceApplication.class);

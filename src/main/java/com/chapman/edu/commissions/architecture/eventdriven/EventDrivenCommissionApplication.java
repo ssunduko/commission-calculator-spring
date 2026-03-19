@@ -31,7 +31,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * cross-cutting concerns instead of direct method calls.
  */
 @SpringBootApplication(
-    scanBasePackages = "com.chapman.edu.commissions.architecture.eventdriven"
+    scanBasePackages = "com.chapman.edu.commissions.architecture.eventdriven",
+    exclude = {
+        org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class
+    }
 )
 @EntityScan("com.chapman.edu.commissions.architecture.eventdriven.domain")
 @EnableJpaRepositories(basePackages = {
