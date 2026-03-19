@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('Dashboard')}">
+</head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='dashboard'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">AI Commission Calculator</h1>
+    <p style="color: #666; margin-bottom: 2rem;">Explore AI-powered commission analysis, forecasting, and insights powered by Spring AI and Claude.</p>
+
+    <div class="stats-grid">
+        <a th:href="@{/ai/rag}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card">
+                <div class="icon">&#x1F50D;</div>
+                <div class="title">RAG Q&amp;A</div>
+                <div class="desc">Ask natural language questions about commission data using Retrieval-Augmented Generation</div>
+            </div>
+        </a>
+        <a th:href="@{/ai/explainer}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card" style="border-color: #1a73e8;">
+                <div class="icon">&#x1F4A1;</div>
+                <div class="title">Explainer</div>
+                <div class="desc">Get plain-language explanations of commission calculations and plan structures</div>
+            </div>
+        </a>
+        <a th:href="@{/ai/disputes}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card" style="border-color: #ea4335;">
+                <div class="icon">&#x2696;&#xFE0F;</div>
+                <div class="title">Dispute Analysis</div>
+                <div class="desc">AI-powered dispute resolution analysis and priority triage</div>
+            </div>
+        </a>
+        <a th:href="@{/ai/forecast}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card" style="border-color: #34a853;">
+                <div class="icon">&#x1F4C8;</div>
+                <div class="title">Forecasting</div>
+                <div class="desc">AI-generated commission forecasts for individuals and teams</div>
+            </div>
+        </a>
+        <a th:href="@{/ai/anomaly}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card" style="border-color: #f9ab00;">
+                <div class="icon">&#x26A0;&#xFE0F;</div>
+                <div class="title">Anomaly Detection</div>
+                <div class="desc">Identify unusual commission calculations using statistical analysis + AI</div>
+            </div>
+        </a>
+        <a th:href="@{/ai/moderation}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card" style="border-color: #5f6368;">
+                <div class="icon">&#x1F6E1;&#xFE0F;</div>
+                <div class="title">Moderation &amp; Guardrails</div>
+                <div class="desc">Input validation, content classification, and output sanitization</div>
+            </div>
+        </a>
+        <a th:href="@{/ai/agent}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card" style="border-color: #e040fb;">
+                <div class="icon">&#x1F9E0;</div>
+                <div class="title">ReAct Agent</div>
+                <div class="desc">Reasoning agent that uses tools step-by-step to answer complex questions</div>
+            </div>
+        </a>
+        <a th:href="@{/ai/workflow}" style="text-decoration: none; color: inherit;">
+            <div class="stat-card" style="border-color: #00bcd4;">
+                <div class="icon">&#x1F504;</div>
+                <div class="title">Agentic Workflow</div>
+                <div class="desc">Multi-agent orchestrated reviews with data gathering, compliance, and reporting</div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Agent Tools -->
+    <div class="card">
+        <h2>&#x1F6E0;&#xFE0F; ReAct Agent Tools</h2>
+        <table>
+            <thead>
+                <tr><th>Tool Name</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="entry : ${agentTools}">
+                    <td><span class="badge badge-purple" th:text="${entry.key}">tool</span></td>
+                    <td th:text="${entry.value}">description</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Workflow Agents -->
+    <div class="card">
+        <h2>&#x1F504; Workflow Pipeline Agents</h2>
+        <table>
+            <thead>
+                <tr><th>Stage</th><th>Agent</th></tr>
+            </thead>
+            <tbody>
+                <tr th:each="entry : ${workflowAgents}">
+                    <td><span class="badge badge-blue" th:text="${entry.key}">stage</span></td>
+                    <td th:text="${entry.value}">agent</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="footer">
+    <p>Chapman University - SDLC Course - Spring AI Fundamentals</p>
+</div>
+</body>
+</html>

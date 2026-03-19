@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('Dispute Analysis')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='disputes'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">&#x2696;&#xFE0F; Dispute Analysis</h1>
+    <p style="color: #666; margin-bottom: 2rem;">AI-powered dispute resolution analysis and priority triage.</p>
+
+    <div class="two-col">
+        <div class="card">
+            <h2>Full Dispute Analysis</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Get a comprehensive analysis including validity assessment, factors, and recommended resolution.</p>
+            <div class="form-group">
+                <label for="disputeId">Dispute ID:</label>
+                <input type="text" id="disputeId" placeholder="e.g., 1">
+            </div>
+            <button class="btn btn-primary" onclick="analyzeDispute()">Analyze</button>
+            <div id="analyzeLoading" class="loading"><div class="spinner"></div> Analyzing dispute...</div>
+            <div id="analyzeResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>Quick Triage</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Get a quick priority assessment (HIGH, MEDIUM, LOW) for queue management.</p>
+            <div class="form-group">
+                <label for="triageId">Dispute ID:</label>
+                <input type="text" id="triageId" placeholder="e.g., 1">
+            </div>
+            <button class="btn btn-primary" onclick="triageDispute()">Triage</button>
+            <div id="triageLoading" class="loading"><div class="spinner"></div> Triaging dispute...</div>
+            <div id="triageResult" class="result-box" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="footer"><p>Chapman University - SDLC Course - Spring AI Fundamentals</p></div>
+
+<script>
+async function analyzeDispute() {
+    const id = document.getElementById('disputeId').value.trim();
+    if (!id) return alert('Please enter a Dispute ID.');
+    showLoading('analyzeLoading', 'analyzeResult');
+    try {
+        const res = await fetch(`/api/ai/disputes/analyze/${encodeURIComponent(id)}`);
+        const data = await res.json();
+        showResult('analyzeResult', data.analysis || data.error, !res.ok);
+    } catch (e) { showResult('analyzeResult', 'Error: ' + e.message, true); }
+    hideLoading('analyzeLoading');
+}
+
+async function triageDispute() {
+    const id = document.getElementById('triageId').value.trim();
+    if (!id) return alert('Please enter a Dispute ID.');
+    showLoading('triageLoading', 'triageResult');
+    try {
+        const res = await fetch(`/api/ai/disputes/triage/${encodeURIComponent(id)}`);
+        const data = await res.json();
+        showResult('triageResult', data.triage || data.error, !res.ok);
+    } catch (e) { showResult('triageResult', 'Error: ' + e.message, true); }
+    hideLoading('triageLoading');
+}
+
+function showLoading(l, r) { document.getElementById(l).classList.add('active'); document.getElementById(r).style.display='none'; }
+function hideLoading(l) { document.getElementById(l).classList.remove('active'); }
+function showResult(id, text, err) { const el=document.getElementById(id); el.textContent=text; el.className='result-box'+(err?' error':' success'); el.style.display='block'; }
+</script>
+</body>
+</html>

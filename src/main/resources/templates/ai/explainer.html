@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('Explainer')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='explainer'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">&#x1F4A1; Commission Explainer</h1>
+    <p style="color: #666; margin-bottom: 2rem;">Get plain-language explanations of commission calculations and plan structures.</p>
+
+    <div class="two-col">
+        <div class="card">
+            <h2>Explain a Calculation</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Generate a human-readable explanation of how a specific commission was calculated.</p>
+            <div class="form-group">
+                <label for="calcId">Calculation ID:</label>
+                <input type="text" id="calcId" placeholder="e.g., 1">
+            </div>
+            <button class="btn btn-primary" onclick="explainCalc()">Explain</button>
+            <div id="calcLoading" class="loading"><div class="spinner"></div> Generating explanation...</div>
+            <div id="calcResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>Explain a Plan</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Describe plan tiers, rates, and bonuses in terms anyone can understand.</p>
+            <div class="form-group">
+                <label for="planId">Plan ID:</label>
+                <input type="text" id="planId" placeholder="e.g., 1">
+            </div>
+            <button class="btn btn-primary" onclick="explainPlan()">Explain</button>
+            <div id="planLoading" class="loading"><div class="spinner"></div> Generating explanation...</div>
+            <div id="planResult" class="result-box" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="footer"><p>Chapman University - SDLC Course - Spring AI Fundamentals</p></div>
+
+<script>
+async function explainCalc() {
+    const id = document.getElementById('calcId').value.trim();
+    if (!id) return alert('Please enter a Calculation ID.');
+    showLoading('calcLoading', 'calcResult');
+    try {
+        const res = await fetch(`/api/ai/explain/calculation/${encodeURIComponent(id)}`);
+        const data = await res.json();
+        showResult('calcResult', data.explanation || data.error, !res.ok);
+    } catch (e) { showResult('calcResult', 'Error: ' + e.message, true); }
+    hideLoading('calcLoading');
+}
+
+async function explainPlan() {
+    const id = document.getElementById('planId').value.trim();
+    if (!id) return alert('Please enter a Plan ID.');
+    showLoading('planLoading', 'planResult');
+    try {
+        const res = await fetch(`/api/ai/explain/plan/${encodeURIComponent(id)}`);
+        const data = await res.json();
+        showResult('planResult', data.explanation || data.error, !res.ok);
+    } catch (e) { showResult('planResult', 'Error: ' + e.message, true); }
+    hideLoading('planLoading');
+}
+
+function showLoading(l, r) { document.getElementById(l).classList.add('active'); document.getElementById(r).style.display='none'; }
+function hideLoading(l) { document.getElementById(l).classList.remove('active'); }
+function showResult(id, text, err) { const el=document.getElementById(id); el.textContent=text; el.className='result-box'+(err?' error':' success'); el.style.display='block'; }
+</script>
+</body>
+</html>

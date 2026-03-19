@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('RAG Q&A')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='rag'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">&#x1F50D; RAG Q&amp;A</h1>
+    <p style="color: #666; margin-bottom: 2rem;">Ask natural language questions about commission data. Uses Retrieval-Augmented Generation to ground answers in your actual data.</p>
+
+    <div class="two-col">
+        <!-- General Question -->
+        <div class="card">
+            <h2>Ask a Question</h2>
+            <div class="form-group">
+                <label for="question">Your question about commissions:</label>
+                <textarea id="question" placeholder="e.g., What commission plans are available?"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="docType">Filter by document type (optional):</label>
+                <select id="docType">
+                    <option value="">All types</option>
+                    <option value="deal">Deals</option>
+                    <option value="commission_plan">Commission Plans</option>
+                    <option value="commission_calculation">Calculations</option>
+                    <option value="user">Users</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="askQuestion()">Ask</button>
+            <div id="questionLoading" class="loading"><div class="spinner"></div> Searching and generating answer...</div>
+            <div id="questionResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <!-- Performance Report -->
+        <div class="card">
+            <h2>Performance Report</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Generate a comprehensive performance report for a sales representative using multi-retrieval RAG.</p>
+            <div class="form-group">
+                <label for="salesRepName">Sales Rep Name:</label>
+                <input type="text" id="salesRepName" placeholder="e.g., Alice Johnson">
+            </div>
+            <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+            <div id="reportLoading" class="loading"><div class="spinner"></div> Gathering data and generating report...</div>
+            <div id="reportResult" class="result-box" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="footer"><p>Chapman University - SDLC Course - Spring AI Fundamentals</p></div>
+
+<script>
+async function askQuestion() {
+    const question = document.getElementById('question').value.trim();
+    if (!question) return alert('Please enter a question.');
+    const docType = document.getElementById('docType').value;
+    const url = docType ? `/api/ai/rag/ask/${docType}` : '/api/ai/rag/ask';
+
+    showLoading('questionLoading', 'questionResult');
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question})
+        });
+        const data = await res.json();
+        showResult('questionResult', res.ok ? (data.response || data.error) : data.error, !res.ok);
+    } catch (e) {
+        showResult('questionResult', 'Error: ' + e.message, true);
+    }
+    hideLoading('questionLoading');
+}
+
+async function generateReport() {
+    const name = document.getElementById('salesRepName').value.trim();
+    if (!name) return alert('Please enter a sales rep name.');
+
+    showLoading('reportLoading', 'reportResult');
+    try {
+        const res = await fetch(`/api/ai/rag/report/${encodeURIComponent(name)}`);
+        const data = await res.json();
+        showResult('reportResult', data.report || data.error, !res.ok);
+    } catch (e) {
+        showResult('reportResult', 'Error: ' + e.message, true);
+    }
+    hideLoading('reportLoading');
+}
+
+function showLoading(loadingId, resultId) {
+    document.getElementById(loadingId).classList.add('active');
+    document.getElementById(resultId).style.display = 'none';
+}
+function hideLoading(loadingId) {
+    document.getElementById(loadingId).classList.remove('active');
+}
+function showResult(id, text, isError) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'result-box' + (isError ? ' error' : ' success');
+    el.style.display = 'block';
+}
+</script>
+</body>
+</html>

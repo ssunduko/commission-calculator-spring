@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('Agentic Workflow')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='workflow'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">&#x1F504; Agentic Workflow</h1>
+    <p style="color: #666; margin-bottom: 2rem;">Multi-agent orchestrated commission reviews. Four specialized agents collaborate through shared state to produce comprehensive reports.</p>
+
+    <div class="card">
+        <h2>Commission Review Workflow</h2>
+        <p style="color: #666; margin-bottom: 1rem;">The workflow executes four stages: Data Gathering &rarr; Compliance Check &rarr; Anomaly Analysis &rarr; Report Generation</p>
+        <div class="form-group">
+            <label for="reviewRequest">Review request:</label>
+            <textarea id="reviewRequest" placeholder="e.g., Review Alice Johnson's commission performance"></textarea>
+        </div>
+        <button class="btn btn-primary" id="reviewBtn" onclick="executeReview()">Execute Workflow</button>
+        <div id="reviewLoading" class="loading"><div class="spinner"></div> Executing multi-agent workflow... this may take a moment.</div>
+        <div id="reviewReport" class="result-box" style="display:none;"></div>
+
+        <div id="workflowDetails" style="display:none; margin-top: 1.5rem;">
+            <h3>Workflow Stages</h3>
+            <div id="stageLog"></div>
+            <div id="flagsSection" style="display:none; margin-top: 1rem;">
+                <h3>Flags Raised</h3>
+                <div id="flags"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pipeline Agents -->
+    <div class="card">
+        <h2>&#x1F465; Pipeline Agents</h2>
+        <p style="color: #666; margin-bottom: 1rem;">Each stage of the workflow is handled by a specialized AI agent:</p>
+        <table>
+            <thead><tr><th>Stage</th><th>Agent</th></tr></thead>
+            <tbody>
+                <tr th:each="entry : ${workflowAgents}">
+                    <td><span class="badge badge-blue" th:text="${entry.key}">stage</span></td>
+                    <td th:text="${entry.value}">agent</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="footer"><p>Chapman University - SDLC Course - Spring AI Fundamentals</p></div>
+
+<script>
+async function executeReview() {
+    const request = document.getElementById('reviewRequest').value.trim();
+    if (!request) return alert('Please enter a review request.');
+
+    document.getElementById('reviewBtn').disabled = true;
+    document.getElementById('reviewLoading').classList.add('active');
+    document.getElementById('reviewReport').style.display = 'none';
+    document.getElementById('workflowDetails').style.display = 'none';
+
+    try {
+        const res = await fetch('/api/ai/workflow/review', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({request})
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showResult('reviewReport', data.error, true);
+        } else {
+            showResult('reviewReport', data.report, !data.success);
+
+            // Render stage log
+            if (data.stageLog && data.stageLog.length > 0) {
+                const logDiv = document.getElementById('stageLog');
+                logDiv.innerHTML = '';
+                data.stageLog.forEach((entry, i) => {
+                    const card = document.createElement('div');
+                    card.className = 'step-card';
+                    card.innerHTML = `<span class="step-num">${i + 1}</span> ${escapeHtml(entry)}`;
+                    logDiv.appendChild(card);
+                });
+                document.getElementById('workflowDetails').style.display = 'block';
+            }
+
+            // Render flags
+            if (data.flags && data.flags.length > 0) {
+                const flagsDiv = document.getElementById('flags');
+                flagsDiv.innerHTML = '';
+                data.flags.forEach(flag => {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge badge-orange';
+                    badge.style.marginRight = '0.5rem';
+                    badge.textContent = flag;
+                    flagsDiv.appendChild(badge);
+                });
+                document.getElementById('flagsSection').style.display = 'block';
+            }
+        }
+    } catch (e) {
+        showResult('reviewReport', 'Error: ' + e.message, true);
+    }
+
+    document.getElementById('reviewLoading').classList.remove('active');
+    document.getElementById('reviewBtn').disabled = false;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function showResult(id, text, err) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'result-box' + (err ? ' error' : ' success');
+    el.style.display = 'block';
+}
+</script>
+</body>
+</html>

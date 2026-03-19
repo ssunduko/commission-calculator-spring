@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -94,6 +95,7 @@ public class DataGatheringAgent implements WorkflowAgent {
      * 5. Store in state for downstream agents
      */
     @Override
+    @Transactional(readOnly = true)
     public void execute(WorkflowState state) {
         log.info("[{}] Starting data gathering for: '{}'", getName(), state.getOriginalRequest());
 

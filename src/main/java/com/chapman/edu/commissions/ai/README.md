@@ -179,61 +179,170 @@ com.chapman.edu.commissions.ai/
 │   ├── DisputeAnalysisService.java           # AI dispute analysis
 │   ├── ForecastingService.java               # AI commission forecasting
 │   └── AnomalyDetectionService.java          # AI anomaly detection
+├── service/
+│   ├── agent/
+│   │   ├── CommissionReActAgent.java         # ReAct reasoning agent
+│   │   ├── CommissionToolRegistry.java       # Tool registration for agent
+│   │   ├── AgentResult.java                  # Agent response object
+│   │   ├── AgentStep.java                    # Single reasoning step
+│   │   └── Tool.java                         # Tool definition
+│   ├── moderation/
+│   │   └── ModerationService.java            # Input validation & output sanitization
+│   └── workflow/
+│       ├── CommissionWorkflowOrchestrator.java  # Multi-agent orchestrator
+│       ├── WorkflowAgent.java                # Agent interface
+│       ├── WorkflowResult.java               # Workflow response object
+│       └── WorkflowState.java               # Shared state between agents
 ├── controller/
-│   └── AiCommissionController.java           # REST API endpoints
+│   ├── CommissionController.java             # REST API endpoints (/api/ai/**)
+│   └── AiWebController.java                 # Thymeleaf UI endpoints (/ai/**)
 └── README.md                                 # This file
+
+resources/templates/ai/
+├── layout.html          # Shared navigation and styles
+├── dashboard.html       # AI features overview
+├── rag.html             # RAG Q&A interface
+├── explainer.html       # Commission explainer
+├── disputes.html        # Dispute analysis
+├── forecast.html        # Commission forecasting
+├── anomaly.html         # Anomaly detection
+├── moderation.html      # Moderation & guardrails
+├── agent.html           # ReAct agent with reasoning chain
+└── workflow.html        # Multi-agent workflow
 ```
 
 ## API Endpoints
 
-### RAG Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/ai/rag/ask` | Ask a question about commission data |
-| POST | `/api/ai/rag/ask/{type}` | Ask a filtered question by document type |
-| GET | `/api/ai/rag/report/{name}` | Generate a sales rep performance report |
+### REST API (`/api/ai/**`)
 
-### Explanation Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/ai/explain/calculation/{id}` | Explain a commission calculation |
-| GET | `/api/ai/explain/plan/{id}` | Explain a commission plan |
+#### RAG Endpoints
 
-### Dispute Analysis Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/ai/disputes/analyze/{id}` | Full dispute analysis |
-| GET | `/api/ai/disputes/triage/{id}` | Quick priority triage |
+| Method | Endpoint                   | Description                              |
+|--------|----------------------------|------------------------------------------|
+| POST   | `/api/ai/rag/ask`          | Ask a question about commission data     |
+| POST   | `/api/ai/rag/ask/{type}`   | Ask a filtered question by document type |
+| GET    | `/api/ai/rag/report/{name}`| Generate a sales rep performance report  |
 
-### Forecasting Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/ai/forecast/user/{id}` | Individual forecast |
-| GET | `/api/ai/forecast/team` | Team-level forecast |
+#### Explanation Endpoints
 
-### Anomaly Detection Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/ai/anomaly/detect` | Detect anomalies in all calculations |
-| GET | `/api/ai/anomaly/check/{id}` | Check a single calculation |
+| Method | Endpoint                            | Description                     |
+|--------|-------------------------------------|---------------------------------|
+| GET    | `/api/ai/explain/calculation/{id}`  | Explain a commission calculation|
+| GET    | `/api/ai/explain/plan/{id}`         | Explain a commission plan       |
+
+#### Dispute Analysis Endpoints
+
+| Method | Endpoint                         | Description            |
+|--------|----------------------------------|------------------------|
+| GET    | `/api/ai/disputes/analyze/{id}`  | Full dispute analysis  |
+| GET    | `/api/ai/disputes/triage/{id}`   | Quick priority triage  |
+
+#### Forecasting Endpoints
+
+| Method | Endpoint                     | Description           |
+|--------|------------------------------|-----------------------|
+| GET    | `/api/ai/forecast/user/{id}` | Individual forecast   |
+| GET    | `/api/ai/forecast/team`      | Team-level forecast   |
+
+#### Anomaly Detection Endpoints
+
+| Method | Endpoint                       | Description                          |
+|--------|--------------------------------|--------------------------------------|
+| GET    | `/api/ai/anomaly/detect`       | Detect anomalies in all calculations |
+| GET    | `/api/ai/anomaly/check/{id}`   | Check a single calculation           |
+
+#### Moderation & Guardrails Endpoints
+
+| Method | Endpoint                       | Description                                  |
+|--------|--------------------------------|----------------------------------------------|
+| POST   | `/api/ai/moderation/validate`  | Validate input against guardrail checks      |
+| POST   | `/api/ai/moderation/classify`  | AI-powered content classification            |
+| POST   | `/api/ai/moderation/sanitize`  | Redact sensitive data from text              |
+
+#### ReAct Agent Endpoints
+
+| Method | Endpoint              | Description                                    |
+|--------|-----------------------|------------------------------------------------|
+| POST   | `/api/ai/agent/ask`   | Execute ReAct agent with reasoning chain       |
+| GET    | `/api/ai/agent/tools` | List available tools for the agent             |
+
+#### Agentic Workflow Endpoints
+
+| Method | Endpoint                  | Description                                |
+|--------|---------------------------|--------------------------------------------|
+| POST   | `/api/ai/workflow/review` | Execute multi-agent commission review      |
+| GET    | `/api/ai/workflow/agents` | List registered agents in the pipeline     |
+
+### Web UI (`/ai/**`)
+
+| Route             | Page               | Description                                         |
+|-------------------|--------------------|-----------------------------------------------------|
+| `/ai`             | Dashboard          | Overview of all AI features with navigation          |
+| `/ai/rag`         | RAG Q&A            | Ask questions and generate performance reports       |
+| `/ai/explainer`   | Explainer          | Explain calculations and plans in plain language     |
+| `/ai/disputes`    | Dispute Analysis   | Full analysis and quick triage                       |
+| `/ai/forecast`    | Forecasting        | Individual and team commission forecasts             |
+| `/ai/anomaly`     | Anomaly Detection  | Detect anomalies across all or single calculations   |
+| `/ai/moderation`  | Moderation         | Input validation, classification, output sanitization|
+| `/ai/agent`       | ReAct Agent        | Ask complex questions with visible reasoning chain   |
+| `/ai/workflow`    | Agentic Workflow   | Multi-agent orchestrated reviews with stage log      |
 
 ## Running the Application
 
 ### Prerequisites
-1. Java 21
-2. Maven
-3. Anthropic API Key
 
-### Setup
+1. **Java 21** — required by the project (`java.version` in `pom.xml`)
+2. **Maven 3.9+** — for building and running
+3. **Anthropic API Key** — required for AI features that call Claude (RAG, agent, workflow, classification, etc.)
+
+### Step 1: Set Your API Key
+
+The application needs an Anthropic API key to call Claude. Set it as an environment variable:
+
+**Linux / macOS:**
 ```bash
-# Set your Anthropic API key
-export ANTHROPIC_API_KEY=your-actual-api-key
+export SPRING_AI_ANTHROPIC_API_KEY=your-actual-api-key
+```
 
-# Run with the AI application class
+**Windows (PowerShell):**
+```powershell
+$env:SPRING_AI_ANTHROPIC_API_KEY = "your-actual-api-key"
+```
+
+**Windows (Command Prompt):**
+```cmd
+set SPRING_AI_ANTHROPIC_API_KEY=your-actual-api-key
+```
+
+Alternatively, set it directly in `src/main/resources/application.properties`:
+```properties
+spring.ai.anthropic.api-key=your-actual-api-key
+```
+
+> **Note:** Never commit API keys to version control. Use environment variables in production.
+
+### Step 2: Build the Project
+
+```bash
+mvn clean compile
+```
+
+### Step 3: Run the Application
+
+```bash
 mvn spring-boot:run -Dspring-boot.run.mainClass=com.chapman.edu.commissions.ai.CommissionCalculatorAiApplication
 ```
 
-### Testing Endpoints
+The application starts on **port 8081** by default (configured in `application.properties`).
+
+### Step 4: Access the Application
+
+**Web UI (Thymeleaf):**
+- Open your browser and go to: **http://localhost:8081/ai**
+- The dashboard provides navigation to all AI features
+- Each page has interactive forms that call the REST API
+
+**REST API (curl/Postman):**
 ```bash
 # Ask a RAG question
 curl -X POST http://localhost:8081/api/ai/rag/ask \
@@ -241,14 +350,56 @@ curl -X POST http://localhost:8081/api/ai/rag/ask \
   -d '{"question": "What commission plans are available?"}'
 
 # Explain a calculation
-curl http://localhost:8081/api/ai/explain/calculation/{calc-id}
+curl http://localhost:8081/api/ai/explain/calculation/1
 
 # Detect anomalies
 curl http://localhost:8081/api/ai/anomaly/detect
 
 # Get team forecast
 curl http://localhost:8081/api/ai/forecast/team
+
+# Ask the ReAct agent
+curl -X POST http://localhost:8081/api/ai/agent/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How much commission did Alice earn on her enterprise deals?"}'
+
+# Execute a workflow review
+curl -X POST http://localhost:8081/api/ai/workflow/review \
+  -H "Content-Type: application/json" \
+  -d '{"request": "Review Alice Johnson commission performance"}'
+
+# Validate input through moderation
+curl -X POST http://localhost:8081/api/ai/moderation/validate \
+  -H "Content-Type: application/json" \
+  -d '{"input": "What are the commission rates?"}'
+
+# Sanitize sensitive data
+curl -X POST http://localhost:8081/api/ai/moderation/sanitize \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Contact john@example.com, SSN 123-45-6789"}'
 ```
+
+### Step 5: Run Tests
+
+```bash
+# Run all tests (does NOT require an API key — tests use mocks)
+mvn test
+
+# Run only AI module tests
+mvn test -Dtest="com.chapman.edu.commissions.ai.**"
+```
+
+> **Note:** Tests use Mockito mocks for `ChatClient`/`ChatModel`, so no API key is needed to run them.
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `spring.ai.anthropic.api-key` is empty | Set the `SPRING_AI_ANTHROPIC_API_KEY` environment variable |
+| Port 8081 already in use | Change `server.port` in `application.properties` or stop the other process |
+| Tests fail with context load errors | Ensure you have Java 21 installed (`java -version`) |
+| AI endpoints return errors | Verify your API key is valid and has available credits |
+| Vector store is empty | The `AiDataInitializer` loads sample data on startup automatically |
 
 ## Dependencies Added (pom.xml)
 

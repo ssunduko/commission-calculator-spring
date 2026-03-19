@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('Anomaly Detection')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='anomaly'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">&#x26A0;&#xFE0F; Anomaly Detection</h1>
+    <p style="color: #666; margin-bottom: 2rem;">Identify unusual commission calculations using hybrid statistical analysis and AI interpretation.</p>
+
+    <div class="two-col">
+        <div class="card">
+            <h2>Detect All Anomalies</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Run anomaly detection across all commission calculations to find statistical outliers.</p>
+            <button class="btn btn-primary" onclick="detectAll()">Run Detection</button>
+            <div id="detectLoading" class="loading"><div class="spinner"></div> Analyzing calculations...</div>
+            <div id="detectResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>Check Single Calculation</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Check whether a specific calculation is within normal ranges.</p>
+            <div class="form-group">
+                <label for="calcId">Calculation ID:</label>
+                <input type="text" id="calcId" placeholder="e.g., 1">
+            </div>
+            <button class="btn btn-primary" onclick="checkSingle()">Check</button>
+            <div id="checkLoading" class="loading"><div class="spinner"></div> Checking calculation...</div>
+            <div id="checkResult" class="result-box" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="footer"><p>Chapman University - SDLC Course - Spring AI Fundamentals</p></div>
+
+<script>
+async function detectAll() {
+    showLoading('detectLoading', 'detectResult');
+    try {
+        const res = await fetch('/api/ai/anomaly/detect');
+        const data = await res.json();
+        showResult('detectResult', data.analysis || data.error, !res.ok);
+    } catch (e) { showResult('detectResult', 'Error: ' + e.message, true); }
+    hideLoading('detectLoading');
+}
+
+async function checkSingle() {
+    const id = document.getElementById('calcId').value.trim();
+    if (!id) return alert('Please enter a Calculation ID.');
+    showLoading('checkLoading', 'checkResult');
+    try {
+        const res = await fetch(`/api/ai/anomaly/check/${encodeURIComponent(id)}`);
+        const data = await res.json();
+        showResult('checkResult', data.result || data.error, !res.ok);
+    } catch (e) { showResult('checkResult', 'Error: ' + e.message, true); }
+    hideLoading('checkLoading');
+}
+
+function showLoading(l, r) { document.getElementById(l).classList.add('active'); document.getElementById(r).style.display='none'; }
+function hideLoading(l) { document.getElementById(l).classList.remove('active'); }
+function showResult(id, text, err) { const el=document.getElementById(id); el.textContent=text; el.className='result-box'+(err?' error':' success'); el.style.display='block'; }
+</script>
+</body>
+</html>

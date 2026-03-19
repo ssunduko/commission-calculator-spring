@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('Forecasting')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='forecast'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">&#x1F4C8; Commission Forecasting</h1>
+    <p style="color: #666; margin-bottom: 2rem;">AI-generated commission forecasts using historical data and pipeline analysis.</p>
+
+    <div class="two-col">
+        <div class="card">
+            <h2>Individual Forecast</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Generate a commission forecast for a specific sales representative.</p>
+            <div class="form-group">
+                <label for="userId">User ID:</label>
+                <input type="text" id="userId" placeholder="e.g., 1">
+            </div>
+            <button class="btn btn-primary" onclick="forecastUser()">Generate Forecast</button>
+            <div id="userLoading" class="loading"><div class="spinner"></div> Generating forecast...</div>
+            <div id="userResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>Team Forecast</h2>
+            <p style="color: #666; margin-bottom: 1rem;">Generate an aggregated forecast across all sales representatives.</p>
+            <button class="btn btn-primary" onclick="forecastTeam()">Generate Team Forecast</button>
+            <div id="teamLoading" class="loading"><div class="spinner"></div> Generating team forecast...</div>
+            <div id="teamResult" class="result-box" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="footer"><p>Chapman University - SDLC Course - Spring AI Fundamentals</p></div>
+
+<script>
+async function forecastUser() {
+    const id = document.getElementById('userId').value.trim();
+    if (!id) return alert('Please enter a User ID.');
+    showLoading('userLoading', 'userResult');
+    try {
+        const res = await fetch(`/api/ai/forecast/user/${encodeURIComponent(id)}`);
+        const data = await res.json();
+        showResult('userResult', data.forecast || data.error, !res.ok);
+    } catch (e) { showResult('userResult', 'Error: ' + e.message, true); }
+    hideLoading('userLoading');
+}
+
+async function forecastTeam() {
+    showLoading('teamLoading', 'teamResult');
+    try {
+        const res = await fetch('/api/ai/forecast/team');
+        const data = await res.json();
+        showResult('teamResult', data.forecast || data.error, !res.ok);
+    } catch (e) { showResult('teamResult', 'Error: ' + e.message, true); }
+    hideLoading('teamLoading');
+}
+
+function showLoading(l, r) { document.getElementById(l).classList.add('active'); document.getElementById(r).style.display='none'; }
+function hideLoading(l) { document.getElementById(l).classList.remove('active'); }
+function showResult(id, text, err) { const el=document.getElementById(id); el.textContent=text; el.className='result-box'+(err?' error':' success'); el.style.display='block'; }
+</script>
+</body>
+</html>

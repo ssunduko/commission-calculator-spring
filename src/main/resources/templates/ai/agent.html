@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('ReAct Agent')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='agent'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">&#x1F9E0; ReAct Agent</h1>
+    <p style="color: #666; margin-bottom: 2rem;">A reasoning agent that thinks step-by-step, uses tools to look up data, and builds context before answering.</p>
+
+    <div class="card">
+        <h2>Ask the Agent</h2>
+        <p style="color: #666; margin-bottom: 1rem;">The agent will reason through your question using the Thought &rarr; Action &rarr; Observation loop.</p>
+        <div class="form-group">
+            <label for="agentQuestion">Your question:</label>
+            <textarea id="agentQuestion" placeholder="e.g., How much commission did Alice earn on her enterprise deals?"></textarea>
+        </div>
+        <button class="btn btn-primary" id="askBtn" onclick="askAgent()">Ask Agent</button>
+        <div id="agentLoading" class="loading"><div class="spinner"></div> Agent is reasoning... this may take a moment.</div>
+        <div id="agentAnswer" class="result-box" style="display:none;"></div>
+        <div id="reasoningChain" style="display:none; margin-top: 1.5rem;">
+            <h3>Reasoning Chain</h3>
+            <div id="steps"></div>
+        </div>
+    </div>
+
+    <!-- Available Tools -->
+    <div class="card">
+        <h2>&#x1F6E0;&#xFE0F; Available Tools</h2>
+        <p style="color: #666; margin-bottom: 1rem;">The agent can use these tools during its reasoning process:</p>
+        <table>
+            <thead><tr><th>Tool</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr th:each="entry : ${agentTools}">
+                    <td><span class="badge badge-purple" th:text="${entry.key}">tool</span></td>
+                    <td th:text="${entry.value}">description</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="footer"><p>Chapman University - SDLC Course - Spring AI Fundamentals</p></div>
+
+<script>
+async function askAgent() {
+    const question = document.getElementById('agentQuestion').value.trim();
+    if (!question) return alert('Please enter a question.');
+
+    document.getElementById('askBtn').disabled = true;
+    document.getElementById('agentLoading').classList.add('active');
+    document.getElementById('agentAnswer').style.display = 'none';
+    document.getElementById('reasoningChain').style.display = 'none';
+
+    try {
+        const res = await fetch('/api/ai/agent/ask', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question})
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            showResult('agentAnswer', data.error, true);
+        } else {
+            showResult('agentAnswer', data.answer, !data.success);
+
+            // Render reasoning chain
+            if (data.reasoningChain && data.reasoningChain.length > 0) {
+                const stepsDiv = document.getElementById('steps');
+                stepsDiv.innerHTML = '';
+                data.reasoningChain.forEach((step, i) => {
+                    const card = document.createElement('div');
+                    card.className = 'step-card';
+                    card.innerHTML = `
+                        <div><span class="step-num">${i + 1}</span><span class="thought">${escapeHtml(step.thought)}</span></div>
+                        <div style="margin-top:0.5rem;"><strong class="action">${escapeHtml(step.action)}</strong></div>
+                        <div class="observation" style="margin-top:0.25rem;">${escapeHtml(step.observation)}</div>
+                    `;
+                    stepsDiv.appendChild(card);
+                });
+                document.getElementById('reasoningChain').style.display = 'block';
+            }
+        }
+    } catch (e) {
+        showResult('agentAnswer', 'Error: ' + e.message, true);
+    }
+
+    document.getElementById('agentLoading').classList.remove('active');
+    document.getElementById('askBtn').disabled = false;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function showResult(id, text, err) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'result-box' + (err ? ' error' : ' success');
+    el.style.display = 'block';
+}
+</script>
+</body>
+</html>
