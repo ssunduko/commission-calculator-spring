@@ -1,0 +1,1315 @@
+openapi: 3.1.0
+info:
+  title: Commission Calculator API
+  description: |
+    REST API for the Commission Calculator application (`com.chapman.edu.commissions.springboot`).
+
+    Manages sales deals, commission plans, commission calculations, disputes, and users
+    with JWT-based authentication and role-based access control.
+  version: 1.0.0
+  contact:
+    name: Chapman University
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8081
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: Login and JWT token management
+  - name: Health
+    description: Application health checks
+  - name: Users
+    description: User management (admin operations)
+  - name: Deals
+    description: Sales deal lifecycle management
+  - name: Commission Plans
+    description: Commission plan configuration and activation
+  - name: Calculations
+    description: Commission calculation, approval, and payment
+  - name: Disputes
+    description: Commission dispute filing and resolution
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ──────────────────────────────────────────────
+  # Authentication
+  # ──────────────────────────────────────────────
+  /api/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate and obtain JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthApiResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  # ──────────────────────────────────────────────
+  # Health
+  # ──────────────────────────────────────────────
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Application health check
+      security: []
+      responses:
+        '200':
+          description: Application is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthApiResponse'
+
+  # ──────────────────────────────────────────────
+  # Users
+  # ──────────────────────────────────────────────
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List all users with optional role filter
+      description: Requires SYSTEM_ADMIN or SALES_MANAGER role.
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/UserRole'
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListApiResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+    post:
+      tags: [Users]
+      summary: Create a new user
+      description: Requires SYSTEM_ADMIN role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApiResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      description: Requires SYSTEM_ADMIN or SALES_MANAGER role.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApiResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+    delete:
+      tags: [Users]
+      summary: Delete a user
+      description: Requires SYSTEM_ADMIN role.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: User deleted
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/users/{id}/deactivate:
+    patch:
+      tags: [Users]
+      summary: Deactivate a user
+      description: Requires SYSTEM_ADMIN role.
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserApiResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  # ──────────────────────────────────────────────
+  # Deals
+  # ──────────────────────────────────────────────
+  /api/deals:
+    get:
+      tags: [Deals]
+      summary: List all deals with optional filters
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DealStatus'
+        - name: salesRepId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of deals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealListApiResponse'
+
+    post:
+      tags: [Deals]
+      summary: Create a new deal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDealRequest'
+      responses:
+        '201':
+          description: Deal created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealApiResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/deals/{id}:
+    get:
+      tags: [Deals]
+      summary: Get deal by ID
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '200':
+          description: Deal found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealApiResponse'
+        '404':
+          description: Deal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+    delete:
+      tags: [Deals]
+      summary: Delete a deal
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+      responses:
+        '204':
+          description: Deal deleted
+        '404':
+          description: Deal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/deals/{id}/status:
+    patch:
+      tags: [Deals]
+      summary: Update deal status
+      parameters:
+        - $ref: '#/components/parameters/DealId'
+        - name: status
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/DealStatus'
+      responses:
+        '200':
+          description: Deal status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealApiResponse'
+        '404':
+          description: Deal not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  # ──────────────────────────────────────────────
+  # Commission Plans
+  # ──────────────────────────────────────────────
+  /api/plans:
+    get:
+      tags: [Commission Plans]
+      summary: List all commission plans
+      responses:
+        '200':
+          description: List of plans
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanListApiResponse'
+
+    post:
+      tags: [Commission Plans]
+      summary: Create a new commission plan
+      description: New plans are created in DRAFT status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlanRequest'
+      responses:
+        '201':
+          description: Plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanApiResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/plans/active:
+    get:
+      tags: [Commission Plans]
+      summary: List active commission plans
+      responses:
+        '200':
+          description: List of active plans
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanListApiResponse'
+
+  /api/plans/{id}:
+    get:
+      tags: [Commission Plans]
+      summary: Get commission plan by ID
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Plan found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanApiResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+    delete:
+      tags: [Commission Plans]
+      summary: Delete a commission plan
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '204':
+          description: Plan deleted
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/plans/{id}/activate:
+    patch:
+      tags: [Commission Plans]
+      summary: Activate a commission plan
+      description: Transitions plan from DRAFT to ACTIVE status.
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Plan activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanApiResponse'
+        '400':
+          description: Plan cannot be activated (not in DRAFT status)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/plans/{id}/archive:
+    patch:
+      tags: [Commission Plans]
+      summary: Archive a commission plan
+      description: Transitions plan from ACTIVE to ARCHIVED status.
+      parameters:
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Plan archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanApiResponse'
+        '400':
+          description: Plan cannot be archived (not in ACTIVE status)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  # ──────────────────────────────────────────────
+  # Calculations
+  # ──────────────────────────────────────────────
+  /api/calculations:
+    get:
+      tags: [Calculations]
+      summary: List calculations with optional filters
+      parameters:
+        - name: salesRepId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dealId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of calculations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationListApiResponse'
+
+    post:
+      tags: [Calculations]
+      summary: Calculate commission for a deal
+      description: Creates a new commission calculation based on a deal and plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateCommissionRequest'
+      responses:
+        '201':
+          description: Commission calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationApiResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/calculations/{id}:
+    get:
+      tags: [Calculations]
+      summary: Get calculation by ID
+      parameters:
+        - $ref: '#/components/parameters/CalculationId'
+      responses:
+        '200':
+          description: Calculation found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationApiResponse'
+        '404':
+          description: Calculation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/calculations/{id}/approve:
+    patch:
+      tags: [Calculations]
+      summary: Approve a commission calculation
+      description: Requires SALES_MANAGER, FINANCE_ADMIN, or SYSTEM_ADMIN role.
+      parameters:
+        - $ref: '#/components/parameters/CalculationId'
+      responses:
+        '200':
+          description: Calculation approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationApiResponse'
+        '400':
+          description: Calculation cannot be approved (invalid status transition)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: Calculation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/calculations/{id}/pay:
+    patch:
+      tags: [Calculations]
+      summary: Mark a calculation as paid
+      description: Requires FINANCE_ADMIN or SYSTEM_ADMIN role.
+      parameters:
+        - $ref: '#/components/parameters/CalculationId'
+      responses:
+        '200':
+          description: Calculation marked as paid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationApiResponse'
+        '400':
+          description: Calculation cannot be paid (must be approved first)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: Calculation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  # ──────────────────────────────────────────────
+  # Disputes
+  # ──────────────────────────────────────────────
+  /api/disputes:
+    get:
+      tags: [Disputes]
+      summary: List disputes with optional filters
+      parameters:
+        - name: salesRepId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/DisputeStatus'
+      responses:
+        '200':
+          description: List of disputes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeListApiResponse'
+
+    post:
+      tags: [Disputes]
+      summary: Create a new dispute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDisputeRequest'
+      responses:
+        '201':
+          description: Dispute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeApiResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/disputes/{id}:
+    get:
+      tags: [Disputes]
+      summary: Get dispute by ID
+      parameters:
+        - $ref: '#/components/parameters/DisputeId'
+      responses:
+        '200':
+          description: Dispute found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeApiResponse'
+        '404':
+          description: Dispute not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/disputes/{id}/resolve:
+    patch:
+      tags: [Disputes]
+      summary: Resolve a dispute
+      parameters:
+        - $ref: '#/components/parameters/DisputeId'
+        - name: resolution
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Resolution description
+        - name: resolvedBy
+          in: query
+          required: true
+          schema:
+            type: string
+          description: User ID of the resolver
+      responses:
+        '200':
+          description: Dispute resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeApiResponse'
+        '400':
+          description: Dispute cannot be resolved (invalid status)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: Dispute not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+  /api/disputes/{id}/escalate:
+    patch:
+      tags: [Disputes]
+      summary: Escalate a dispute
+      parameters:
+        - $ref: '#/components/parameters/DisputeId'
+      responses:
+        '200':
+          description: Dispute escalated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeApiResponse'
+        '400':
+          description: Dispute cannot be escalated (invalid status)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: Dispute not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+
+# ══════════════════════════════════════════════════
+# Components
+# ══════════════════════════════════════════════════
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Obtain a token via POST /api/auth/login, then pass it as:
+        `Authorization: Bearer <token>`
+
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: User ID
+
+    DealId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Deal ID
+
+    PlanId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Commission plan ID
+
+    CalculationId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Commission calculation ID
+
+    DisputeId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Dispute ID
+
+  schemas:
+    # ──────────────────────────────────────────────
+    # Enums
+    # ──────────────────────────────────────────────
+    UserRole:
+      type: string
+      enum: [SALES_REP, SALES_MANAGER, FINANCE_ADMIN, SYSTEM_ADMIN]
+
+    DealStatus:
+      type: string
+      enum: [OPEN, WON, LOST, CANCELLED]
+
+    PlanStatus:
+      type: string
+      enum: [DRAFT, ACTIVE, INACTIVE, ARCHIVED]
+
+    CommissionStatus:
+      type: string
+      enum: [CALCULATED, APPROVED, PAID, DISPUTED, ADJUSTED, CANCELLED]
+
+    DisputeStatus:
+      type: string
+      enum:
+        - INITIATED
+        - UNDER_REVIEW
+        - ADDITIONAL_INFO_REQUESTED
+        - ESCALATED
+        - APPROVED
+        - REJECTED
+        - RESOLVED
+        - CANCELLED
+
+    # ──────────────────────────────────────────────
+    # Request Schemas
+    # ──────────────────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+
+    CreateUserRequest:
+      type: object
+      required: [username, email, firstName, lastName, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 6
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        department:
+          type: string
+        territory:
+          type: string
+        managerId:
+          type: string
+
+    CreateDealRequest:
+      type: object
+      required: [title, value, salesRepId]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 100
+        value:
+          type: number
+          format: decimal
+          minimum: 0.01
+          description: Deal monetary value
+        salesRepId:
+          type: string
+          minLength: 1
+
+    CreatePlanRequest:
+      type: object
+      required: [name, currencyCode, effectiveStartDate]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        currencyCode:
+          type: string
+          minLength: 3
+          maxLength: 3
+          example: USD
+        effectiveStartDate:
+          type: string
+          format: date
+        effectiveEndDate:
+          type: string
+          format: date
+        createdBy:
+          type: string
+
+    CalculateCommissionRequest:
+      type: object
+      required: [dealId, planId, calculatedBy]
+      properties:
+        dealId:
+          type: string
+          minLength: 1
+        planId:
+          type: string
+          minLength: 1
+        calculatedBy:
+          type: string
+          minLength: 1
+
+    CreateDisputeRequest:
+      type: object
+      required: [calculationId, salesRepId, title, description]
+      properties:
+        calculationId:
+          type: string
+          minLength: 1
+        salesRepId:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+        description:
+          type: string
+          minLength: 10
+          maxLength: 2000
+
+    # ──────────────────────────────────────────────
+    # Response Schemas
+    # ──────────────────────────────────────────────
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        tokenType:
+          type: string
+          default: Bearer
+        username:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserRole'
+        active:
+          type: boolean
+        department:
+          type: string
+        territory:
+          type: string
+        createdDate:
+          type: string
+          format: date
+
+    DealResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        value:
+          type: number
+          format: decimal
+        status:
+          $ref: '#/components/schemas/DealStatus'
+        salesRepId:
+          type: string
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductInfo'
+        closeDate:
+          type: string
+          format: date
+        createdDate:
+          type: string
+          format: date
+
+    ProductInfo:
+      type: object
+      properties:
+        productName:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+          format: decimal
+        totalPrice:
+          type: number
+          format: decimal
+
+    CommissionPlanResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        currency:
+          type: string
+        status:
+          $ref: '#/components/schemas/PlanStatus'
+        effectiveStartDate:
+          type: string
+          format: date
+        effectiveEndDate:
+          type: string
+          format: date
+        createdDate:
+          type: string
+          format: date
+        createdBy:
+          type: string
+        ruleCount:
+          type: integer
+        tierCount:
+          type: integer
+        bonusCount:
+          type: integer
+
+    CommissionCalculationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        dealId:
+          type: string
+        salesRepId:
+          type: string
+        baseCommission:
+          type: number
+          format: decimal
+        grossCommission:
+          type: number
+          format: decimal
+        netCommission:
+          type: number
+          format: decimal
+        status:
+          $ref: '#/components/schemas/CommissionStatus'
+        calculationDate:
+          type: string
+          format: date
+        payoutDate:
+          type: string
+          format: date
+        planId:
+          type: string
+        calculatedBy:
+          type: string
+        bonusCount:
+          type: integer
+        acceleratorCount:
+          type: integer
+
+    DisputeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        calculationId:
+          type: string
+        salesRepId:
+          type: string
+        managerId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/DisputeStatus'
+        commentCount:
+          type: integer
+        createdDate:
+          type: string
+          format: date-time
+        lastUpdatedDate:
+          type: string
+          format: date-time
+        resolvedDate:
+          type: string
+          format: date-time
+        resolution:
+          type: string
+        escalated:
+          type: boolean
+
+    # ──────────────────────────────────────────────
+    # Wrapper & Error Schemas
+    # ──────────────────────────────────────────────
+    ApiErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        validationErrors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        path:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    # Typed ApiResponse wrappers
+    AuthApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AuthResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    HealthApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              example: UP
+            application:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+            javaVersion:
+              type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    UserApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/UserResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    UserListApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    DealApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/DealResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    DealListApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DealResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    PlanApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/CommissionPlanResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    PlanListApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommissionPlanResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    CalculationApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/CommissionCalculationResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    CalculationListApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommissionCalculationResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    DisputeApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/DisputeResponse'
+        timestamp:
+          type: string
+          format: date-time
+
+    DisputeListApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DisputeResponse'
+        timestamp:
+          type: string
+          format: date-time
