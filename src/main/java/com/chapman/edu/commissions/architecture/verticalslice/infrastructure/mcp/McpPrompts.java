@@ -115,6 +115,59 @@ public class McpPrompts {
                 "3. Validate the calculation logic and breakdown\n" +
                 "4. Check for any disputes or adjustments\n" +
                 "5. Provide an audit report with findings and recommendations."
+            ),
+
+            createPrompt(
+                "convert-deal-currency",
+                "Convert Deal Commission to Another Currency",
+                "Calculate commission for a deal and convert the result to a different currency using real-time exchange rates. " +
+                "Uses tools: calculateCommission, convertCurrency. Resources: deal://{dealId}, plan://{planId}.",
+                List.of(
+                    createArgument("dealId", "Deal ID to calculate commission for", true),
+                    createArgument("planId", "Commission plan ID to use", true),
+                    createArgument("targetCurrency", "Target currency code (e.g., EUR, GBP, JPY)", true)
+                ),
+                "1. Use tool getDeal to retrieve deal {{dealId}} details\n" +
+                "2. Use tool getCommissionPlan to retrieve plan {{planId}} details\n" +
+                "3. Use tool calculateCommission with dealId={{dealId}} and planId={{planId}}\n" +
+                "4. Use tool convertCurrency with from=USD, to={{targetCurrency}}, and the commission amount\n" +
+                "5. Present both the original and converted amounts with the exchange rate used."
+            ),
+
+            createPrompt(
+                "multi-currency-commission-report",
+                "Multi-Currency Commission Report",
+                "Generate a commission report for a sales rep with amounts converted to a target currency. " +
+                "Uses tools: getCalculationsBySalesRep, getDealsBySalesRep, getLatestRates, convertCurrency. " +
+                "Resources: calculations-by-rep://{salesRepId}, deals-by-rep://{salesRepId}, currency-rates://{targetCurrency}.",
+                List.of(
+                    createArgument("salesRepId", "Sales representative ID", true),
+                    createArgument("targetCurrency", "Currency to convert all amounts to (e.g., EUR, GBP)", true)
+                ),
+                "For sales rep {{salesRepId}}:\n" +
+                "1. Use tool getCalculationsBySalesRep to get all commission calculations\n" +
+                "2. Use tool getDealsBySalesRep to get associated deal details\n" +
+                "3. Use tool getLatestRates with base=USD and symbols={{targetCurrency}} to get the exchange rate\n" +
+                "4. Use tool convertCurrency for each commission amount from USD to {{targetCurrency}}\n" +
+                "5. Present a formatted table with deal name, original USD amounts, converted {{targetCurrency}} amounts, and totals in both currencies."
+            ),
+
+            createPrompt(
+                "currency-rate-check",
+                "Currency Rate Check",
+                "Check current and historical exchange rates for commission planning purposes. " +
+                "Uses tools: getLatestRates, getHistoricalRates, listSupportedCurrencies. " +
+                "Resources: currency://supported, currency://rates.",
+                List.of(
+                    createArgument("baseCurrency", "Base currency code (e.g., USD)", true),
+                    createArgument("targetCurrencies", "Comma-separated target currencies (e.g., EUR,GBP,JPY)", true),
+                    createArgument("historicalDate", "Past date for comparison in YYYY-MM-DD format", false)
+                ),
+                "1. Use tool listSupportedCurrencies to verify the requested currencies are valid\n" +
+                "2. Use tool getLatestRates with base={{baseCurrency}} and symbols={{targetCurrencies}} for current rates\n" +
+                "3. If historicalDate is provided, use tool getHistoricalRates with date={{historicalDate}}, base={{baseCurrency}}, symbols={{targetCurrencies}}\n" +
+                "4. Present the rates side-by-side and highlight any significant changes between historical and current rates\n" +
+                "5. Provide insights on how rate changes might affect international commission payments."
             )
         );
     }

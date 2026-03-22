@@ -1,0 +1,14 @@
+services:
+  commission-ai:
+    build: .
+    container_name: commission-ai
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_AI_ANTHROPIC_API_KEY=${SPRING_AI_ANTHROPIC_API_KEY}
+    volumes:
+      - vectorstore-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  vectorstore-data:

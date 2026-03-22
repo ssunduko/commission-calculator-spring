@@ -1,19 +1,23 @@
 {
   "mcpServers": {
     "commission-calculator": {
-      "command": "java",
-      "args": [
-        "-jar",
-        "C:/Commission Calculator/commission-calculator-spring/target/commission-calculator-0.0.1-SNAPSHOT.jar"
-      ],
-      "env": {
-        "SERVER_PORT": "8081",
-        "SPRING_PROFILES_ACTIVE": "production"
+      "type": "streamable-http",
+      "url": "http://localhost:8081/mcp",
+      "stdio": {
+        "command": "java",
+        "args": [
+          "-Dspring.ai.mcp.server.stdio=true",
+          "-Dspring.main.web-application-type=none",
+          "-Dlogging.pattern.console=",
+          "-Dspring.main.banner-mode=off",
+          "-jar",
+          "C:/Commission Calculator/commission-calculator-spring/target/commission-calculator-0.0.1-SNAPSHOT.jar"
+        ]
       },
       "metadata": {
         "name": "Commission Calculator MCP Server",
         "version": "1.0.0",
-        "description": "MCP server for managing sales commission calculations, deals, plans, and disputes",
+        "description": "MCP server for managing sales commission calculations, deals, plans, disputes, and currency conversion",
         "author": "Commission Calculator Team",
         "homepage": "http://localhost:8081",
         "capabilities": {
@@ -60,6 +64,22 @@
         {
           "name": "createDispute",
           "description": "Create a new dispute for a commission calculation"
+        },
+        {
+          "name": "convertCurrency",
+          "description": "Convert an amount from one currency to another using real-time exchange rates"
+        },
+        {
+          "name": "getLatestRates",
+          "description": "Fetch the latest exchange rates with optional base currency and symbol filter"
+        },
+        {
+          "name": "listSupportedCurrencies",
+          "description": "List all supported currencies with their full names"
+        },
+        {
+          "name": "getHistoricalRates",
+          "description": "Get historical exchange rates for a specific date"
         }
       ],
       "prompts": [
@@ -74,6 +94,18 @@
         {
           "name": "monthly-commission-report",
           "description": "Generate a comprehensive monthly commission report"
+        },
+        {
+          "name": "convert-deal-currency",
+          "description": "Calculate commission for a deal and convert the result to a different currency"
+        },
+        {
+          "name": "multi-currency-commission-report",
+          "description": "Generate a commission report with amounts converted to a target currency"
+        },
+        {
+          "name": "currency-rate-check",
+          "description": "Check current and historical exchange rates for commission planning"
         }
       ],
       "resources": [
@@ -91,6 +123,16 @@
           "uri": "disputes://open",
           "name": "Open Disputes",
           "description": "List of all open/unresolved disputes"
+        },
+        {
+          "uri": "currency://supported",
+          "name": "Supported Currencies",
+          "description": "List of all supported currencies for conversion"
+        },
+        {
+          "uri": "currency://rates",
+          "name": "Latest Exchange Rates",
+          "description": "Latest exchange rates with EUR as default base"
         }
       ]
     }

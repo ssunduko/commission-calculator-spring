@@ -34,12 +34,13 @@ public class VerticalSliceProcessorDemo {
             log.info("  Feature-First | Minimal Abstractions | MCP Server | Rapid Development");
             log.info("{}\n", BANNER);
 
-            demo("[1/6] Feature-First Organization", () -> processor.demonstrateFeatureFirstOrganization());
-            demo("[2/6] Minimal Abstractions", () -> processor.demonstrateMinimalAbstractions());
-            demo("[3/6] Cross-Feature Communication", () -> processor.demonstrateCrossFeatureCommunication());
-            demo("[4/6] Rapid Development", () -> processor.demonstrateRapidDevelopment());
-            demo("[5/6] Full Feature Walkthrough", () -> processor.demonstrateFullFeatureWalkthrough());
-            demo("[6/6] MCP Server — AI Agent Integration", () -> processor.demonstrateMcpServer());
+            demo("[1/7] Feature-First Organization", () -> processor.demonstrateFeatureFirstOrganization());
+            demo("[2/7] Minimal Abstractions", () -> processor.demonstrateMinimalAbstractions());
+            demo("[3/7] Cross-Feature Communication", () -> processor.demonstrateCrossFeatureCommunication());
+            demo("[4/7] Rapid Development", () -> processor.demonstrateRapidDevelopment());
+            demo("[5/7] Full Feature Walkthrough", () -> processor.demonstrateFullFeatureWalkthrough());
+            demo("[6/7] MCP Server — AI Agent Integration", () -> processor.demonstrateMcpServer());
+            demo("[7/7] MCP Client — Currency Conversion", () -> processor.demonstrateCurrencyConversion());
 
             log.info("\n{}", BANNER);
             log.info("  VERTICAL SLICE DEMO COMPLETE");

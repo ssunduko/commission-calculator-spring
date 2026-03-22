@@ -78,27 +78,12 @@ public class McpSseController {
         });
 
         try {
-            // Send initial connection event
-            Map<String, Object> connectionEvent = Map.of(
-                "type", "connection",
-                "status", "connected",
-                "serverInfo", Map.of(
-                    "name", serverName,
-                    "version", serverVersion,
-                    "protocolVersion", "2024-11-05"
-                ),
-                "capabilities", Map.of(
-                    "tools", Map.of("listChanged", true, "count", tools.size()),
-                    "resources", Map.of("listChanged", true, "count", mcpResources.getAllResources().size()),
-                    "prompts", Map.of("listChanged", true, "count", mcpPrompts.getAllPrompts().size())
-                )
-            );
-
+            // MCP SSE spec: first event must be "endpoint" with the URL to POST messages to
             emitter.send(SseEmitter.event()
-                .name("mcp-connection")
-                .data(objectMapper.writeValueAsString(connectionEvent)));
+                .name("endpoint")
+                .data("/api/mcp/message"));
 
-            log.info("New SSE connection established");
+            log.info("New SSE connection established — sent endpoint event");
         } catch (IOException e) {
             log.error("Error sending initial SSE event", e);
             emitter.completeWithError(e);

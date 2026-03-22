@@ -1,12 +1,16 @@
 package com.chapman.edu.commissions.architecture.verticalslice;
 
+import com.chapman.edu.commissions.architecture.verticalslice.features.currency.CurrencyConversionService;
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp.McpCommissionTools;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.ToolCallbackProvider;
+import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -33,17 +37,28 @@ public class CommissionCalculatorApplication {
     }
 
     /**
-     * Register all MCP tools from McpCommissionTools facade
-     * These tools can be invoked by AI agents through the MCP protocol
+     * Register all MCP tools for AI agent integration.
      *
-     * Total: 27 tools
-     * - Deal Management Tools: 7 tools
-     * - Commission Plan Management Tools: 7 tools
-     * - Dispute Management Tools: 8 tools
-     * - Commission Calculation Tools: 5 tools
+     * Total: 31 tools
+     * - Deal Management: 7 tools
+     * - Commission Plan Management: 7 tools
+     * - Dispute Management: 8 tools
+     * - Commission Calculation: 5 tools
+     * - Currency Conversion: 4 tools (proxied from external MCP server)
      */
     @Bean
-    public List<ToolCallback> tools(McpCommissionTools mcpCommissionTools) {
-        return Arrays.asList(ToolCallbacks.from(mcpCommissionTools));
+    public ToolCallbackProvider commissionToolCallbackProvider(McpCommissionTools mcpCommissionTools,
+                                                               CurrencyConversionService currencyConversionService) {
+        return MethodToolCallbackProvider.builder()
+                .toolObjects(mcpCommissionTools, currencyConversionService)
+                .build();
+    }
+
+    /**
+     * Also expose as List<ToolCallback> for internal use (processors, custom controllers).
+     */
+    @Bean
+    public List<ToolCallback> tools(ToolCallbackProvider commissionToolCallbackProvider) {
+        return Arrays.asList(commissionToolCallbackProvider.getToolCallbacks());
     }
 }

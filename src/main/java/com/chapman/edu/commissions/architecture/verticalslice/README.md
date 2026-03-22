@@ -17,14 +17,16 @@ verticalslice/
 │   ├── deals/          # Deal management feature
 │   ├── plans/          # Commission plan feature
 │   ├── calculations/   # Commission calculation feature
-│   └── disputes/       # Dispute management feature
+│   ├── disputes/       # Dispute management feature
+│   └── currency/       # Currency conversion (MCP client to external server)
 ├── processor/           # STARTUP DEMOS — Showcases Vertical Slice concepts
 │   ├── VerticalSliceProcessor.java       # Demonstrates all VS patterns
 │   └── VerticalSliceProcessorDemo.java   # CommandLineRunner for startup demos
 └── infrastructure/      # Cross-cutting concerns
     ├── config/         # Configuration
     ├── data/           # Data initialization
-    └── exceptions/     # Global exception handling
+    ├── exceptions/     # Global exception handling
+    └── mcp/            # MCP server (tools, prompts, resources, controllers)
 ```
 
 Each feature slice contains:
@@ -182,11 +184,38 @@ Manages disputes raised by sales representatives.
 - `POST /api/disputes/{id}/escalate` - Escalate dispute
 - `DELETE /api/disputes/{id}` - Delete dispute
 
+### 5. Currency Conversion (`features/currency`)
+
+Provides real-time currency conversion by acting as an **MCP client** that connects to an external MCP server ([currency-mcp.wesbos.com](https://github.com/wesbos/currency-conversion-mcp)).
+
+**How It Works:**
+- `CurrencyMcpClientConfig` creates an `McpSyncClient` bean that connects to the remote server via SSE transport
+- `CurrencyConversionService` calls the remote MCP tools and also exposes them as local `@Tool` methods
+- This means AI agents connected to THIS server can trigger currency conversions that internally call OUT to the external server
+
+**MCP Tools Available (proxied from remote server):**
+- `convertCurrency` - Convert an amount between two currencies
+- `getLatestRates` - Fetch latest exchange rates with optional base/symbols filter
+- `listSupportedCurrencies` - List all supported currencies
+- `getHistoricalRates` - Get exchange rates for a specific past date
+
+**REST Endpoints:**
+- `POST /api/currency/convert` - Convert currency (`{ "from": "USD", "to": "EUR", "amount": 100 }`)
+- `GET /api/currency/rates?base=USD&symbols=EUR,GBP,JPY` - Latest rates
+- `GET /api/currency/supported` - List supported currencies
+- `GET /api/currency/historical?date=2025-01-15&base=USD` - Historical rates
+
+**Configuration** (`application.properties`):
+```properties
+app.mcp.currency.base-url=https://currency-mcp.wesbos.com
+app.mcp.currency.sse-endpoint=/sse
+```
+
 ## MCP Server Integration
 
 ### What is MCP?
 
-**Model Context Protocol (MCP)** is a protocol that enables AI agents to interact with your application's services through well-defined tools. This application exposes **27 MCP tools** across all services.
+**Model Context Protocol (MCP)** is a protocol that enables AI agents to interact with your application's services through well-defined tools. This application exposes **31 MCP tools** across all services.
 
 ### MCP Tools Architecture
 
@@ -204,12 +233,13 @@ public class DealService {
 }
 ```
 
-### Total MCP Tools: 27
+### Total MCP Tools: 31
 
 - **Deal Management**: 7 tools
 - **Commission Plans**: 7 tools
 - **Calculations**: 5 tools
 - **Disputes**: 8 tools
+- **Currency Conversion**: 4 tools (proxied from external MCP server)
 
 ### Using MCP Tools
 
@@ -229,6 +259,260 @@ An AI agent can:
 3. Add rules to the plan: `addRuleToPlan(planId="...", name="Base", rate=5.0)`
 4. Calculate commission: `calculateCommission(dealId="...", planId="...")`
 5. Create a dispute if needed: `createDispute(calculationId="...", title="Error", description="...")`
+
+## Testing the MCP Server
+
+### Prerequisites
+
+- **Java 21+** and **Maven 3.8+**
+- **Node.js** (for MCP Inspector via `npx`)
+- **Claude Desktop** (for Claude Desktop testing)
+
+Build the application JAR before testing:
+
+```bash
+mvn clean package -DskipTests
+```
+
+---
+
+### Testing with Claude Desktop
+
+Claude Desktop supports both **Streamable HTTP** (recommended) and **STDIO** transports.
+
+#### Step 1: Open the Claude Desktop Config File
+
+In Claude Desktop go to **Settings → Developer → Edit Config**. This opens (or creates) the config file.
+
+Alternatively, open the file directly:
+
+| OS      | Path                                                        |
+|---------|-------------------------------------------------------------|
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json`               |
+| macOS   | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+
+#### Step 2: Add the Server Configuration
+
+##### Option A: Streamable HTTP (Recommended)
+
+Start the server first (`java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar`), then configure Claude Desktop to connect over HTTP:
+
+```json
+{
+  "mcpServers": {
+    "commission-calculator": {
+      "type": "streamable-http",
+      "url": "http://localhost:8081/mcp"
+    }
+  }
+}
+```
+
+**Benefits**: Server runs independently, supports multiple clients, no classpath issues.
+
+##### Option B: STDIO (Alternative)
+
+Claude Desktop launches the server process directly:
+
+```json
+{
+  "mcpServers": {
+    "commission-calculator": {
+      "command": "java",
+      "args": [
+        "-Dspring.ai.mcp.server.stdio=true",
+        "-Dspring.main.web-application-type=none",
+        "-Dlogging.pattern.console=",
+        "-Dspring.main.banner-mode=off",
+        "-jar",
+        "C:\\Commission Calculator\\commission-calculator-spring\\target\\commission-calculator-0.0.1-SNAPSHOT.jar"
+      ]
+    }
+  }
+}
+```
+
+> **Note**: Update the JAR path to match your local project location. Use `\\` on Windows or `/` on macOS. If you already have other MCP servers configured, merge this entry into the existing `mcpServers` object.
+
+**STDIO flags explained:**
+- `stdio=true` — enables STDIO transport
+- `web-application-type=none` — disables the HTTP web server (not needed for STDIO)
+- `logging.pattern.console=` — suppresses console logging to keep STDIO clean
+- `banner-mode=off` — disables Spring Boot banner output
+
+#### Step 3: Fully Quit and Restart Claude Desktop
+
+Don't just close the window — fully quit Claude Desktop (system tray → Quit on Windows, or Cmd+Q on macOS) and relaunch it. Claude Desktop only reads the config file on startup.
+
+> **Note**: If using Streamable HTTP, make sure the server is running before restarting Claude Desktop.
+
+#### Step 4: Verify and Use
+
+After restart, look for the **MCP tools icon** (hammer/wrench) in the bottom-right of the chat input box. Click it to see the 31 available tools.
+
+Once connected, all **31 tools**, **10 prompts**, and **12 resources** are available directly in conversation. Try these examples:
+
+```
+Use the "analyze-sales-performance" prompt to analyze sales rep REP001 for last month
+```
+
+```
+Create a new deal titled "Enterprise Software License" with value $50000 for sales rep REP001
+```
+
+```
+Show me all active commission plans
+```
+
+#### Troubleshooting Claude Desktop
+
+| Problem                     | Solution                                                                 |
+|-----------------------------|--------------------------------------------------------------------------|
+| Server not appearing        | Verify the JAR path exists and matches the config                        |
+| Connection fails            | Run the `java` command from config manually in a terminal to see errors  |
+| Wrong Java version          | Run `java -version` — must be 21+                                        |
+| Stale build                 | Rebuild: `mvn clean package -DskipTests`                                 |
+| Check logs                  | Claude Desktop → Settings → Advanced → View Logs                         |
+
+---
+
+### Testing with MCP Inspector
+
+The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) provides a web-based UI for browsing tools, prompts, resources, and executing commands against your MCP server.
+
+#### Method 1: STDIO Mode (No Server Required)
+
+The inspector launches the server directly — no need to start it separately.
+
+```bash
+npx @modelcontextprotocol/inspector \
+  java \
+  -Dspring.ai.mcp.server.stdio=true \
+  -Dspring.main.web-application-type=none \
+  -Dspring.main.banner-mode=off \
+  -Dlogging.level.root=OFF \
+  -Dlogging.level.org.springframework=OFF \
+  -Dlogging.level.org.hibernate=OFF \
+  -Dspring.jpa.show-sql=false \
+  -jar "C:\Commission Calculator\commission-calculator-spring\target\commission-calculator-0.0.1-SNAPSHOT.jar"
+```
+
+Open the URL printed in the terminal (typically http://localhost:5173).
+
+#### Method 2: Streamable HTTP Mode (Recommended)
+
+Connect the inspector to an already-running server instance.
+
+**Terminal 1 — Start the server:**
+
+```bash
+java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar
+```
+
+**Terminal 2 — Connect the inspector:**
+
+```bash
+npx @modelcontextprotocol/inspector --transport streamable-http http://admin:admin123@localhost:8081/api/mcp/message
+```
+
+> **Important**: You must include `--transport streamable-http`. Without it, the inspector treats the URL as a command to spawn and fails with `ENOENT`.
+
+#### Method 3: SSE Mode
+
+Alternative transport using Server-Sent Events (deprecated in favor of Streamable HTTP, but still functional).
+
+**Terminal 1 — Start the server:**
+
+```bash
+java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar
+```
+
+**Terminal 2 — Connect the inspector:**
+
+```bash
+npx @modelcontextprotocol/inspector --transport sse http://admin:admin123@localhost:8081/api/mcp/sse
+```
+
+#### What You Can Do in the Inspector
+
+| Tab         | Capability                                               |
+|-------------|----------------------------------------------------------|
+| Tools       | Browse all 31 tools, view schemas, execute with test data |
+| Prompts     | Browse 10 workflow prompts, execute with parameters       |
+| Resources   | Read from 10 data resources and schema definitions        |
+| Messages    | View raw JSON-RPC request/response traffic for debugging  |
+
+#### Inspector Examples
+
+**List all deals:**
+1. Open the inspector UI
+2. Navigate to Tools → `getAllDeals`
+3. Click "Execute"
+
+**Create a deal:**
+1. Navigate to Tools → `createDeal`
+2. Enter parameters:
+   ```json
+   {
+     "title": "Test Deal",
+     "value": 50000,
+     "salesRepId": "REP001"
+   }
+   ```
+3. Click "Execute"
+
+**Run a workflow prompt:**
+1. Navigate to Prompts → `create-commission-workflow`
+2. Enter parameters:
+   ```json
+   {
+     "dealTitle": "Q1 Enterprise License",
+     "dealValue": "100000",
+     "salesRepId": "REP001",
+     "planId": "plan-1"
+   }
+   ```
+3. Execute and review the multi-step workflow output
+
+#### Inspector Troubleshooting
+
+| Problem                      | Solution                                                  |
+|------------------------------|-----------------------------------------------------------|
+| `npx: command not found`     | Install Node.js from https://nodejs.org                   |
+| Connection refused (HTTP/SSE)| Ensure the server is running on port 8081                 |
+| JSON parse errors (STDIO)    | Verify all logging flags are set to suppress console output|
+| Port 8081 in use             | Kill existing process or change `server.port` in application.properties |
+
+---
+
+### Quick Testing with curl
+
+For quick command-line verification without the inspector:
+
+```bash
+# Check server info
+curl -u admin:admin123 http://localhost:8081/api/mcp/info
+
+# List all tools
+curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/tools/list \
+  -H "Content-Type: application/json" -d '{}'
+
+# Call a tool
+curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{"name": "getAllDeals", "arguments": {}}'
+
+# List prompts
+curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/prompts/list \
+  -H "Content-Type: application/json" -d '{}'
+
+# Read a resource
+curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/resources/read \
+  -H "Content-Type: application/json" \
+  -d '{"uri": "deals://all"}'
+```
+
+---
 
 ## Infrastructure
 
@@ -495,7 +779,8 @@ The `VerticalSliceProcessor` runs at startup to demonstrate key Vertical Slice c
 | **Cross-Feature Communication** | Direct dependencies | Calculation service injects deal and plan repositories — simple but coupled |
 | **Rapid Development** | Low ceremony | 5-6 files to add a feature vs 10+ in Clean Architecture |
 | **Full Feature Walkthrough** | End-to-end | Create deal → get plan → calculate commission — all through direct service calls |
-| **MCP Server** | AI Agent Integration | 27 @Tool methods expose all features to AI agents via Model Context Protocol |
+| **MCP Server** | AI Agent Integration | 31 @Tool methods expose all features to AI agents via Model Context Protocol |
+| **MCP Client — Currency Conversion** | External MCP consumption | Connects to currency-mcp.wesbos.com via SSE, calls remote tools, and re-exposes them as local @Tool methods — demonstrating MCP server chaining |
 
 ---
 

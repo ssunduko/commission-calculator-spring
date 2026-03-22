@@ -26,7 +26,11 @@ public class SecurityConfig {
                 ).permitAll()
                 // Allow public access to H2 console
                 .requestMatchers("/h2-console/**").permitAll()
-                // Require authentication for all API endpoints (including MCP)
+                // Allow public access to MCP endpoints (for MCP Inspector and clients)
+                .requestMatchers("/api/mcp/**").permitAll()
+                // Allow public access to Spring AI auto-configured Streamable HTTP MCP endpoint
+                .requestMatchers("/mcp/**").permitAll()
+                // Require authentication for all other API endpoints
                 .requestMatchers("/api/**").authenticated()
                 // Allow all other requests
                 .anyRequest().permitAll()
@@ -36,7 +40,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .ignoringRequestMatchers(
                     "/h2-console/**",
-                    "/api/**"
+                    "/api/**",
+                    "/mcp/**"
                 ))
             // Allow frames for H2 console
             .headers(headers -> headers

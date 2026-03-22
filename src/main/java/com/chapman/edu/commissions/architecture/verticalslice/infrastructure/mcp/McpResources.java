@@ -4,10 +4,14 @@ import com.chapman.edu.commissions.architecture.verticalslice.domain.DealStatus;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.PlanStatus;
 import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CommissionCalculationService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.currency.CurrencyConversionService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.currency.GetLatestRatesRequest;
 import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealService;
 import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.DisputeService;
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,10 +24,13 @@ import java.util.Map;
 @Service
 public class McpResources {
 
+    private static final Logger log = LoggerFactory.getLogger(McpResources.class);
+
     private final DealService dealService;
     private final CommissionPlanService planService;
     private final DisputeService disputeService;
     private final CommissionCalculationService calculationService;
+    private final CurrencyConversionService currencyService;
     private final ObjectMapper objectMapper;
 
     public McpResources(
@@ -31,11 +38,13 @@ public class McpResources {
             CommissionPlanService planService,
             DisputeService disputeService,
             CommissionCalculationService calculationService,
+            CurrencyConversionService currencyService,
             ObjectMapper objectMapper) {
         this.dealService = dealService;
         this.planService = planService;
         this.disputeService = disputeService;
         this.calculationService = calculationService;
+        this.currencyService = currencyService;
         this.objectMapper = objectMapper;
     }
 
@@ -98,6 +107,14 @@ public class McpResources {
                 "Get all disputes for a specific sales representative",
                 "application/json",
                 List.of("salesRepId")
+            ),
+
+            createResourceTemplate(
+                "currency-rates://{baseCurrency}",
+                "Exchange Rates by Base Currency",
+                "Get latest exchange rates for a specific base currency (e.g., USD, EUR)",
+                "application/json",
+                List.of("baseCurrency")
             )
         );
     }
@@ -161,6 +178,22 @@ public class McpResources {
                 "Complete list of all commission calculations",
                 "application/json",
                 "calculations"
+            ),
+
+            createResource(
+                "currency://supported",
+                "Supported Currencies",
+                "List of all supported currencies for conversion",
+                "application/json",
+                "currency/supported"
+            ),
+
+            createResource(
+                "currency://rates",
+                "Latest Exchange Rates",
+                "Latest exchange rates with EUR as default base currency",
+                "application/json",
+                "currency/rates"
             ),
 
             createResource(
@@ -240,6 +273,14 @@ public class McpResources {
                     content = objectMapper.writeValueAsString(calculationService.getAllCalculations());
                     break;
 
+                case "currency://supported":
+                    content = currencyService.listSupportedCurrencies().currencies();
+                    break;
+
+                case "currency://rates":
+                    content = currencyService.getLatestRates(new GetLatestRatesRequest(null, null)).rates();
+                    break;
+
                 case "schema://deal":
                     content = getDealSchema();
                     mimeType = "application/schema+json";
@@ -284,6 +325,11 @@ public class McpResources {
                     else if (uri.startsWith("disputes-by-rep://")) {
                         String salesRepId = uri.substring("disputes-by-rep://".length());
                         content = objectMapper.writeValueAsString(disputeService.getDisputesBySalesRep(salesRepId));
+                    }
+                    else if (uri.startsWith("currency-rates://")) {
+                        String baseCurrency = uri.substring("currency-rates://".length());
+                        content = currencyService.getLatestRates(
+                                new GetLatestRatesRequest(baseCurrency, null)).rates();
                     }
                     else {
                         return Map.of("error", "Resource not found: " + uri);

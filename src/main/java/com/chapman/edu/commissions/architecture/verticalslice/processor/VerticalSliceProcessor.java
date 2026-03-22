@@ -2,6 +2,9 @@ package com.chapman.edu.commissions.architecture.verticalslice.processor;
 
 import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CalculateCommissionRequest;
 import com.chapman.edu.commissions.architecture.verticalslice.features.calculations.CommissionCalculationService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.currency.ConvertCurrencyRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.currency.CurrencyConversionService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.currency.GetLatestRatesRequest;
 import com.chapman.edu.commissions.architecture.verticalslice.features.deals.CreateDealRequest;
 import com.chapman.edu.commissions.architecture.verticalslice.features.deals.DealService;
 import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.DisputeService;
@@ -76,6 +79,7 @@ public class VerticalSliceProcessor {
     private final CommissionCalculationService calcService;
     private final DisputeService disputeService;
     private final McpCommissionTools mcpTools;
+    private final CurrencyConversionService currencyService;
     private final List<ToolCallback> toolCallbacks;
 
     public VerticalSliceProcessor(DealService dealService,
@@ -83,12 +87,14 @@ public class VerticalSliceProcessor {
                                    CommissionCalculationService calcService,
                                    DisputeService disputeService,
                                    McpCommissionTools mcpTools,
+                                   CurrencyConversionService currencyService,
                                    List<ToolCallback> toolCallbacks) {
         this.dealService = dealService;
         this.planService = planService;
         this.calcService = calcService;
         this.disputeService = disputeService;
         this.mcpTools = mcpTools;
+        this.currencyService = currencyService;
         this.toolCallbacks = toolCallbacks;
     }
 
@@ -431,6 +437,97 @@ public class VerticalSliceProcessor {
                 "3. Agent calls tools as needed: createDeal, calculateCommission, etc.",
                 "4. Tools delegate to feature services (same business logic as REST)",
                 "5. Results returned to agent for reasoning"));
+
+        return results;
+    }
+
+    // ============================================================
+    // DEMO 7: MCP Client — External Currency Conversion
+    // ============================================================
+
+    /**
+     * Demonstrates using an EXTERNAL MCP server as a client.
+     *
+     * While demos 1-6 show our app as an MCP SERVER (exposing tools
+     * to AI agents), this demo shows the reverse: our app as an MCP
+     * CLIENT, calling tools on a remote MCP server.
+     *
+     * ARCHITECTURE:
+     *
+     *   ┌──────────────────┐    SSE transport    ┌─────────────────────────┐
+     *   │  Our Application │ ── tool call ──────→ │ currency-mcp.wesbos.com │
+     *   │  (MCP Client)    │ ←─ result ────────── │ (External MCP Server)   │
+     *   └────────┬─────────┘                      └─────────────────────────┘
+     *            │                                 Tools:
+     *   ┌────────▼──────────┐                       - convert_currency
+     *   │ CurrencyConversion│                       - get_latest_rates
+     *   │ Service            │                       - get_currencies
+     *   │ (also @Tool)      │                       - get_historical_rates
+     *   └──────────────────┘
+     *
+     * KEY INSIGHT:
+     * The CurrencyConversionService is BOTH:
+     * - An MCP client (calls external currency server tools)
+     * - An MCP tool provider (exposes @Tool methods to our own MCP server)
+     *
+     * This means AI agents connected to THIS server can trigger currency
+     * conversions, which internally call OUT to the external MCP server.
+     * MCP servers can be chained!
+     */
+    public Map<String, Object> demonstrateCurrencyConversion() {
+        log.info("[Vertical Slice] Demonstrating MCP Client — Currency Conversion");
+
+        Map<String, Object> results = new LinkedHashMap<>();
+
+        results.put("concept", "MCP Client — consume tools from an external MCP server (currency-mcp.wesbos.com)");
+
+        // Step 1: List remote tools to show what's available
+        try {
+            var remoteTools = currencyService.listRemoteTools();
+            results.put("remote_tools_discovered", remoteTools.stream()
+                    .map(t -> t.name() + " — " + t.description())
+                    .toList());
+        } catch (Exception e) {
+            results.put("remote_tools_discovered", "Could not connect: " + e.getMessage());
+            results.put("status", "SKIPPED — external server unreachable");
+            return results;
+        }
+
+        // Step 2: List supported currencies
+        try {
+            var currencies = currencyService.listSupportedCurrencies();
+            results.put("supported_currencies", currencies.currencies());
+        } catch (Exception e) {
+            results.put("supported_currencies", "Error: " + e.getMessage());
+        }
+
+        // Step 3: Convert a sample commission from USD to EUR
+        try {
+            var conversion = currencyService.convertCurrency(
+                    new ConvertCurrencyRequest("USD", "EUR", 5000.00));
+            results.put("conversion_example", Map.of(
+                    "from", conversion.from(),
+                    "to", conversion.to(),
+                    "amount", conversion.amount(),
+                    "result", conversion.result()));
+        } catch (Exception e) {
+            results.put("conversion_example", "Error: " + e.getMessage());
+        }
+
+        // Step 4: Get latest rates for USD
+        try {
+            var rates = currencyService.getLatestRates(
+                    new GetLatestRatesRequest("USD", "EUR,GBP,JPY,CAD"));
+            results.put("latest_rates", rates.rates());
+        } catch (Exception e) {
+            results.put("latest_rates", "Error: " + e.getMessage());
+        }
+
+        results.put("architecture_insight", Map.of(
+                "pattern", "MCP Client → External MCP Server (SSE transport)",
+                "chaining", "AI Agent → Our MCP Server → External Currency MCP Server",
+                "dual_role", "CurrencyConversionService is both @Tool provider and MCP client",
+                "benefit", "Compose capabilities from multiple MCP servers into one unified tool surface"));
 
         return results;
     }

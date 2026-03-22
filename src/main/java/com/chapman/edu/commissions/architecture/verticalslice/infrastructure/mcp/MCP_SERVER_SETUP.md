@@ -5,9 +5,9 @@ This document explains how to connect to the Commission Calculator MCP Server us
 ## Overview
 
 The Commission Calculator MCP Server exposes:
-- **27 Tools**: Complete CRUD operations for deals, commission plans, disputes, and calculations
-- **7 Prompts**: Pre-defined workflows for common tasks
-- **10 Resources**: Real-time access to system data and schemas
+- **31 Tools**: Complete CRUD operations for deals, commission plans, disputes, calculations, and currency conversion
+- **10 Prompts**: Pre-defined workflows for common tasks
+- **12 Resources**: Real-time access to system data and schemas
 
 ## Server Configuration
 
@@ -40,34 +40,62 @@ The MCP server exposes the following endpoints:
 
 The server supports multiple transport protocols:
 
-1. **STDIO Transport** (for Claude Desktop)
+1. **Streamable HTTP Transport** (recommended for Claude Desktop)
+   - Modern HTTP-based transport using JSON-RPC over POST
+   - Server runs independently — start once, connect from any client
+   - Endpoint: `http://localhost:8081/mcp`
+
+2. **STDIO Transport** (alternative for Claude Desktop)
    - Uses standard input/output for communication
-   - Required for local MCP client integration
+   - Claude Desktop launches and manages the server process
    - No web server needed
 
-2. **HTTP/REST Transport** (for API testing)
-   - RESTful HTTP endpoints
-   - Requires authentication
-   - Suitable for curl/Postman testing
-
-3. **SSE Transport** (for real-time updates)
+3. **SSE Transport** (for MCP Inspector and legacy clients)
    - Server-Sent Events for persistent connections
-   - Real-time notifications and updates
-   - Bidirectional communication over HTTP
+   - Endpoint: `http://localhost:8081/api/mcp/sse`
    - See [SSE_TESTING.md](../../../../../../../SSE_TESTING.md) for details
+
+4. **HTTP/REST Transport** (for API testing)
+   - RESTful HTTP endpoints at `/api/mcp/*`
+   - Suitable for curl/Postman testing
 
 ## Connecting with Claude Desktop
 
-Claude Desktop requires MCP servers to use STDIO (standard input/output) transport for local communication.
+Claude Desktop supports both **Streamable HTTP** (recommended) and **STDIO** transports.
 
-### Configuration File Location
+### Step 1: Open the Config File
 
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+In Claude Desktop go to **Settings → Developer → Edit Config**.
 
-### STDIO Configuration (Required for Claude Desktop)
+Or open the file directly:
 
-Add this configuration to your Claude Desktop config file:
+| OS      | Path                                                        |
+|---------|-------------------------------------------------------------|
+| Windows | `%APPDATA%\Claude\claude_desktop_config.json`               |
+| macOS   | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+
+### Step 2: Add the Server Configuration
+
+#### Option A: Streamable HTTP (Recommended)
+
+Start the server first (`java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar`), then configure Claude Desktop to connect over HTTP:
+
+```json
+{
+  "mcpServers": {
+    "commission-calculator": {
+      "type": "streamable-http",
+      "url": "http://localhost:8081/mcp"
+    }
+  }
+}
+```
+
+**Benefits**: Server runs independently, supports multiple clients, no classpath issues, easier debugging.
+
+#### Option B: STDIO (Alternative)
+
+Claude Desktop launches the server process directly:
 
 ```json
 {
@@ -87,36 +115,42 @@ Add this configuration to your Claude Desktop config file:
 }
 ```
 
-**Important Configuration Details:**
-- **stdio=true**: Enables STDIO transport for Claude Desktop communication
+> If you already have other MCP servers configured, merge this entry into the existing `mcpServers` object.
+
+**STDIO flags explained:**
+- **stdio=true**: Enables STDIO transport
 - **web-application-type=none**: Disables the HTTP web server (not needed for STDIO)
-- **logging.pattern.console=**: Disables console logging (required for STDIO)
+- **logging.pattern.console=**: Disables console logging (required — any stray output breaks the JSON-RPC stream)
 - **banner-mode=off**: Disables Spring Boot banner (keeps STDIO clean)
 - Use double backslashes (`\\`) in Windows paths, or forward slashes in macOS paths
 
-### How to Use
+### Step 3: Fully Quit and Restart Claude Desktop
 
-1. Save the configuration file at the location above
-2. **Restart Claude Desktop** completely (quit and relaunch)
-3. The commission-calculator server will appear in Claude Desktop's MCP servers list
-4. You can now use all 27 tools, 7 prompts, and 10 resources directly in conversations
+Don't just close the window — fully quit Claude Desktop (system tray → Quit on Windows, or Cmd+Q on macOS) and relaunch. Claude Desktop only reads the config on startup.
+
+> **Note**: If using Streamable HTTP, make sure the server is running before restarting Claude Desktop.
+
+### Step 4: Verify
+
+After restart, look for the **MCP tools icon** (hammer/wrench) in the bottom-right of the chat input box. Click it to see the 31 available tools, 10 prompts, and 12 resources.
 
 ### Troubleshooting Claude Desktop Connection
 
 If the server doesn't appear or fails to connect:
 
-1. **Check the JAR path**: Ensure the path in the config matches your actual JAR location
-2. **Check Java version**: Run `java -version` - you need Java 21+
-3. **View Claude Desktop logs**: Check Settings → Advanced → View Logs for error messages
-4. **Test manually**: Try running the command from the config in a terminal to see errors:
+1. **For Streamable HTTP**: Verify the server is running — `curl http://localhost:8081/api/mcp/info`
+2. **For STDIO**: Check the JAR path in the config matches your actual JAR location
+3. **Check Java version**: Run `java -version` — you need Java 21+
+4. **View Claude Desktop logs**: Settings → Developer → View Logs
+5. **Test STDIO manually**: Run the command from the config in a terminal to see errors:
    ```bash
    java -Dspring.ai.mcp.server.stdio=true -Dspring.main.web-application-type=none -Dlogging.pattern.console= -Dspring.main.banner-mode=off -jar "C:\Commission Calculator\commission-calculator-spring\target\commission-calculator-0.0.1-SNAPSHOT.jar"
    ```
-5. **Rebuild the JAR**: Run `mvn clean package` to ensure you have the latest build
+5. **Rebuild the JAR**: Run `mvn clean package -DskipTests` to ensure you have the latest build
 
 ## Available Capabilities
 
-### Tools (27 total)
+### Tools (31 total)
 
 #### Deal Management (7 tools)
 - `createDeal` - Create a new deal
@@ -153,7 +187,13 @@ If the server doesn't appear or fails to connect:
 - `getCalculationsBySalesRep` - Get calculations by sales rep
 - `getCalculationsByDeal` - Get calculations by deal
 
-### Prompts (7 pre-defined workflows)
+#### Currency Conversion (4 tools — proxied from external MCP server)
+- `convertCurrency` - Convert an amount between two currencies using real-time rates
+- `getLatestRates` - Fetch latest exchange rates with optional base/symbols filter
+- `listSupportedCurrencies` - List all supported currencies with their names
+- `getHistoricalRates` - Get historical exchange rates for a specific date
+
+### Prompts (10 pre-defined workflows)
 
 1. **analyze-sales-performance**
    - Analyze sales performance metrics for a sales rep
@@ -183,7 +223,19 @@ If the server doesn't appear or fails to connect:
    - Perform detailed audit of a calculation
    - Parameters: calculationId
 
-### Resources (10 data sources)
+8. **convert-deal-currency**
+   - Calculate commission for a deal and convert the result to a different currency
+   - Parameters: dealId, planId, targetCurrency
+
+9. **multi-currency-commission-report**
+   - Generate a commission report with amounts converted to a target currency
+   - Parameters: salesRepId, targetCurrency
+
+10. **currency-rate-check**
+    - Check current and historical exchange rates for commission planning
+    - Parameters: baseCurrency, targetCurrencies, historicalDate (optional)
+
+### Resources (12 data sources)
 
 #### Data Resources
 - `deals://all` - All deals in the system
@@ -193,6 +245,11 @@ If the server doesn't appear or fails to connect:
 - `disputes://all` - All disputes
 - `disputes://open` - Open disputes only
 - `calculations://all` - All calculations
+
+#### Currency Resources
+- `currency://supported` - List of all supported currencies for conversion
+- `currency://rates` - Latest exchange rates (EUR base by default)
+- `currency-rates://{baseCurrency}` - Exchange rates for a specific base currency (template)
 
 #### Schema Resources
 - `schema://deal` - JSON schema for Deal entity
@@ -257,7 +314,7 @@ For real-time communication with persistent connections:
 
 2. **Send MCP messages** (in another terminal):
    ```bash
-   curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/message \
+   curl -u admin:admin123 -X POST http://localhost:8081/mcp \
      -H "Content-Type: application/json" \
      -d '{
        "jsonrpc": "2.0",

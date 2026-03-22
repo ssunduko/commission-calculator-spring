@@ -24,7 +24,7 @@ npx @modelcontextprotocol/inspector java -Dspring.ai.mcp.server.stdio=true -Dspr
 1. The inspector launches your MCP server in STDIO mode
 2. Provides a web interface (usually at http://localhost:5173)
 3. Allows you to:
-   - Browse all 27 tools
+   - Browse all 31 tools
    - Test tool execution
    - View prompts and resources
    - See real-time communication
@@ -50,8 +50,10 @@ java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar
 
 ```bash
 # Include authentication in the URL
-npx @modelcontextprotocol/inspector http://admin:admin123@localhost:8081/api/mcp/message
+npx @modelcontextprotocol/inspector --transport streamable-http http://admin:admin123@localhost:8081/api/mcp/message
 ```
+
+> **Important**: The `--transport streamable-http` flag is required. Without it, the inspector tries to spawn the URL as a command and fails with `ENOENT`.
 
 ### Benefits
 
@@ -94,7 +96,7 @@ For quick command-line testing without the full inspector UI:
 
 ```bash
 # Using curl with authentication
-curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/message \
+curl -u admin:admin123 -X POST http://localhost:8081/mcp \
   -H "Content-Type: application/json" \
   -d @test-tools-list.json
 ```
@@ -131,7 +133,7 @@ npx @modelcontextprotocol/inspector java -Dspring.ai.mcp.server.stdio=true -Dspr
 echo Starting MCP Inspector with Streamable HTTP transport...
 echo Make sure the server is running on port 8081
 echo.
-npx @modelcontextprotocol/inspector http://admin:admin123@localhost:8081/api/mcp/message
+npx @modelcontextprotocol/inspector --transport streamable-http http://admin:admin123@localhost:8081/api/mcp/message
 ```
 
 ### SSE Connection Script: `inspect-sse.bat`
@@ -183,13 +185,13 @@ wmic process where "name='java.exe' and CommandLine like '%commission-calculator
 
 ### Test Prompts
 
-- Browse the 7 workflow prompts
+- Browse the 10 workflow prompts
 - Execute prompts with parameters
 - See prompt templates and expected arguments
 
 ### Access Resources
 
-- Read from 10 data resources
+- Read from 12 data resources
 - View deals, plans, disputes, calculations
 - Inspect schema resources
 

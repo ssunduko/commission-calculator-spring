@@ -111,10 +111,22 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Spring AI MCP Server Support -->
+        <!-- Spring AI MCP Server Support — Streamable HTTP (default) -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+
+        <!-- Spring AI MCP Server STDIO Support — for Claude Desktop STDIO mode -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server</artifactId>
+        </dependency>
+
+        <!-- Spring AI MCP Client Support — connects to external MCP servers -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-mcp</artifactId>
         </dependency>
 
         <!-- ============================================================ -->
