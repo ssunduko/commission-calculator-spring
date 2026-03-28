@@ -34,13 +34,14 @@ public class VerticalSliceProcessorDemo {
             log.info("  Feature-First | Minimal Abstractions | MCP Server | Rapid Development");
             log.info("{}\n", BANNER);
 
-            demo("[1/7] Feature-First Organization", () -> processor.demonstrateFeatureFirstOrganization());
-            demo("[2/7] Minimal Abstractions", () -> processor.demonstrateMinimalAbstractions());
-            demo("[3/7] Cross-Feature Communication", () -> processor.demonstrateCrossFeatureCommunication());
-            demo("[4/7] Rapid Development", () -> processor.demonstrateRapidDevelopment());
-            demo("[5/7] Full Feature Walkthrough", () -> processor.demonstrateFullFeatureWalkthrough());
-            demo("[6/7] MCP Server — AI Agent Integration", () -> processor.demonstrateMcpServer());
-            demo("[7/7] MCP Client — Currency Conversion", () -> processor.demonstrateCurrencyConversion());
+            demo("[1/8] Feature-First Organization", () -> processor.demonstrateFeatureFirstOrganization());
+            demo("[2/8] Minimal Abstractions", () -> processor.demonstrateMinimalAbstractions());
+            demo("[3/8] Cross-Feature Communication", () -> processor.demonstrateCrossFeatureCommunication());
+            demo("[4/8] Rapid Development", () -> processor.demonstrateRapidDevelopment());
+            demo("[5/8] Full Feature Walkthrough", () -> processor.demonstrateFullFeatureWalkthrough());
+            demo("[6/8] MCP Server — AI Agent Integration", () -> processor.demonstrateMcpServer());
+            demo("[7/8] MCP Client — Currency Conversion", () -> processor.demonstrateCurrencyConversion());
+            demo("[8/8] MCP Sampling — Server Requests AI Completions", () -> processor.demonstrateMcpSampling());
 
             log.info("\n{}", BANNER);
             log.info("  VERTICAL SLICE DEMO COMPLETE");

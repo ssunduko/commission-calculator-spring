@@ -2,7 +2,8 @@ package com.chapman.edu.commissions.architecture.verticalslice;
 
 import com.chapman.edu.commissions.architecture.verticalslice.features.currency.CurrencyConversionService;
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp.McpCommissionTools;
-import org.springframework.ai.support.ToolCallbacks;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp.McpSamplingTools;
+import io.modelcontextprotocol.server.McpServerFeatures;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -10,7 +11,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -37,14 +37,8 @@ public class CommissionCalculatorApplication {
     }
 
     /**
-     * Register all MCP tools for AI agent integration.
-     *
-     * Total: 31 tools
-     * - Deal Management: 7 tools
-     * - Commission Plan Management: 7 tools
-     * - Dispute Management: 8 tools
-     * - Commission Calculation: 5 tools
-     * - Currency Conversion: 4 tools (proxied from external MCP server)
+     * Register @Tool-annotated MCP tools (31 tools).
+     * These are standard tools where the client calls the server.
      */
     @Bean
     public ToolCallbackProvider commissionToolCallbackProvider(McpCommissionTools mcpCommissionTools,
@@ -55,7 +49,17 @@ public class CommissionCalculatorApplication {
     }
 
     /**
-     * Also expose as List<ToolCallback> for internal use (processors, custom controllers).
+     * Register sampling-enabled MCP tools (3 tools).
+     * These tools use McpSyncServerExchange.createMessage() to request
+     * LLM completions from the connected AI client (MCP sampling).
+     */
+    @Bean
+    public List<McpServerFeatures.SyncToolSpecification> samplingTools(McpSamplingTools samplingTools) {
+        return samplingTools.getToolSpecifications();
+    }
+
+    /**
+     * Expose tools as List<ToolCallback> for internal use (processors, custom controllers).
      */
     @Bean
     public List<ToolCallback> tools(ToolCallbackProvider commissionToolCallbackProvider) {

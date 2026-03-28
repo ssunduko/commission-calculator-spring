@@ -320,14 +320,19 @@ Claude Desktop launches the server process directly:
     "commission-calculator": {
       "command": "java",
       "args": [
-        "-Dspring.ai.mcp.server.stdio=true",
+        "--enable-native-access=ALL-UNNAMED",
+        "-Dspring.profiles.active=stdio",
         "-Dspring.main.web-application-type=none",
-        "-Dlogging.pattern.console=",
-        "-Dspring.main.banner-mode=off",
         "-jar",
         "C:\\Commission Calculator\\commission-calculator-spring\\target\\commission-calculator-0.0.1-SNAPSHOT.jar"
       ]
     }
+  },
+  "preferences": {
+    "coworkScheduledTasksEnabled": true,
+    "ccdScheduledTasksEnabled": true,
+    "sidebarMode": "chat",
+    "coworkWebSearchEnabled": true
   }
 }
 ```

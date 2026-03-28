@@ -10,6 +10,8 @@ import com.chapman.edu.commissions.architecture.verticalslice.features.deals.Dea
 import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.DisputeService;
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanService;
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp.McpCommissionTools;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp.McpSamplingTools;
+import io.modelcontextprotocol.server.McpServerFeatures;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.ToolCallback;
@@ -80,6 +82,7 @@ public class VerticalSliceProcessor {
     private final DisputeService disputeService;
     private final McpCommissionTools mcpTools;
     private final CurrencyConversionService currencyService;
+    private final McpSamplingTools samplingTools;
     private final List<ToolCallback> toolCallbacks;
 
     public VerticalSliceProcessor(DealService dealService,
@@ -88,6 +91,7 @@ public class VerticalSliceProcessor {
                                    DisputeService disputeService,
                                    McpCommissionTools mcpTools,
                                    CurrencyConversionService currencyService,
+                                   McpSamplingTools samplingTools,
                                    List<ToolCallback> toolCallbacks) {
         this.dealService = dealService;
         this.planService = planService;
@@ -95,6 +99,7 @@ public class VerticalSliceProcessor {
         this.disputeService = disputeService;
         this.mcpTools = mcpTools;
         this.currencyService = currencyService;
+        this.samplingTools = samplingTools;
         this.toolCallbacks = toolCallbacks;
     }
 
@@ -528,6 +533,116 @@ public class VerticalSliceProcessor {
                 "chaining", "AI Agent → Our MCP Server → External Currency MCP Server",
                 "dual_role", "CurrencyConversionService is both @Tool provider and MCP client",
                 "benefit", "Compose capabilities from multiple MCP servers into one unified tool surface"));
+
+        return results;
+    }
+
+    // ============================================================
+    // DEMO 8: MCP Sampling — Server Requests AI Completions
+    // ============================================================
+
+    /**
+     * Demonstrates MCP Sampling — the reverse of normal tool calls.
+     *
+     * NORMAL MCP FLOW:
+     *   Client (Claude) → calls tool → Server (Spring Boot)
+     *   "Hey server, create a deal for me"
+     *
+     * SAMPLING FLOW:
+     *   Server (Spring Boot) → requests completion → Client (Claude)
+     *   "Hey Claude, explain this commission data I gathered"
+     *
+     * WHY SAMPLING MATTERS:
+     * Standard tools return raw data (JSON). Sampling lets the server
+     * gather data from the database, then ask the AI to REASON about it.
+     * The server handles data access; the client handles intelligence.
+     *
+     * ARCHITECTURE:
+     *
+     *   ┌─────────────┐                        ┌──────────────────┐
+     *   │  AI Client   │  1. calls tool         │  MCP Server      │
+     *   │  (Claude)    │ ─────────────────────→ │  (Spring Boot)   │
+     *   │              │                        │                  │
+     *   │              │  2. server gathers     │  - fetch deals   │
+     *   │              │     data from DB       │  - fetch calcs   │
+     *   │              │                        │  - fetch disputes│
+     *   │              │                        │                  │
+     *   │              │  3. createMessage()    │  - builds prompt │
+     *   │              │ ←───────────────────── │    with data     │
+     *   │              │                        │                  │
+     *   │  4. Claude   │  5. returns            │                  │
+     *   │  generates   │     completion         │  6. returns      │
+     *   │  response    │ ─────────────────────→ │     result       │
+     *   └─────────────┘                        └──────────────────┘
+     *
+     * IMPLEMENTATION DETAIL:
+     * Sampling tools CANNOT use @Tool annotations because they need
+     * access to McpSyncServerExchange for the createMessage() call.
+     * Instead, they are registered as SyncToolSpecification beans
+     * with a BiFunction<McpSyncServerExchange, Map, CallToolResult>.
+     *
+     * CONTRAST WITH @Tool:
+     *
+     *   @Tool methods:                  Sampling tools:
+     *   ─────────────                   ──────────────
+     *   @Tool annotation                SyncToolSpecification bean
+     *   Returns raw data               Returns AI-generated text
+     *   No client interaction           Calls exchange.createMessage()
+     *   MethodToolCallbackProvider      Direct MCP SDK registration
+     *   31 tools in this app            3 tools in this app
+     */
+    public Map<String, Object> demonstrateMcpSampling() {
+        log.info("[Vertical Slice] Demonstrating MCP Sampling — Server Requests AI Completions");
+
+        Map<String, Object> results = new LinkedHashMap<>();
+
+        results.put("concept", "MCP Sampling — server gathers data, then asks the AI client to reason about it");
+
+        // List the sampling-enabled tools
+        var specs = samplingTools.getToolSpecifications();
+        results.put("sampling_tools_count", specs.size());
+        results.put("sampling_tools", specs.stream()
+                .map(spec -> spec.tool().name() + " — " + spec.tool().description())
+                .toList());
+
+        // Explain how each tool uses sampling
+        results.put("explainCommission", Map.of(
+                "step_1", "Fetches CommissionCalculation from DB by ID",
+                "step_2", "Serializes calculation data (deal value, rates, amounts) to JSON",
+                "step_3", "Calls exchange.createMessage() with prompt: 'Explain this in plain language'",
+                "step_4", "Claude generates a human-readable explanation",
+                "step_5", "Returns explanation as tool result"));
+
+        results.put("analyzeDispute", Map.of(
+                "step_1", "Fetches Dispute and related CommissionCalculation from DB",
+                "step_2", "Serializes both entities to JSON",
+                "step_3", "Calls exchange.createMessage() with prompt: 'Assess validity and recommend resolution'",
+                "step_4", "Claude analyzes the dispute context and provides recommendations",
+                "step_5", "Returns analysis as tool result"));
+
+        results.put("summarizeSalesPerformance", Map.of(
+                "step_1", "Fetches all Deals, Calculations, and Disputes for a sales rep",
+                "step_2", "Serializes all data to JSON",
+                "step_3", "Calls exchange.createMessage() with prompt: 'Provide a performance summary'",
+                "step_4", "Claude generates insights, metrics, and recommendations",
+                "step_5", "Returns comprehensive summary as tool result"));
+
+        // Show total tool breakdown
+        results.put("tool_breakdown", Map.of(
+                "standard_tools", "31 — @Tool annotation, return raw data (JSON)",
+                "sampling_tools", "3 — SyncToolSpecification, return AI-generated text",
+                "total", "34 tools registered in MCP server"));
+
+        // Explain the key difference
+        results.put("key_insight", Map.of(
+                "standard_tool_example", "getAllDeals() → returns [{id, title, value, ...}, ...]",
+                "sampling_tool_example", "explainCommission(calcId) → returns 'This $7,500 commission was calculated using a 5% rate on the $150,000 Enterprise Deal...'",
+                "difference", "Standard tools return DATA. Sampling tools return INTELLIGENCE."));
+
+        // Note about runtime requirement
+        results.put("runtime_note", "Sampling tools only work when an AI client (Claude Desktop) is connected. " +
+                "At startup, we can only list them — actual sampling requires exchange.createMessage() " +
+                "which needs an active MCP session.");
 
         return results;
     }
