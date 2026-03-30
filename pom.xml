@@ -111,6 +111,20 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Selenium WebDriver — End-to-end browser/API testing -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.20.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>htmlunit3-driver</artifactId>
+            <version>4.20.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Spring AI MCP Server Support — Streamable HTTP (default) -->
         <dependency>
             <groupId>org.springframework.ai</groupId>

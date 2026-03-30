@@ -74,7 +74,7 @@ public class McpServerIntegrationTest {
         mockMvc.perform(get("/api/mcp/capabilities")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools.count").value(27))
+                .andExpect(jsonPath("$.tools.count").value(31))
                 .andExpect(jsonPath("$.tools.listChanged").value(true));
 
         // Test MCP initialize endpoint
@@ -88,14 +88,14 @@ public class McpServerIntegrationTest {
 
     @Test
     public void testToolsAreRegistered() throws Exception {
-        // Verify that all 27 tools are registered and accessible via MCP protocol
+        // Verify that all 31 tools are registered and accessible via MCP protocol
 
         mockMvc.perform(post("/api/mcp/tools/list")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tools").isArray())
-                .andExpect(jsonPath("$.tools", hasSize(27)))
+                .andExpect(jsonPath("$.tools", hasSize(31)))
                 .andExpect(jsonPath("$.tools[?(@.name=='createDeal')]").exists())
                 .andExpect(jsonPath("$.tools[?(@.name=='createCommissionPlan')]").exists())
                 .andExpect(jsonPath("$.tools[?(@.name=='createDispute')]").exists())
@@ -315,7 +315,7 @@ public class McpServerIntegrationTest {
                 .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tools").isArray())
-                .andExpect(jsonPath("$.tools", hasSize(27)))
+                .andExpect(jsonPath("$.tools", hasSize(31)))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
