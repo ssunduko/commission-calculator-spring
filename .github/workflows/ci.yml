@@ -138,7 +138,7 @@ jobs:
         id: create-deal
         run: |
           echo "=== Creating Deal ==="
-          DEAL=$(curl -s --fail-with-body -X POST http://localhost:8081/api/deals \
+          HTTP_CODE=$(curl -s -o /tmp/deal_response.json -w "%{http_code}" -X POST http://localhost:8081/api/deals \
             -u "admin:${AUTH_PASS}" \
             -H "Content-Type: application/json" \
             -d '{
@@ -146,8 +146,13 @@ jobs:
               "value": 100000,
               "salesRepId": "smoke-test-rep"
             }')
-          echo "$DEAL" | jq .
-          DEAL_ID=$(echo "$DEAL" | jq -r '.id')
+          echo "HTTP Status: $HTTP_CODE"
+          cat /tmp/deal_response.json | jq . || cat /tmp/deal_response.json
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "Deal creation failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          DEAL_ID=$(jq -r '.id' /tmp/deal_response.json)
           echo "deal_id=$DEAL_ID" >> "$GITHUB_OUTPUT"
 
       - name: Calculate commission
