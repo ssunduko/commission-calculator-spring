@@ -144,7 +144,7 @@ jobs:
             -d '{
               "title": "CI Smoke Test Deal",
               "value": 100000,
-              "salesRepId": "smoke-test-rep"
+              "salesRepId": "usr-001"
             }')
           echo "HTTP Status: $HTTP_CODE"
           cat /tmp/deal_response.json | jq . || cat /tmp/deal_response.json
