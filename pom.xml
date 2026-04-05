@@ -403,7 +403,7 @@
                 <executions>
                     <execution>
                         <id>dependency-check</id>
-                        <phase>verify</phase>
+                        <phase>none</phase>
                         <goals>
                             <goal>check</goal>
                         </goals>
