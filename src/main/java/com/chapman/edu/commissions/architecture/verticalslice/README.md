@@ -519,12 +519,129 @@ curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/resources/read \
 
 ---
 
+## Feature Flags (Togglz)
+
+Runtime feature flags using [Togglz](https://www.togglz.org/) decouple **deployment from release** — ship code anytime, activate features independently.
+
+### Registered Flags
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `CURRENCY_CONVERSION` | Enabled | Gates all `/api/currency/**` endpoints |
+| `BETA_DASHBOARD` | Disabled | Beta dashboard for selected users |
+| `ADVANCED_ANALYTICS` | Disabled | Advanced commission analytics |
+| `BULK_IMPORT` | Disabled | Bulk deal import functionality |
+
+### Togglz Console
+
+Toggle flags at runtime via the web UI:
+```
+http://localhost:8081/togglz-console
+```
+
+### Activation Strategies
+
+#### 1. Kill Switch (Default)
+No strategy needed — simply enable or disable globally.
+```
+/togglz-console → CURRENCY_CONVERSION → Enabled: false
+```
+All `/api/currency/**` endpoints immediately return **503 Service Unavailable**.
+
+#### 2. Gradual Rollout (Percentage)
+Strategy: **Gradual rollout** (built-in `GradualActivationStrategy`).
+Uses consistent hashing on user ID — the same user always gets the same result.
+```
+/togglz-console → ADVANCED_ANALYTICS → Strategy: Gradual rollout → percentage=10
+```
+Enables for 10% of users. Increase to 50, then 100 for full rollout.
+
+#### 3. User Targeting (Username)
+Strategy: **Username** (built-in `UsernameActivationStrategy`).
+```
+/togglz-console → BETA_DASHBOARD → Strategy: Username → users=alice,bob
+```
+Only `alice` and `bob` see the beta dashboard.
+
+#### 4. Time Window (Release Date)
+Strategy: **Release date** (built-in `ReleaseDateActivationStrategy`).
+```
+/togglz-console → BULK_IMPORT → Strategy: Release date → date=2026-12-01
+```
+Feature auto-enables after December 1, 2026.
+
+#### 5. Server/Region (Custom Strategy)
+Custom `RegionActivationStrategy` reads the current region from:
+1. `X-Region` HTTP header (per-request override)
+2. `APP_REGION` environment variable (server-level default)
+
+```
+/togglz-console → CURRENCY_CONVERSION → Strategy: Server/Region → regions=us-east,eu-west
+```
+
+**Implementation** (`RegionActivationStrategy.java`):
+```java
+@Component
+public class RegionActivationStrategy implements ActivationStrategy {
+    @Override
+    public String getId() { return "region"; }
+
+    @Override
+    public boolean isActive(FeatureState state, FeatureUser user) {
+        String enabledRegions = state.getParameter("regions");    // "us-east,eu-west"
+        String currentRegion = resolveCurrentRegion();             // from header or env
+        return Arrays.stream(enabledRegions.split(","))
+                     .anyMatch(r -> r.trim().equalsIgnoreCase(currentRegion));
+    }
+
+    private String resolveCurrentRegion() {
+        // 1. X-Region header (per-request)
+        // 2. APP_REGION env var (server-level)
+    }
+}
+```
+
+To test: `curl -H "X-Region: eu-west" http://localhost:8081/api/currency/supported`
+
+### Observability
+
+Feature flag state is exposed as **Micrometer metrics** (scrapable by Prometheus):
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `feature_flag_state{feature="X"}` | Gauge | 1=enabled, 0=disabled |
+| `feature_flag_checked_total{feature="X"}` | Counter | Number of flag checks |
+
+Logs:
+- **State changes**: logged at `WARN` level immediately
+- **Periodic summary**: logged at `INFO` every 60 seconds
+- **Prometheus endpoint**: `http://localhost:8081/actuator/prometheus` → search `feature_flag_*`
+
+### Architecture
+
+```
+CurrencyController                    FeatureManager (Togglz)
+  │                                        │
+  ├─ metrics.recordCheck(flag)             ├─ ActivationStrategy
+  ├─ featureManager.isActive(flag)?        │   ├─ (none) = Kill Switch
+  │   ├─ YES → call service normally       │   ├─ GradualActivation (%)
+  │   └─ NO  → 503 Service Unavailable    │   ├─ UsernameActivation
+  │                                        │   ├─ ReleaseDateActivation
+  FeatureFlagMetrics                       │   └─ RegionActivation (custom)
+  ├─ Gauge: feature_flag_state             │
+  ├─ Counter: feature_flag_checked_total   StateRepository
+  └─ Scheduled: log changes + summary     (in-memory, JDBC, file, Redis)
+```
+
 ## Infrastructure
 
 ### Configuration (`infrastructure/config`)
 
 - **OpenApiConfig**: Swagger/OpenAPI configuration
 - **SecurityConfig**: Security and authentication setup
+- **Features**: Feature flag enum with activation strategy configuration
+- **RegionActivationStrategy**: Custom region-based feature activation
+- **FeatureFlagMetrics**: Observability — Micrometer metrics and structured logging
 
 ### Data Initialization (`infrastructure/data`)
 
@@ -786,7 +903,9 @@ The `VerticalSliceProcessor` runs at startup to demonstrate key Vertical Slice c
 | **Full Feature Walkthrough** | End-to-end | Create deal → get plan → calculate commission — all through direct service calls |
 | **MCP Server** | AI Agent Integration | 31 @Tool methods expose all features to AI agents via Model Context Protocol |
 | **MCP Client — Currency Conversion** | External MCP consumption | Connects to currency-mcp.wesbos.com via SSE, calls remote tools, and re-exposes them as local @Tool methods — demonstrating MCP server chaining |
+| **Feature Flags — Togglz** | Runtime feature toggles | Kill switch, gradual rollout (%), user targeting, time window, custom region strategy — with Micrometer metrics and /togglz-console |
+| **MCP Sampling** | Server-initiated AI | Server gathers data, asks AI client to reason about it — reverse of normal tool calls |
 
 ---
 
-**Built with Spring Boot 3.4.5 | Vertical Slice Architecture | MCP-Enabled**
+**Built with Spring Boot 3.4.5 | Vertical Slice Architecture | MCP-Enabled | Togglz Feature Flags**

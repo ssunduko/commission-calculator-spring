@@ -34,14 +34,15 @@ public class VerticalSliceProcessorDemo {
             log.info("  Feature-First | Minimal Abstractions | MCP Server | Rapid Development");
             log.info("{}\n", BANNER);
 
-            demo("[1/8] Feature-First Organization", () -> processor.demonstrateFeatureFirstOrganization());
-            demo("[2/8] Minimal Abstractions", () -> processor.demonstrateMinimalAbstractions());
-            demo("[3/8] Cross-Feature Communication", () -> processor.demonstrateCrossFeatureCommunication());
-            demo("[4/8] Rapid Development", () -> processor.demonstrateRapidDevelopment());
-            demo("[5/8] Full Feature Walkthrough", () -> processor.demonstrateFullFeatureWalkthrough());
-            demo("[6/8] MCP Server — AI Agent Integration", () -> processor.demonstrateMcpServer());
-            demo("[7/8] MCP Client — Currency Conversion", () -> processor.demonstrateCurrencyConversion());
-            demo("[8/8] MCP Sampling — Server Requests AI Completions", () -> processor.demonstrateMcpSampling());
+            demo("[1/9] Feature-First Organization", () -> processor.demonstrateFeatureFirstOrganization());
+            demo("[2/9] Minimal Abstractions", () -> processor.demonstrateMinimalAbstractions());
+            demo("[3/9] Cross-Feature Communication", () -> processor.demonstrateCrossFeatureCommunication());
+            demo("[4/9] Rapid Development", () -> processor.demonstrateRapidDevelopment());
+            demo("[5/9] Full Feature Walkthrough", () -> processor.demonstrateFullFeatureWalkthrough());
+            demo("[6/9] MCP Server — AI Agent Integration", () -> processor.demonstrateMcpServer());
+            demo("[7/9] MCP Client — Currency Conversion", () -> processor.demonstrateCurrencyConversion());
+            demo("[8/9] Feature Flags — Togglz Runtime Toggles", () -> processor.demonstrateFeatureFlags());
+            demo("[9/9] MCP Sampling — Server Requests AI Completions", () -> processor.demonstrateMcpSampling());
 
             log.info("\n{}", BANNER);
             log.info("  VERTICAL SLICE DEMO COMPLETE");

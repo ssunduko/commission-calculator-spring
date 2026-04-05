@@ -13,6 +13,7 @@ import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.Arrays;
 import java.util.List;
@@ -32,6 +33,7 @@ import java.util.Map;
         org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class
     }
 )
+@EnableScheduling
 public class CommissionCalculatorApplication {
 
     public static void main(String[] args) {

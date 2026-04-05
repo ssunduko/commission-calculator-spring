@@ -1,22 +1,32 @@
 package com.chapman.edu.commissions.architecture.verticalslice.features.currency;
 
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.config.FeatureFlagMetrics;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.config.Features;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.togglz.core.manager.FeatureManager;
 
 /**
  * REST Controller for Currency Conversion.
  *
  * Exposes the external Currency MCP server's capabilities
- * through local REST endpoints.
+ * through local REST endpoints. Gated by the CURRENCY_CONVERSION feature flag.
  */
 @RestController
 @RequestMapping("/api/currency")
 public class CurrencyController {
 
     private final CurrencyConversionService currencyService;
+    private final FeatureManager featureManager;
+    private final FeatureFlagMetrics metrics;
 
-    public CurrencyController(CurrencyConversionService currencyService) {
+    public CurrencyController(CurrencyConversionService currencyService,
+                               FeatureManager featureManager,
+                               FeatureFlagMetrics metrics) {
         this.currencyService = currencyService;
+        this.featureManager = featureManager;
+        this.metrics = metrics;
     }
 
     /**
@@ -25,6 +35,10 @@ public class CurrencyController {
      */
     @PostMapping("/convert")
     public ResponseEntity<CurrencyConversionResponse> convert(@RequestBody ConvertCurrencyRequest request) {
+        metrics.recordCheck(Features.CURRENCY_CONVERSION);
+        if (!featureManager.isActive(Features.CURRENCY_CONVERSION)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(currencyService.convertCurrency(request));
     }
 
@@ -36,6 +50,10 @@ public class CurrencyController {
     public ResponseEntity<ExchangeRateResponse> getLatestRates(
             @RequestParam(required = false) String base,
             @RequestParam(required = false) String symbols) {
+        metrics.recordCheck(Features.CURRENCY_CONVERSION);
+        if (!featureManager.isActive(Features.CURRENCY_CONVERSION)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(currencyService.getLatestRates(
                 new GetLatestRatesRequest(base, symbols)));
     }
@@ -46,6 +64,10 @@ public class CurrencyController {
      */
     @GetMapping("/supported")
     public ResponseEntity<SupportedCurrenciesResponse> getSupportedCurrencies() {
+        metrics.recordCheck(Features.CURRENCY_CONVERSION);
+        if (!featureManager.isActive(Features.CURRENCY_CONVERSION)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(currencyService.listSupportedCurrencies());
     }
 
@@ -58,7 +80,12 @@ public class CurrencyController {
             @RequestParam String date,
             @RequestParam(required = false) String base,
             @RequestParam(required = false) String symbols) {
+        metrics.recordCheck(Features.CURRENCY_CONVERSION);
+        if (!featureManager.isActive(Features.CURRENCY_CONVERSION)) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(currencyService.getHistoricalRates(
                 new GetHistoricalRatesRequest(date, base, symbols)));
     }
 }
+

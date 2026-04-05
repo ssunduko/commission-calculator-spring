@@ -11,12 +11,15 @@ import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanService;
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp.McpCommissionTools;
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.mcp.McpSamplingTools;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.config.Features;
 import io.modelcontextprotocol.server.McpServerFeatures;
+import org.togglz.core.Feature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
+import org.togglz.core.manager.FeatureManager;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -84,6 +87,7 @@ public class VerticalSliceProcessor {
     private final CurrencyConversionService currencyService;
     private final McpSamplingTools samplingTools;
     private final List<ToolCallback> toolCallbacks;
+    private final FeatureManager featureManager;
 
     public VerticalSliceProcessor(DealService dealService,
                                    CommissionPlanService planService,
@@ -92,7 +96,8 @@ public class VerticalSliceProcessor {
                                    McpCommissionTools mcpTools,
                                    CurrencyConversionService currencyService,
                                    McpSamplingTools samplingTools,
-                                   List<ToolCallback> toolCallbacks) {
+                                   List<ToolCallback> toolCallbacks,
+                                   FeatureManager featureManager) {
         this.dealService = dealService;
         this.planService = planService;
         this.calcService = calcService;
@@ -101,6 +106,7 @@ public class VerticalSliceProcessor {
         this.currencyService = currencyService;
         this.samplingTools = samplingTools;
         this.toolCallbacks = toolCallbacks;
+        this.featureManager = featureManager;
     }
 
     // ============================================================
@@ -538,7 +544,133 @@ public class VerticalSliceProcessor {
     }
 
     // ============================================================
-    // DEMO 8: MCP Sampling — Server Requests AI Completions
+    // DEMO 8: Feature Flags with Togglz
+    // ============================================================
+
+    /**
+     * Demonstrates runtime Feature Flags using Togglz.
+     *
+     * CONCEPT: Feature Flags (Feature Toggles)
+     * ------------------------------------------------------------
+     * Feature flags decouple deployment from release. Code ships to
+     * production but features are activated independently at runtime.
+     *
+     * USE CASES:
+     *   - Gradual rollout: enable for 10% of users, then 50%, then 100%
+     *   - Kill switch: instantly disable a broken feature without redeploying
+     *   - A/B testing: serve different experiences to different user groups
+     *   - Trunk-based development: merge incomplete features behind a flag
+     *
+     * IMPLEMENTATION:
+     *
+     *   ┌──────────────┐     checks flag     ┌───────────────────┐
+     *   │  Controller   │ ──────────────────→ │  FeatureManager   │
+     *   │  /api/currency│                     │  (Togglz)         │
+     *   └──────────────┘                     └───────────────────┘
+     *          │                                       │
+     *     if enabled                              reads from
+     *          ↓                                       ↓
+     *   ┌──────────────┐                     ┌───────────────────┐
+     *   │  Service      │                     │  StateRepository  │
+     *   │  (normal flow)│                     │  (in-memory, DB,  │
+     *   └──────────────┘                     │   file, consul)   │
+     *          │                              └───────────────────┘
+     *     if disabled
+     *          ↓
+     *   503 Service Unavailable
+     *
+     * IN THIS APP:
+     *   Features.CURRENCY_CONVERSION gates the entire /api/currency/** surface.
+     *   Toggle it at runtime via /togglz-console — no restart needed.
+     */
+    public Map<String, Object> demonstrateFeatureFlags() {
+        log.info("[Vertical Slice] Demonstrating Feature Flags with Togglz");
+
+        Map<String, Object> results = new LinkedHashMap<>();
+
+        results.put("concept", "Feature Flags — decouple deployment from release using runtime toggles");
+
+        // Step 1: Show all registered feature flags and their states
+        var featureStates = new LinkedHashMap<String, String>();
+        for (Feature feature : featureManager.getFeatures()) {
+            boolean active = featureManager.isActive(feature);
+            featureStates.put(feature.name(), active ? "ENABLED" : "DISABLED");
+        }
+        results.put("registered_flags", featureStates);
+
+        // Step 2: Kill Switch — demonstrate instant disable/enable
+        boolean currencyBefore = featureManager.isActive(Features.CURRENCY_CONVERSION);
+        results.put("kill_switch", Map.of(
+                "description", "Instantly disable a broken feature without redeploying",
+                "CURRENCY_CONVERSION_current", currencyBefore ? "ENABLED" : "DISABLED",
+                "how", "POST to /togglz-console or featureManager.setFeatureState()",
+                "effect", "All /api/currency/** endpoints immediately return 503 Service Unavailable"));
+
+        // Step 3: Demonstrate the flag in action
+        if (currencyBefore) {
+            try {
+                var currencies = currencyService.listSupportedCurrencies();
+                results.put("gated_call_result", "Currency service responded: " + currencies.currencies());
+            } catch (Exception e) {
+                results.put("gated_call_result", "Service available but external call failed: " + e.getMessage());
+            }
+        } else {
+            results.put("gated_call_result", "BLOCKED — controller returns 503 Service Unavailable");
+        }
+
+        // Step 4: Gradual Rollout / Percentage strategy
+        results.put("strategy_gradual_rollout", Map.of(
+                "strategy", "GradualActivationStrategy (built-in)",
+                "config", "percentage=10 → enables for 10% of users via consistent hashing",
+                "use_case", "Roll out ADVANCED_ANALYTICS to 10%, then 50%, then 100%",
+                "how_to_configure", "/togglz-console → ADVANCED_ANALYTICS → Strategy: Gradual rollout → percentage=10"));
+
+        // Step 5: User Targeting strategy
+        results.put("strategy_user_targeting", Map.of(
+                "strategy", "UsernameActivationStrategy (built-in)",
+                "config", "users=alice,bob → enables only for named users",
+                "use_case", "Beta-test BETA_DASHBOARD for specific sales reps",
+                "how_to_configure", "/togglz-console → BETA_DASHBOARD → Strategy: Username → users=alice,bob"));
+
+        // Step 6: Time Window / Release Date strategy
+        results.put("strategy_time_window", Map.of(
+                "strategy", "ReleaseDateActivationStrategy (built-in)",
+                "config", "date=2026-12-01 → auto-enables after the specified date",
+                "use_case", "Schedule BULK_IMPORT to go live on a specific date",
+                "how_to_configure", "/togglz-console → BULK_IMPORT → Strategy: Release date → date=2026-12-01"));
+
+        // Step 7: Server/Region — custom strategy
+        String currentRegion = System.getenv("APP_REGION");
+        results.put("strategy_region", Map.of(
+                "strategy", "RegionActivationStrategy (custom — com.chapman...config.RegionActivationStrategy)",
+                "config", "regions=us-east,eu-west → enables only in specified regions",
+                "resolution_order", "1) X-Region HTTP header, 2) APP_REGION env var",
+                "current_APP_REGION", currentRegion != null ? currentRegion : "(not set)",
+                "use_case", "Roll out currency conversion to EU regions first",
+                "how_to_configure", "/togglz-console → CURRENCY_CONVERSION → Strategy: Server/Region → regions=eu-west,us-east"));
+
+        // Step 8: Observability
+        results.put("observability", Map.of(
+                "metrics", "feature_flag_state{feature=X} gauge + feature_flag_checked_total{feature=X} counter",
+                "endpoint", "/actuator/prometheus → scrape feature_flag_* metrics",
+                "logging", "State changes logged at WARN level, periodic summary every 60s at INFO",
+                "console", "/togglz-console — web UI for real-time toggle management"));
+
+        // Step 9: Architecture summary
+        results.put("architecture_insight", Map.of(
+                "library", "Togglz 4.4.0 with Spring Boot Starter",
+                "flags", "CURRENCY_CONVERSION (kill switch), BETA_DASHBOARD (user targeting), ADVANCED_ANALYTICS (gradual), BULK_IMPORT (time window)",
+                "strategies", "5 total: Kill Switch, Gradual Rollout, Username, Release Date, Region (custom)",
+                "storage", "In-memory StateRepository (default) — swap to JDBC/Redis for persistence across restarts",
+                "benefit", "Ship code to production continuously; activate features independently at runtime"));
+
+        results.put("togglz_console_url", "http://localhost:8081/togglz-console");
+
+        return results;
+    }
+
+    // ============================================================
+    // DEMO 9: MCP Sampling — Server Requests AI Completions
     // ============================================================
 
     /**

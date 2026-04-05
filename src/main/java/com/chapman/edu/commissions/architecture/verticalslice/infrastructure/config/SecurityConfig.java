@@ -42,8 +42,9 @@ public class SecurityConfig {
                     "/v3/api-docs/**",
                     "/api-docs/**"
                 ).permitAll()
-                // Allow public access to H2 console
+                // Allow public access to H2 console and Togglz console
                 .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/togglz-console/**").permitAll()
                 // Allow public access to MCP endpoints (for MCP Inspector and clients)
                 .requestMatchers("/api/mcp/**").permitAll()
                 // Allow public access to Spring AI auto-configured Streamable HTTP MCP endpoint
@@ -59,7 +60,8 @@ public class SecurityConfig {
                 .ignoringRequestMatchers(
                     "/h2-console/**",
                     "/api/**",
-                    "/mcp/**"
+                    "/mcp/**",
+                    "/togglz-console/**"
                 ))
             // Allow frames for H2 console
             .headers(headers -> headers
