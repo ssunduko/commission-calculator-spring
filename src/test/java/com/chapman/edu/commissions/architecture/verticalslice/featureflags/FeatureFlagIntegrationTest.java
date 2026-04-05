@@ -29,7 +29,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.jpa.hibernate.ddl-auto=create-drop",
     "spring.datasource.url=jdbc:h2:mem:featureflagdb",
     "spring.flyway.enabled=false",
-    "spring.ai.mcp.server.enabled=false"
+    "spring.ai.mcp.server.enabled=false",
+    "togglz.enabled=true",
+    "togglz.feature-enums=com.chapman.edu.commissions.architecture.verticalslice.infrastructure.config.Features",
+    "togglz.console.enabled=true",
+    "togglz.console.secured=false"
 })
 class FeatureFlagIntegrationTest {
 
