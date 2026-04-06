@@ -3,6 +3,11 @@ package com.chapman.edu.commissions.architecture.verticalslice.infrastructure.co
 import org.togglz.core.Feature;
 import org.togglz.core.annotation.EnabledByDefault;
 import org.togglz.core.annotation.Label;
+import org.togglz.core.user.SimpleFeatureUser;
+import org.togglz.core.user.UserProvider;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
 /**
  * Feature flags for the Vertical Slice application.
  *
@@ -13,9 +18,6 @@ import org.togglz.core.annotation.Label;
  *   User Targeting:  UsernameActivationStrategy — enable for specific users
  *   Time Window:     ReleaseDateActivationStrategy — enable after a specific date
  *   Region:          RegionActivationStrategy (custom) — enable per server/region via env var or header
- *
- * The required UserProvider bean is provided globally via TogglzAutoConfig
- * (registered in META-INF/spring/...AutoConfiguration.imports).
  */
 public enum Features implements Feature {
 
@@ -31,4 +33,12 @@ public enum Features implements Feature {
 
     @Label("Bulk Deal Import")
     BULK_IMPORT;
+
+    @Configuration
+    static class TogglzConfig {
+        @Bean
+        public UserProvider togglzUserProvider() {
+            return () -> new SimpleFeatureUser("admin", true);
+        }
+    }
 }
