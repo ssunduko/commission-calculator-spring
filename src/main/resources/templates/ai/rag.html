@@ -10,11 +10,14 @@
 
     <div class="two-col">
         <!-- General Question -->
-        <div class="card">
+        <div class="card" data-webmcp-tool="askCommissionQuestion"
+             data-webmcp-description="Ask a natural language question about commissions using RAG"
+             data-webmcp-endpoint="/api/ai/rag/ask"
+             data-webmcp-method="POST" data-webmcp-response-key="response">
             <h2>Ask a Question</h2>
             <div class="form-group">
                 <label for="question">Your question about commissions:</label>
-                <textarea id="question" placeholder="e.g., What commission plans are available?"></textarea>
+                <textarea id="question" name="question" placeholder="e.g., What commission plans are available?"></textarea>
             </div>
             <div class="form-group">
                 <label for="docType">Filter by document type (optional):</label>
@@ -32,12 +35,15 @@
         </div>
 
         <!-- Performance Report -->
-        <div class="card">
+        <div class="card" data-webmcp-tool="generatePerformanceReport"
+             data-webmcp-description="Generate an AI performance report for a sales representative"
+             data-webmcp-endpoint="/api/ai/rag/report/{salesRepName}"
+             data-webmcp-method="GET" data-webmcp-response-key="report">
             <h2>Performance Report</h2>
             <p style="color: #666; margin-bottom: 1rem;">Generate a comprehensive performance report for a sales representative using multi-retrieval RAG.</p>
             <div class="form-group">
                 <label for="salesRepName">Sales Rep Name:</label>
-                <input type="text" id="salesRepName" placeholder="e.g., Alice Johnson">
+                <input type="text" id="salesRepName" name="salesRepName" placeholder="e.g., Alice Johnson">
             </div>
             <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
             <div id="reportLoading" class="loading"><div class="spinner"></div> Gathering data and generating report...</div>
@@ -97,6 +103,43 @@ function showResult(id, text, isError) {
     el.textContent = text;
     el.className = 'result-box' + (isError ? ' error' : ' success');
     el.style.display = 'block';
+}
+</script>
+<!-- WebMCP Declarative -->
+<script>
+if (navigator.modelContext) {
+    function mcpFetch(endpoint, method, responseKey, args) {
+        let url = endpoint;
+        (endpoint.match(/\{(\w+)\}/g) || []).forEach(p => {
+            const k = p.replace(/[{}]/g, ''); url = url.replace(p, encodeURIComponent(args[k] || ''));
+        });
+        const opts = { method, signal: AbortSignal.timeout(120000) };
+        if (method === 'POST' || method === 'PUT') {
+            opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(args);
+        }
+        return fetch(url, opts).then(r => r.json()).then(data => {
+            const text = responseKey ? (data[responseKey] || data.error || JSON.stringify(data))
+                                     : (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+            return { content: [{ type: 'text', text }] };
+        }).catch(e => ({ content: [{ type: 'text', text: 'Error: ' + e.message }] }));
+    }
+    document.querySelectorAll('[data-webmcp-tool]').forEach(el => {
+        const name = el.dataset.webmcpTool, description = el.dataset.webmcpDescription;
+        const endpoint = el.dataset.webmcpEndpoint, method = (el.dataset.webmcpMethod || 'GET').toUpperCase();
+        const responseKey = el.dataset.webmcpResponseKey;
+        const properties = {}, required = [];
+        el.querySelectorAll('input[name], textarea[name], select[name]').forEach(inp => {
+            properties[inp.name] = { type: 'string', description: inp.placeholder || inp.name };
+            required.push(inp.name);
+        });
+        try {
+            navigator.modelContext.registerTool({ name, description,
+                inputSchema: { type: 'object', properties, required },
+                execute: (args) => mcpFetch(endpoint, method, responseKey, args)
+            });
+        } catch (e) { console.warn('[WebMCP] ' + name + ':', e.message); }
+    });
+    console.log('[WebMCP Declarative] RAG tools registered');
 }
 </script>
 </body>

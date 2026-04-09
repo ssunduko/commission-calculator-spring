@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.togglz.core.Feature;
@@ -35,6 +36,12 @@ public class FeatureFlagMetrics {
     private final Map<String, AtomicInteger> stateGauges = new ConcurrentHashMap<>();
     private final Map<String, Boolean> previousStates = new ConcurrentHashMap<>();
     private final Map<String, Counter> checkCounters = new ConcurrentHashMap<>();
+
+    @Value("${app.feature-flags.log-summary:true}")
+    private boolean logSummaryEnabled;
+
+    @Value("${app.feature-flags.log-changes:true}")
+    private boolean logChangesEnabled;
 
     public FeatureFlagMetrics(FeatureManager featureManager, MeterRegistry meterRegistry) {
         this.featureManager = featureManager;
@@ -95,7 +102,7 @@ public class FeatureFlagMetrics {
 
             // Detect and log state changes
             Boolean previous = previousStates.get(name);
-            if (previous != null && previous != currentState) {
+            if (logChangesEnabled && previous != null && previous != currentState) {
                 log.warn("[FeatureFlags] FLAG CHANGED: {} {} → {}",
                         name,
                         previous ? "ENABLED" : "DISABLED",
@@ -110,6 +117,9 @@ public class FeatureFlagMetrics {
      */
     @Scheduled(fixedRate = 60000, initialDelay = 5000)
     public void logStateSummary() {
+        if (!logSummaryEnabled) {
+            return;
+        }
         StringBuilder sb = new StringBuilder("[FeatureFlags] Current state:");
         for (Feature feature : featureManager.getFeatures()) {
             boolean active = featureManager.isActive(feature);

@@ -9,19 +9,25 @@
     <p style="color: #666; margin-bottom: 2rem;">AI-generated commission forecasts using historical data and pipeline analysis.</p>
 
     <div class="two-col">
-        <div class="card">
+        <div class="card" data-webmcp-tool="forecastCommissions"
+             data-webmcp-description="Forecast future commission earnings for a sales representative"
+             data-webmcp-endpoint="/api/ai/forecast/user/{userId}"
+             data-webmcp-method="GET" data-webmcp-response-key="forecast">
             <h2>Individual Forecast</h2>
             <p style="color: #666; margin-bottom: 1rem;">Generate a commission forecast for a specific sales representative.</p>
             <div class="form-group">
                 <label for="userId">User ID:</label>
-                <input type="text" id="userId" placeholder="e.g., 1">
+                <input type="text" id="userId" name="userId" placeholder="e.g., 1">
             </div>
             <button class="btn btn-primary" onclick="forecastUser()">Generate Forecast</button>
             <div id="userLoading" class="loading"><div class="spinner"></div> Generating forecast...</div>
             <div id="userResult" class="result-box" style="display:none;"></div>
         </div>
 
-        <div class="card">
+        <div class="card" data-webmcp-tool="forecastTeamCommissions"
+             data-webmcp-description="Forecast commission earnings for the entire sales team"
+             data-webmcp-endpoint="/api/ai/forecast/team"
+             data-webmcp-method="GET" data-webmcp-response-key="forecast">
             <h2>Team Forecast</h2>
             <p style="color: #666; margin-bottom: 1rem;">Generate an aggregated forecast across all sales representatives.</p>
             <button class="btn btn-primary" onclick="forecastTeam()">Generate Team Forecast</button>
@@ -59,6 +65,43 @@ async function forecastTeam() {
 function showLoading(l, r) { document.getElementById(l).classList.add('active'); document.getElementById(r).style.display='none'; }
 function hideLoading(l) { document.getElementById(l).classList.remove('active'); }
 function showResult(id, text, err) { const el=document.getElementById(id); el.textContent=text; el.className='result-box'+(err?' error':' success'); el.style.display='block'; }
+</script>
+<!-- WebMCP Declarative -->
+<script>
+if (navigator.modelContext) {
+    function mcpFetch(endpoint, method, responseKey, args) {
+        let url = endpoint;
+        (endpoint.match(/\{(\w+)\}/g) || []).forEach(p => {
+            const k = p.replace(/[{}]/g, ''); url = url.replace(p, encodeURIComponent(args[k] || ''));
+        });
+        const opts = { method, signal: AbortSignal.timeout(120000) };
+        if (method === 'POST' || method === 'PUT') {
+            opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(args);
+        }
+        return fetch(url, opts).then(r => r.json()).then(data => {
+            const text = responseKey ? (data[responseKey] || data.error || JSON.stringify(data))
+                                     : (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+            return { content: [{ type: 'text', text }] };
+        }).catch(e => ({ content: [{ type: 'text', text: 'Error: ' + e.message }] }));
+    }
+    document.querySelectorAll('[data-webmcp-tool]').forEach(el => {
+        const name = el.dataset.webmcpTool, description = el.dataset.webmcpDescription;
+        const endpoint = el.dataset.webmcpEndpoint, method = (el.dataset.webmcpMethod || 'GET').toUpperCase();
+        const responseKey = el.dataset.webmcpResponseKey;
+        const properties = {}, required = [];
+        el.querySelectorAll('input[name], textarea[name], select[name]').forEach(inp => {
+            properties[inp.name] = { type: 'string', description: inp.placeholder || inp.name };
+            required.push(inp.name);
+        });
+        try {
+            navigator.modelContext.registerTool({ name, description,
+                inputSchema: { type: 'object', properties, required },
+                execute: (args) => mcpFetch(endpoint, method, responseKey, args)
+            });
+        } catch (e) { console.warn('[WebMCP] ' + name + ':', e.message); }
+    });
+    console.log('[WebMCP Declarative] Forecast tools registered');
+}
 </script>
 </body>
 </html>

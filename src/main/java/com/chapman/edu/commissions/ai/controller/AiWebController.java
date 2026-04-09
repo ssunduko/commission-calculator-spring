@@ -85,4 +85,14 @@ public class AiWebController {
         model.addAttribute("workflowAgents", workflowOrchestrator.getRegisteredAgents());
         return "ai/workflow";
     }
+
+    @GetMapping("/webmcp")
+    public String webmcp(Model model) {
+        Map<String, String> agentTools = new java.util.LinkedHashMap<>();
+        reActAgent.getTools().forEach((name, tool) ->
+                agentTools.put(name, tool.getDescription()));
+        model.addAttribute("agentTools", agentTools);
+        model.addAttribute("workflowAgents", workflowOrchestrator.getRegisteredAgents());
+        return "ai/webmcp";
+    }
 }

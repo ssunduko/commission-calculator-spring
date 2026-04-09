@@ -1,0 +1,136 @@
+@startuml C4_Level2_Container_AI
+!include <C4/C4_Container>
+
+title Container Diagram — Commission Calculator AI Module
+
+' ============================================================
+' C4 LEVEL 2: CONTAINER DIAGRAM — AI MODULE
+' ============================================================
+' Zooms into the AI module (com.chapman.edu.commissions.ai)
+' to show the major technical containers and how they interact.
+'
+' The AI module layers intelligence ON TOP of the existing ORM
+' data access layer, adding LLM-powered analysis, RAG search,
+' prompt engineering, and multi-agent workflows.
+'
+' ARCHITECTURE LAYERS:
+' ┌──────────────────────────────────────────────────┐
+' │  Web UI (Thymeleaf)  │  REST API  │  MCP Server  │  ← Presentation
+' ├──────────────────────────────────────────────────┤
+' │  AI Services (ML, RAG, Agent, Workflow)          │  ← AI Business Logic
+' ├──────────────────────────────────────────────────┤
+' │  Prompt Templates  │  Vector Store  │  Moderation │  ← AI Infrastructure
+' ├──────────────────────────────────────────────────┤
+' │  ORM Layer (entities, repositories, services)    │  ← Data Access (reused)
+' ├──────────────────────────────────────────────────┤
+' │  H2 Database                                     │  ← Storage
+' └──────────────────────────────────────────────────┘
+' ============================================================
+
+Person(user, "User", "Sales rep, manager,\nor finance admin")
+Person(aiAgent, "AI Agent", "LLM client using\nMCP or WebMCP protocol")
+
+System_Boundary(aiModule, "AI Module (com.chapman.edu.commissions.ai)") {
+
+    Container(webUI, "Web UI", "Thymeleaf + JavaScript", "8 interactive pages:\nRAG Q&A, Explainer, Disputes,\nForecasting, Anomaly Detection,\nModeration, Agent, Workflow.\nWebMCP declarative tool registration.")
+
+    Container(restApi, "REST API", "Spring MVC\nCommissionController", "Exposes all AI capabilities\nas REST endpoints at /api/ai/**.\nRAG, explain, forecast, anomaly,\nmoderation, agent, workflow.")
+
+    Container(mcpServer, "MCP Server", "Streamable HTTP\nat /mcp", "11 AI-powered MCP tools\nregistered via @Tool annotations.\nAccessible by Claude Desktop\nand MCP Inspector.")
+
+    Container(webmcpPage, "WebMCP Page", "Imperative API\nnavigator.modelContext", "Registers 11 browser-native\ntools via Chrome WebMCP API.\nAI agents discover tools\ndirectly from the browser.")
+
+    Container(ragService, "RAG Service", "CommissionRagService\n+ EmbeddingSearchService", "Retrieval-Augmented Generation:\nSearches vector store for\nrelevant docs, augments prompt\nwith retrieved context.")
+
+    Container(mlServices, "ML Services", "Explainer, Forecasting,\nAnomaly, Dispute Analysis", "4 AI-powered analysis services\nusing Claude via ChatClient.\nEach service builds domain-specific\nprompts for focused analysis.")
+
+    Container(agentService, "ReAct Agent", "CommissionReActAgent\n+ CommissionToolRegistry", "Reasoning agent with\nThought → Action → Observation\nloop. Uses registered tools\nto gather data before answering.")
+
+    Container(workflowEngine, "Workflow Engine", "CommissionWorkflowOrchestrator\n+ 4 Specialized Agents", "Multi-agent pipeline:\nData Gathering → Compliance\n→ Anomaly Analysis →\nReport Generation.")
+
+    Container(promptService, "Prompt Templates", "PromptTemplateService", "Template-based prompt management\nwith role assignment, context\ninjection, and chain-of-thought\nprompting techniques.")
+
+    Container(vectorStore, "Vector Store", "SimpleVectorStore\n+ ONNX Embeddings", "In-memory vector database\nfor semantic search.\nDocuments embedded locally\nvia Transformers model.")
+
+    Container(moderationService, "Moderation", "ModerationService", "4-layer guardrail pipeline:\n1) Null/empty check\n2) Length limit (2000 chars)\n3) Prompt injection detection\n4) Topic boundary enforcement")
+
+    Container(aiConfig, "AI Configuration", "AiConfig + VectorStoreConfig", "Spring AI setup:\nChatClient with system prompt,\nAnthropicChatModel auto-config,\nVectorStore persistence.")
+}
+
+System_Ext(claudeApi, "Anthropic Claude API", "Claude Sonnet 4\nLLM inference")
+System_Ext(ormLayer, "ORM Layer", "Entities, repositories,\nFlyway migrations,\nH2 database")
+System_Ext(mcpInspector, "MCP Inspector", "Browser-based MCP\ntool testing")
+
+' --- User interactions ---
+Rel(user, webUI, "Interacts with\nAI features", "HTTPS")
+Rel(user, restApi, "Direct API calls", "HTTPS")
+
+' --- AI Agent interactions ---
+Rel(aiAgent, mcpServer, "Discovers and invokes\n11 AI tools", "Streamable HTTP\nMCP protocol")
+Rel(aiAgent, webmcpPage, "Discovers tools\nfrom browser context", "Chrome WebMCP API\nnavigator.modelContext")
+
+' --- Presentation → Services ---
+Rel(webUI, restApi, "fetch() calls to\n/api/ai/** endpoints", "HTTP/JSON")
+Rel(restApi, ragService, "Q&A and reports", "Method calls")
+Rel(restApi, mlServices, "Explain, forecast,\nanomaly, disputes", "Method calls")
+Rel(restApi, agentService, "Agent reasoning", "Method calls")
+Rel(restApi, workflowEngine, "Multi-agent review", "Method calls")
+Rel(restApi, moderationService, "Input validation,\nclassification,\noutput sanitization", "Method calls")
+
+' --- MCP → Services ---
+Rel(mcpServer, ragService, "RAG tools", "Method calls")
+Rel(mcpServer, mlServices, "Analysis tools", "Method calls")
+Rel(mcpServer, workflowEngine, "Review tool", "Method calls")
+
+' --- Services → AI Infrastructure ---
+Rel(ragService, vectorStore, "Semantic search\nfor relevant docs", "VectorStore API")
+Rel(ragService, promptService, "Augmented prompts", "Method calls")
+Rel(mlServices, promptService, "Domain-specific\nprompt templates", "Method calls")
+Rel(agentService, promptService, "ReAct prompts", "Method calls")
+
+' --- Services → External ---
+Rel(ragService, claudeApi, "LLM inference", "HTTPS / Anthropic SDK")
+Rel(mlServices, claudeApi, "LLM inference", "HTTPS / Anthropic SDK")
+Rel(agentService, claudeApi, "LLM inference", "HTTPS / Anthropic SDK")
+Rel(workflowEngine, claudeApi, "LLM inference\n(4 agents)", "HTTPS / Anthropic SDK")
+Rel(moderationService, claudeApi, "AI classification", "HTTPS / Anthropic SDK")
+
+' --- Data Access ---
+Rel(ragService, ormLayer, "Loads commission data\nfor document embedding", "Spring Data JPA")
+Rel(mlServices, ormLayer, "Reads calculations,\nplans, deals, disputes", "Spring Data JPA")
+Rel(agentService, ormLayer, "Tool lookups", "Spring Data JPA")
+Rel(workflowEngine, ormLayer, "Data gathering agent\nreads all entities", "Spring Data JPA")
+
+' --- Configuration ---
+Rel(aiConfig, claudeApi, "Configures ChatClient\nwith API key + model", "Spring AI auto-config")
+Rel(aiConfig, vectorStore, "Configures embedding\nmodel + persistence", "Spring beans")
+
+Rel(mcpInspector, mcpServer, "Browse and test\nAI tools", "Streamable HTTP")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' AI MODULE DESIGN:
+' The AI module demonstrates a layered AI architecture where
+' each service wraps a specific AI capability (RAG, analysis,
+' agents, workflows) and exposes it through three channels:
+' 1. REST API (/api/ai/**) for web UI and direct consumers
+' 2. MCP Server (/mcp) for AI agents via Streamable HTTP
+' 3. WebMCP (browser-native) for Chrome 146+ agent discovery
+'
+' KEY PATTERNS:
+' - ChatClient: Fluent API for LLM calls with system prompts
+' - RAG: Vector search → context augmentation → LLM generation
+' - ReAct: Thought → Action → Observation reasoning loop
+' - Multi-Agent: Pipeline of specialized agents sharing state
+' - Guardrails: 4-layer moderation before/after LLM calls
+'
+' TECHNOLOGY:
+' - Spring AI 1.1.0 with Anthropic Claude integration
+' - ONNX Transformers for local embedding generation
+' - SimpleVectorStore for in-memory semantic search
+' - Thymeleaf for server-rendered UI with WebMCP integration
+' - 37 Java files across 8 packages
+' ============================================================
+
+@enduml

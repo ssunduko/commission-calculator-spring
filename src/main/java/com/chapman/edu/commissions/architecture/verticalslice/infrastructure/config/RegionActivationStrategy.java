@@ -47,12 +47,10 @@ public class RegionActivationStrategy implements ActivationStrategy {
         if (enabledRegions == null || enabledRegions.isBlank()) {
             return false;
         }
-
         String currentRegion = resolveCurrentRegion();
         if (currentRegion == null || currentRegion.isBlank()) {
             return false;
         }
-
         for (String region : enabledRegions.split(",")) {
             if (region.trim().equalsIgnoreCase(currentRegion.trim())) {
                 return true;
@@ -60,16 +58,6 @@ public class RegionActivationStrategy implements ActivationStrategy {
         }
         return false;
     }
-
-    @Override
-    public Parameter[] getParameters() {
-        return new Parameter[]{
-                ParameterBuilder.create(PARAM_REGIONS)
-                        .label("Enabled Regions")
-                        .description("Comma-separated list of regions where this feature is active (e.g. us-east,eu-west,staging)")
-        };
-    }
-
     private String resolveCurrentRegion() {
         // 1. Check X-Region HTTP header (per-request)
         try {
@@ -88,4 +76,14 @@ public class RegionActivationStrategy implements ActivationStrategy {
         // 2. Fall back to APP_REGION environment variable (server-level)
         return System.getenv("APP_REGION");
     }
+
+    @Override
+    public Parameter[] getParameters() {
+        return new Parameter[]{
+                ParameterBuilder.create(PARAM_REGIONS)
+                        .label("Enabled Regions")
+                        .description("Comma-separated list of regions where this feature is active (e.g. us-east,eu-west,staging)")
+        };
+    }
+
 }

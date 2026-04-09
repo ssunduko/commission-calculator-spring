@@ -9,24 +9,30 @@
     <p style="color: #666; margin-bottom: 2rem;">AI-powered dispute resolution analysis and priority triage.</p>
 
     <div class="two-col">
-        <div class="card">
+        <div class="card" data-webmcp-tool="analyzeDispute"
+             data-webmcp-description="AI-powered detailed analysis of a commission dispute"
+             data-webmcp-endpoint="/api/ai/disputes/analyze/{disputeId}"
+             data-webmcp-method="GET" data-webmcp-response-key="analysis">
             <h2>Full Dispute Analysis</h2>
             <p style="color: #666; margin-bottom: 1rem;">Get a comprehensive analysis including validity assessment, factors, and recommended resolution.</p>
             <div class="form-group">
                 <label for="disputeId">Dispute ID:</label>
-                <input type="text" id="disputeId" placeholder="e.g., 1">
+                <input type="text" id="disputeId" name="disputeId" placeholder="e.g., 1">
             </div>
             <button class="btn btn-primary" onclick="analyzeDispute()">Analyze</button>
             <div id="analyzeLoading" class="loading"><div class="spinner"></div> Analyzing dispute...</div>
             <div id="analyzeResult" class="result-box" style="display:none;"></div>
         </div>
 
-        <div class="card">
+        <div class="card" data-webmcp-tool="triageDispute"
+             data-webmcp-description="AI triage of a commission dispute: categorize severity and recommend action"
+             data-webmcp-endpoint="/api/ai/disputes/triage/{disputeId}"
+             data-webmcp-method="GET" data-webmcp-response-key="triage">
             <h2>Quick Triage</h2>
             <p style="color: #666; margin-bottom: 1rem;">Get a quick priority assessment (HIGH, MEDIUM, LOW) for queue management.</p>
             <div class="form-group">
                 <label for="triageId">Dispute ID:</label>
-                <input type="text" id="triageId" placeholder="e.g., 1">
+                <input type="text" id="triageId" name="disputeId" placeholder="e.g., 1">
             </div>
             <button class="btn btn-primary" onclick="triageDispute()">Triage</button>
             <div id="triageLoading" class="loading"><div class="spinner"></div> Triaging dispute...</div>
@@ -65,6 +71,43 @@ async function triageDispute() {
 function showLoading(l, r) { document.getElementById(l).classList.add('active'); document.getElementById(r).style.display='none'; }
 function hideLoading(l) { document.getElementById(l).classList.remove('active'); }
 function showResult(id, text, err) { const el=document.getElementById(id); el.textContent=text; el.className='result-box'+(err?' error':' success'); el.style.display='block'; }
+</script>
+<!-- WebMCP Declarative -->
+<script>
+if (navigator.modelContext) {
+    function mcpFetch(endpoint, method, responseKey, args) {
+        let url = endpoint;
+        (endpoint.match(/\{(\w+)\}/g) || []).forEach(p => {
+            const k = p.replace(/[{}]/g, ''); url = url.replace(p, encodeURIComponent(args[k] || ''));
+        });
+        const opts = { method, signal: AbortSignal.timeout(120000) };
+        if (method === 'POST' || method === 'PUT') {
+            opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(args);
+        }
+        return fetch(url, opts).then(r => r.json()).then(data => {
+            const text = responseKey ? (data[responseKey] || data.error || JSON.stringify(data))
+                                     : (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+            return { content: [{ type: 'text', text }] };
+        }).catch(e => ({ content: [{ type: 'text', text: 'Error: ' + e.message }] }));
+    }
+    document.querySelectorAll('[data-webmcp-tool]').forEach(el => {
+        const name = el.dataset.webmcpTool, description = el.dataset.webmcpDescription;
+        const endpoint = el.dataset.webmcpEndpoint, method = (el.dataset.webmcpMethod || 'GET').toUpperCase();
+        const responseKey = el.dataset.webmcpResponseKey;
+        const properties = {}, required = [];
+        el.querySelectorAll('input[name], textarea[name], select[name]').forEach(inp => {
+            properties[inp.name] = { type: 'string', description: inp.placeholder || inp.name };
+            required.push(inp.name);
+        });
+        try {
+            navigator.modelContext.registerTool({ name, description,
+                inputSchema: { type: 'object', properties, required },
+                execute: (args) => mcpFetch(endpoint, method, responseKey, args)
+            });
+        } catch (e) { console.warn('[WebMCP] ' + name + ':', e.message); }
+    });
+    console.log('[WebMCP Declarative] Dispute tools registered');
+}
 </script>
 </body>
 </html>

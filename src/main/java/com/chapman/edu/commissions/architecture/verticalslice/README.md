@@ -271,7 +271,65 @@ An AI agent can:
 Build the application JAR before testing:
 
 ```bash
-mvn clean package -DskipTests
+mvn clean package -DskipTests -Pverticalslice                                                                                                                         
+```
+
+---
+
+### Interactive MCP CLI
+
+The MCP CLI provides a REPL for exploring and invoking MCP tools, prompts, and resources from the terminal — no external MCP client (Claude Desktop, Inspector) needed.
+
+#### Running the CLI
+
+```bash
+# Build first
+mvn clean package -DskipTests -Pverticalslice
+
+# Run with the cli profile
+java -Dspring.profiles.active=cli -jar target/commission-calculator-0.0.1-SNAPSHOT.jar
+```
+
+Or with Maven directly:
+
+```bash
+mvn spring-boot:run -Pverticalslice -Dspring-boot.run.profiles=cli
+```
+
+#### CLI Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `help` | Show available commands | `help` |
+| `tools` | List all 31 MCP tools | `tools` |
+| `tool <name> [json]` | Invoke a tool | `tool getAllDeals` |
+| `prompts` | List all MCP prompts | `prompts` |
+| `prompt <name>` | Show prompt details | `prompt create-commission-workflow` |
+| `resources` | List all MCP resources | `resources` |
+| `resource <uri>` | Read a resource | `resource deals://all` |
+| `templates` | List resource templates | `templates` |
+| `search <keyword>` | Search tools by name/description | `search deal` |
+| `exit` | Exit the CLI | `exit` |
+
+#### CLI Examples
+
+```
+> tools
+  31 tools available: createDeal, getDeal, getAllDeals, ...
+
+> tool getAllDeals
+  [{ "id": "deal-001", "title": "Enterprise License", ... }]
+
+> tool createDeal {"title":"New Deal","value":50000,"salesRepId":"REP001"}
+  { "id": "...", "title": "New Deal", "value": 50000, ... }
+
+> search commission
+  5 matches: calculateCommission, getCommissionCalculation, ...
+
+> resource deals://all
+  [All deals as JSON]
+
+> exit
 ```
 
 ---

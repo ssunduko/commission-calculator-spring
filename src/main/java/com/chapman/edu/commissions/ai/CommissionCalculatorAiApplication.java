@@ -1,7 +1,11 @@
 package com.chapman.edu.commissions.ai;
 
+import com.chapman.edu.commissions.ai.mcp.AiMcpTools;
+import org.springframework.ai.tool.ToolCallbackProvider;
+import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 /**
@@ -63,6 +67,19 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 public class CommissionCalculatorAiApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(CommissionCalculatorAiApplication.class, args);
+        SpringApplication app = new SpringApplication(CommissionCalculatorAiApplication.class);
+        app.setAdditionalProfiles("ai");
+        app.run(args);
+    }
+
+    /**
+     * Register AI MCP tools for the Streamable HTTP MCP server.
+     * The annotation scanner picks up @Tool methods from this provider.
+     */
+    @Bean
+    public ToolCallbackProvider aiToolCallbackProvider(AiMcpTools aiMcpTools) {
+        return MethodToolCallbackProvider.builder()
+                .toolObjects(aiMcpTools)
+                .build();
     }
 }

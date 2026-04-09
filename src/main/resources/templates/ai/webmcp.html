@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('WebMCP')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='webmcp'"></nav>
+
+<div class="container">
+    <div class="card">
+        <h2>WebMCP &mdash; Imperative Tool Registration</h2>
+        <p>This page implements the <a href="https://webmachinelearning.github.io/webmcp/" target="_blank">WebMCP specification</a>,
+           registering commission AI tools via the imperative <code>navigator.modelContext.registerTool()</code> API.
+           AI agents can discover and invoke these tools directly from the browser context.</p>
+        <p style="margin-top:0.5rem; color:#666; font-size:0.9rem;">
+            WebMCP treats this web page as an MCP server &mdash; tools execute client-side JavaScript that calls
+            the backend REST API, enabling collaborative agent-user workflows.
+        </p>
+    </div>
+
+    <!-- Registration Status -->
+    <div class="card">
+        <h2>Tool Registration Status</h2>
+        <div id="status-message" class="result-box" style="display:none;"></div>
+        <div style="margin-top:1rem; display:flex; gap:0.75rem;">
+            <button class="btn btn-primary" onclick="registerAllTools()">Register All Tools</button>
+            <button class="btn btn-danger" onclick="unregisterAllTools()">Unregister All</button>
+            <span id="tool-count" class="badge badge-purple" style="align-self:center;"></span>
+        </div>
+    </div>
+
+    <!-- Registered Tools Table -->
+    <div class="card">
+        <h2>Registered WebMCP Tools</h2>
+        <table id="tools-table">
+            <thead>
+                <tr>
+                    <th>Tool Name</th>
+                    <th>Description</th>
+                    <th>Read-Only</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tools-body">
+                <tr><td colspan="5" style="color:#999; text-align:center;">No tools registered. Click "Register All Tools" above.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Tool Invocation Panel -->
+    <div class="card">
+        <h2>Invoke Tool</h2>
+        <div class="two-col">
+            <div>
+                <div class="form-group">
+                    <label for="invoke-tool">Select Tool</label>
+                    <select id="invoke-tool">
+                        <option value="">-- Register tools first --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="invoke-input">Input (JSON)</label>
+                    <textarea id="invoke-input" placeholder='{"question": "What commission plans are available?"}'></textarea>
+                </div>
+                <button class="btn btn-success" onclick="invokeTool()">Execute Tool</button>
+                <div class="loading" id="invoke-loading">
+                    <div class="spinner"></div>
+                    <span>Executing tool via WebMCP...</span>
+                </div>
+            </div>
+            <div>
+                <label style="font-weight:600;">Result</label>
+                <div id="invoke-result" class="result-box" style="min-height:200px; margin-top:0.5rem;">Results will appear here after tool execution.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WebMCP API Reference -->
+    <div class="card">
+        <h2>WebMCP Specification Reference</h2>
+        <div class="two-col">
+            <div>
+                <h3>Imperative API</h3>
+                <pre style="background:#f8f5fc; padding:1rem; border-radius:6px; font-size:0.85rem; overflow-x:auto;">navigator.modelContext.registerTool({
+  name: "askCommissionQuestion",
+  description: "RAG-powered Q&amp;A about commissions",
+  inputSchema: {
+    type: "object",
+    properties: {
+      question: { type: "string" }
+    },
+    required: ["question"]
+  },
+  execute: async (input, client) =&gt; {
+    const res = await fetch("/api/ai/rag/ask", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(input)
+    });
+    return await res.json();
+  },
+  annotations: { readOnlyHint: true }
+});</pre>
+            </div>
+            <div>
+                <h3>Key Concepts</h3>
+                <div class="step-card">
+                    <span class="step-num">1</span>
+                    <strong>registerTool()</strong> &mdash; Registers a tool with name, schema, and execute callback
+                </div>
+                <div class="step-card">
+                    <span class="step-num">2</span>
+                    <strong>inputSchema</strong> &mdash; JSON Schema describing the tool's parameters
+                </div>
+                <div class="step-card">
+                    <span class="step-num">3</span>
+                    <strong>execute callback</strong> &mdash; Async function invoked when an agent calls the tool
+                </div>
+                <div class="step-card">
+                    <span class="step-num">4</span>
+                    <strong>AbortSignal</strong> &mdash; Unregisters tools via <code>AbortController.abort()</code>
+                </div>
+                <div class="step-card">
+                    <span class="step-num">5</span>
+                    <strong>readOnlyHint</strong> &mdash; Annotation indicating the tool only reads data
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    WebMCP Implementation &mdash; Commission Calculator AI Module &mdash;
+    <a href="https://webmachinelearning.github.io/webmcp/" target="_blank">Spec</a>
+</div>
+
+<script th:inline="javascript">
+/*
+ * ============================================================
+ * WebMCP Imperative Implementation
+ * ============================================================
+ *
+ * Uses Chrome 146+ native navigator.modelContext.registerTool() API.
+ * Requires: chrome://flags -> "WebMCP" -> Enabled -> Relaunch
+ *
+ * Execute callbacks return MCP content format:
+ *   { content: [{ type: 'text', text: '...' }] }
+ */
+
+// Check for Chrome native WebMCP support
+if (!navigator.modelContext) {
+    document.getElementById('status-message').style.display = 'block';
+    document.getElementById('status-message').className = 'result-box error';
+    document.getElementById('status-message').textContent =
+        'navigator.modelContext not available. Enable in chrome://flags -> "WebMCP" -> Enabled -> Relaunch Chrome.';
+}
+
+// Local tracking for UI display (Chrome API doesn't expose a list method)
+const registeredTools = new Map();
+
+// ============================================================
+// Tool Definitions (backed by Spring Boot REST API)
+// ============================================================
+const BASE = '/api/ai';
+
+const TOOL_DEFINITIONS = [
+    {
+        name: 'askCommissionQuestion',
+        description: 'Ask a natural language question about commissions using RAG (Retrieval-Augmented Generation).',
+        inputSchema: {
+            type: 'object',
+            properties: { question: { type: 'string', description: 'The question to ask' } },
+            required: ['question']
+        },
+        endpoint: `${BASE}/rag/ask`,
+        method: 'POST',
+        bodyKey: 'question',
+        readOnly: true
+    },
+    {
+        name: 'generatePerformanceReport',
+        description: 'Generate an AI-powered performance report for a sales representative.',
+        inputSchema: {
+            type: 'object',
+            properties: { salesRepName: { type: 'string', description: 'Name of the sales rep' } },
+            required: ['salesRepName']
+        },
+        endpoint: `${BASE}/rag/report`,
+        method: 'POST',
+        bodyKey: 'salesRepName',
+        readOnly: true
+    },
+    {
+        name: 'explainCommissionCalculation',
+        description: 'Use AI to explain how a specific commission calculation was computed.',
+        inputSchema: {
+            type: 'object',
+            properties: { calculationId: { type: 'string', description: 'The calculation ID' } },
+            required: ['calculationId']
+        },
+        endpoint: `${BASE}/explain/calculation`,
+        method: 'POST',
+        bodyKey: 'calculationId',
+        readOnly: true
+    },
+    {
+        name: 'explainCommissionPlan',
+        description: 'Use AI to explain a commission plan in plain language.',
+        inputSchema: {
+            type: 'object',
+            properties: { planId: { type: 'string', description: 'The plan ID' } },
+            required: ['planId']
+        },
+        endpoint: `${BASE}/explain/plan`,
+        method: 'POST',
+        bodyKey: 'planId',
+        readOnly: true
+    },
+    {
+        name: 'analyzeDispute',
+        description: 'Perform AI-powered detailed analysis of a commission dispute.',
+        inputSchema: {
+            type: 'object',
+            properties: { disputeId: { type: 'string', description: 'The dispute ID' } },
+            required: ['disputeId']
+        },
+        endpoint: `${BASE}/disputes/analyze`,
+        method: 'POST',
+        bodyKey: 'disputeId',
+        readOnly: true
+    },
+    {
+        name: 'triageDispute',
+        description: 'AI triage of a commission dispute: categorize severity and recommend action.',
+        inputSchema: {
+            type: 'object',
+            properties: { disputeId: { type: 'string', description: 'The dispute ID' } },
+            required: ['disputeId']
+        },
+        endpoint: `${BASE}/disputes/triage`,
+        method: 'POST',
+        bodyKey: 'disputeId',
+        readOnly: true
+    },
+    {
+        name: 'forecastCommissions',
+        description: 'Forecast future commission earnings for a sales representative.',
+        inputSchema: {
+            type: 'object',
+            properties: { userId: { type: 'string', description: 'The sales rep user ID' } },
+            required: ['userId']
+        },
+        endpoint: `${BASE}/forecast/user`,
+        method: 'POST',
+        bodyKey: 'userId',
+        readOnly: true
+    },
+    {
+        name: 'forecastTeamCommissions',
+        description: 'Forecast commission earnings for the entire sales team.',
+        inputSchema: { type: 'object', properties: {} },
+        endpoint: `${BASE}/forecast/team`,
+        method: 'POST',
+        bodyKey: null,
+        readOnly: true
+    },
+    {
+        name: 'detectCommissionAnomalies',
+        description: 'Scan all commission calculations for anomalies using AI.',
+        inputSchema: { type: 'object', properties: {} },
+        endpoint: `${BASE}/anomaly/detect`,
+        method: 'POST',
+        bodyKey: null,
+        readOnly: true
+    },
+    {
+        name: 'checkCalculationForAnomalies',
+        description: 'Check a specific commission calculation for anomalies.',
+        inputSchema: {
+            type: 'object',
+            properties: { calculationId: { type: 'string', description: 'The calculation ID' } },
+            required: ['calculationId']
+        },
+        endpoint: `${BASE}/anomaly/check`,
+        method: 'POST',
+        bodyKey: 'calculationId',
+        readOnly: true
+    },
+    {
+        name: 'executeCommissionReview',
+        description: 'Execute a multi-agent AI workflow to review commissions comprehensively.',
+        inputSchema: {
+            type: 'object',
+            properties: { request: { type: 'string', description: 'What to review' } },
+            required: ['request']
+        },
+        endpoint: `${BASE}/workflow/review`,
+        method: 'POST',
+        bodyKey: 'request',
+        readOnly: false
+    }
+];
+
+
+// ============================================================
+// Registration Functions
+// ============================================================
+
+function registerAllTools() {
+    if (!navigator.modelContext) return;
+    const statusEl = document.getElementById('status-message');
+    let registered = 0;
+    let skipped = 0;
+    const errors = [];
+
+    TOOL_DEFINITIONS.forEach(def => {
+        if (registeredTools.has(def.name)) {
+            skipped++;
+            return;
+        }
+        try {
+            navigator.modelContext.registerTool({
+                name: def.name,
+                description: def.description,
+                inputSchema: def.inputSchema,
+                async execute(args) {
+                    const callback = createExecuteCallback(def);
+                    return await callback(args);
+                }
+            });
+
+            registeredTools.set(def.name, def);
+            registered++;
+        } catch (e) {
+            errors.push(`${def.name}: ${e.message}`);
+        }
+    });
+
+    statusEl.style.display = 'block';
+    if (errors.length > 0) {
+        statusEl.className = 'result-box error';
+        statusEl.textContent = `Registered ${registered}, skipped ${skipped}, errors: ${errors.join('; ')}`;
+    } else {
+        statusEl.className = 'result-box success';
+        statusEl.textContent = `Registered ${registered} WebMCP tools${skipped > 0 ? ` (${skipped} already registered)` : ''}. Visible to AI agents in Chrome.`;
+    }
+
+    refreshToolsTable();
+    refreshToolSelect();
+}
+
+function unregisterAllTools() {
+    if (!navigator.modelContext) return;
+    registeredTools.forEach((def, name) => {
+        try { navigator.modelContext.unregisterTool(name); } catch (e) {}
+    });
+    registeredTools.clear();
+
+    const statusEl = document.getElementById('status-message');
+    statusEl.style.display = 'block';
+    statusEl.className = 'result-box';
+    statusEl.textContent = 'All tools unregistered.';
+
+    refreshToolsTable();
+    refreshToolSelect();
+}
+
+function unregisterSingleTool(name) {
+    try { navigator.modelContext.unregisterTool(name); } catch (e) {}
+    registeredTools.delete(name);
+    refreshToolsTable();
+    refreshToolSelect();
+}
+
+// ============================================================
+// Execute Callback — returns MCP content format
+// { content: [{ type: 'text', text: '...' }] }
+// ============================================================
+
+function createExecuteCallback(def) {
+    return async function(args) {
+        try {
+            const fetchOptions = {
+                method: def.method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (def.bodyKey && args[def.bodyKey] !== undefined) {
+                fetchOptions.body = JSON.stringify({ [def.bodyKey]: args[def.bodyKey] });
+            } else if (def.method === 'POST') {
+                fetchOptions.body = JSON.stringify(args);
+            }
+            const response = await fetch(def.endpoint, fetchOptions);
+            let resultText;
+            if (!response.ok) {
+                resultText = `Error HTTP ${response.status}: ${await response.text()}`;
+            } else {
+                const ct = response.headers.get('content-type') || '';
+                if (ct.includes('json')) {
+                    const data = await response.json();
+                    resultText = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+                } else {
+                    resultText = await response.text();
+                }
+            }
+            return { content: [{ type: 'text', text: resultText }] };
+        } catch (e) {
+            return { content: [{ type: 'text', text: `Error: ${e.message}` }] };
+        }
+    };
+}
+
+// ============================================================
+// UI Rendering
+// ============================================================
+
+function refreshToolsTable() {
+    const tools = Array.from(registeredTools.values());
+    const tbody = document.getElementById('tools-body');
+    const countEl = document.getElementById('tool-count');
+
+    countEl.textContent = `${tools.length} tools registered`;
+
+    if (tools.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#999; text-align:center;">No tools registered. Click "Register All Tools" above.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = tools.map(def => `
+        <tr>
+            <td><code>${def.name}</code></td>
+            <td style="font-size:0.9rem;">${def.description}</td>
+            <td>${def.readOnly ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-orange">No</span>'}</td>
+            <td><span class="badge badge-purple">Active</span></td>
+            <td><button class="btn btn-danger" style="padding:0.25rem 0.5rem; font-size:0.8rem;" onclick="unregisterSingleTool('${def.name}')">Unregister</button></td>
+        </tr>
+    `).join('');
+}
+
+function refreshToolSelect() {
+    const tools = Array.from(registeredTools.values());
+    const select = document.getElementById('invoke-tool');
+    select.innerHTML = tools.length === 0
+        ? '<option value="">-- Register tools first --</option>'
+        : tools.map(def => `<option value="${def.name}">${def.name}</option>`).join('');
+
+    // Pre-fill input schema hint
+    select.onchange = function() {
+        const def = TOOL_DEFINITIONS.find(d => d.name === select.value);
+        if (def && def.inputSchema.properties) {
+            const example = {};
+            Object.entries(def.inputSchema.properties).forEach(([k, v]) => {
+                example[k] = v.description || k;
+            });
+            document.getElementById('invoke-input').placeholder = JSON.stringify(example, null, 2);
+        }
+    };
+    if (select.options.length > 0) select.onchange();
+}
+
+// ============================================================
+// Tool Invocation (via WebMCP navigator.modelContext.invokeTool)
+// ============================================================
+
+async function invokeTool() {
+    const toolName = document.getElementById('invoke-tool').value;
+    const inputText = document.getElementById('invoke-input').value.trim();
+    const resultEl = document.getElementById('invoke-result');
+    const loadingEl = document.getElementById('invoke-loading');
+
+    if (!toolName) {
+        resultEl.className = 'result-box error';
+        resultEl.textContent = 'Please select a tool.';
+        return;
+    }
+
+    let input = {};
+    if (inputText) {
+        try {
+            input = JSON.parse(inputText);
+        } catch (e) {
+            resultEl.className = 'result-box error';
+            resultEl.textContent = 'Invalid JSON: ' + e.message;
+            return;
+        }
+    }
+
+    loadingEl.classList.add('active');
+    resultEl.className = 'result-box';
+    resultEl.textContent = 'Executing...';
+
+    try {
+        // Execute the tool's callback directly for manual testing
+        const def = registeredTools.get(toolName);
+        if (!def) throw new Error(`Tool "${toolName}" not found`);
+        const callback = createExecuteCallback(def);
+        const result = await callback(input);
+        const text = result?.content?.[0]?.text || JSON.stringify(result, null, 2);
+        resultEl.className = 'result-box success';
+        resultEl.textContent = text;
+    } catch (e) {
+        resultEl.className = 'result-box error';
+        resultEl.textContent = 'Error: ' + e.message;
+    } finally {
+        loadingEl.classList.remove('active');
+    }
+}
+
+// Initialize
+refreshToolsTable();
+</script>
+</body>
+</html>

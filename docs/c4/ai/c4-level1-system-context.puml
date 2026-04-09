@@ -1,0 +1,84 @@
+@startuml C4_Level1_System_Context_AI
+!include <C4/C4_Context>
+
+title System Context Diagram — Commission Calculator AI Module
+
+' ============================================================
+' C4 LEVEL 1: SYSTEM CONTEXT — AI MODULE
+' ============================================================
+' Shows the AI-enhanced Commission Calculator system and all
+' the people and external systems it interacts with.
+'
+' The AI module adds intelligence ON TOP of the base commission
+' system: natural language Q&A, forecasting, anomaly detection,
+' dispute analysis, multi-agent workflows, and moderation.
+'
+' THREE ACCESS CHANNELS:
+' 1. Web UI — Thymeleaf pages with WebMCP tool registration
+' 2. REST API — /api/ai/** endpoints for programmatic access
+' 3. MCP Server — Streamable HTTP at /mcp for AI agents
+' ============================================================
+
+Person(salesRep, "Sales Representative", "Asks questions about commissions,\nviews forecasts, files disputes,\nuses AI explainer for calculations")
+Person(salesManager, "Sales Manager", "Reviews team forecasts,\nanalyzes anomalies,\nruns AI-powered commission reviews")
+Person(financeAdmin, "Finance Admin", "Audits calculations with AI,\ndetects anomalies,\nvalidates data through moderation")
+Person(aiAgent, "AI Agent", "Invokes AI tools via MCP protocol\nor Chrome WebMCP to analyze\ncommissions autonomously")
+
+System(aiModule, "Commission Calculator\nAI Module", "AI-powered commission analysis.\nRAG Q&A, explainability, forecasting,\nanomaly detection, dispute analysis,\nmulti-agent workflows, moderation.\n\n11 MCP tools | 8 web pages\nWebMCP browser-native tools")
+
+System_Ext(claudeApi, "Anthropic Claude API", "Claude Sonnet 4 LLM.\nProvides natural language\nunderstanding and generation\nfor all AI features.")
+System_Ext(ormLayer, "ORM Data Layer", "Commission domain data:\ndeals, plans, calculations,\ndisputes, users.\nH2 in-memory + Flyway migrations.")
+System_Ext(chromeBrowser, "Chrome 146+ Browser", "Native WebMCP support via\nnavigator.modelContext API.\nAI agents discover tools\ndirectly from web pages.")
+System_Ext(mcpClient, "MCP Client", "Claude Desktop, MCP Inspector,\nor custom client.\nConnects via Streamable HTTP\nat /mcp endpoint.")
+System_Ext(swaggerUI, "Swagger UI", "Interactive API documentation\nfor /api/ai/** endpoints")
+
+' --- Human → System ---
+Rel(salesRep, aiModule, "Asks commission questions,\nviews AI explanations,\nchecks forecasts", "Web UI / HTTPS")
+Rel(salesManager, aiModule, "Runs team forecasts,\ndetects anomalies,\nexecutes AI reviews", "Web UI + REST API / HTTPS")
+Rel(financeAdmin, aiModule, "Audits with AI,\nvalidates inputs,\nsanitizes outputs", "REST API / HTTPS")
+
+' --- AI Agent → System ---
+Rel(aiAgent, aiModule, "Invokes 11 AI-powered tools:\nexplain, forecast, anomaly,\ndispute, RAG, workflow", "MCP Streamable HTTP")
+Rel(aiAgent, aiModule, "Discovers tools from\nbrowser context", "Chrome WebMCP API")
+
+' --- System → External ---
+Rel(aiModule, claudeApi, "LLM inference for all\nAI features: RAG, explain,\nforecast, anomaly, agent,\nworkflow, moderation", "HTTPS / Anthropic SDK")
+Rel(aiModule, ormLayer, "Reads commission domain data\nfor AI analysis and\nvector store embedding", "Spring Data JPA")
+
+' --- External → System ---
+Rel(mcpClient, aiModule, "Connects to discover\nand invoke AI tools", "Streamable HTTP at /mcp")
+Rel(chromeBrowser, aiModule, "Loads pages that register\nWebMCP tools declaratively", "HTTPS")
+Rel(aiModule, swaggerUI, "Serves OpenAPI spec\nfor AI endpoints", "HTTP")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' AI MODULE CAPABILITIES:
+' - RAG Q&A: Retrieval-Augmented Generation over commission data
+' - Explainer: Plain-language calculation and plan explanations
+' - Forecasting: Individual and team commission projections
+' - Anomaly Detection: Statistical + AI anomaly identification
+' - Dispute Analysis: AI-powered dispute triage and resolution
+' - ReAct Agent: Step-by-step reasoning with tool use
+' - Workflow: Multi-agent pipeline (4 specialized agents)
+' - Moderation: 4-layer guardrails + output sanitization
+'
+' ACCESS CHANNELS:
+' - Web UI: 8 Thymeleaf pages at /ai/** with WebMCP integration
+' - REST API: /api/ai/** endpoints (RAG, explain, forecast, etc.)
+' - MCP Server: 11 @Tool methods at /mcp (Streamable HTTP)
+' - WebMCP: Chrome-native tool registration per page
+'
+' TECHNOLOGY STACK:
+' - Spring AI 1.1.0 + Anthropic Claude Sonnet 4
+' - ONNX Transformers for local embeddings
+' - SimpleVectorStore for semantic search
+' - Spring Boot 3.4.5 + Thymeleaf
+'
+' AUTHENTICATION:
+' - REST API requires HTTP Basic (admin/admin123)
+' - MCP endpoint at /mcp is publicly accessible
+' - WebMCP tools execute in authenticated browser session
+' ============================================================
+
+@enduml
