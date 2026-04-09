@@ -77,6 +77,7 @@ public class CommissionCalculatorAiApplication {
      * The annotation scanner picks up @Tool methods from this provider.
      */
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(AiMcpTools.class)
     public ToolCallbackProvider aiToolCallbackProvider(AiMcpTools aiMcpTools) {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(aiMcpTools)
