@@ -56,7 +56,8 @@ public class ProcessorDemo {
                                                 RagProcessor ragProcessor,
                                                 ModerationProcessor moderationProcessor,
                                                 ReActProcessor reActProcessor,
-                                                WorkflowProcessor workflowProcessor) {
+                                                WorkflowProcessor workflowProcessor,
+                                                VoiceProcessor voiceProcessor) {
         return args -> {
             log.info("\n\n{}", BANNER);
             log.info("  PROCESSOR STARTUP DEMO");
@@ -70,6 +71,7 @@ public class ProcessorDemo {
             demoModerationProcessor(moderationProcessor);
             demoReActProcessor(reActProcessor);
             demoWorkflowProcessor(workflowProcessor);
+            demoVoiceProcessor(voiceProcessor);
 
             log.info("\n{}", BANNER);
             log.info("  PROCESSOR STARTUP DEMO COMPLETE");
@@ -83,7 +85,7 @@ public class ProcessorDemo {
 
     private void demoAiProcessor(AiProcessor aiProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [1/7] AiProcessor — Spring AI Framework Setup");
+        log.info("  [1/8] AiProcessor — Spring AI Framework Setup");
         log.info("{}", SECTION);
 
         // Demo 1a: Configuration inspection (no API call)
@@ -138,7 +140,7 @@ public class ProcessorDemo {
 
     private void demoSearchProcessor(SearchProcessor searchProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [2/7] SearchProcessor — Vector DB & Semantic Search");
+        log.info("  [2/8] SearchProcessor — Vector DB & Semantic Search");
         log.info("{}", SECTION);
 
         // Demo 2a: Basic semantic search (local — no API call)
@@ -185,7 +187,7 @@ public class ProcessorDemo {
 
     private void demoPromptProcessor(PromptProcessor promptProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [3/7] PromptProcessor — Prompt Engineering");
+        log.info("  [3/8] PromptProcessor — Prompt Engineering");
         log.info("{}", SECTION);
 
         // Demo 3a: Role assignment (API call)
@@ -273,7 +275,7 @@ public class ProcessorDemo {
 
     private void demoRagProcessor(RagProcessor ragProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [4/7] RagProcessor — RAG Implementation");
+        log.info("  [4/8] RagProcessor — RAG Implementation");
         log.info("{}", SECTION);
 
         // Demo 4a: Basic RAG query (API call)
@@ -356,7 +358,7 @@ public class ProcessorDemo {
 
     private void demoModerationProcessor(ModerationProcessor moderationProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [5/7] ModerationProcessor — AI Safety & Guardrails");
+        log.info("  [5/8] ModerationProcessor — AI Safety & Guardrails");
         log.info("{}", SECTION);
 
         // Demo 5a: Input validation (no API call — all local checks)
@@ -425,7 +427,7 @@ public class ProcessorDemo {
 
     private void demoReActProcessor(ReActProcessor reActProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [6/7] ReActProcessor — Reasoning + Acting Agent");
+        log.info("  [6/8] ReActProcessor — Reasoning + Acting Agent");
         log.info("{}", SECTION);
 
         // Demo 6a: Show available tools
@@ -485,7 +487,7 @@ public class ProcessorDemo {
      */
     private void demoWorkflowProcessor(WorkflowProcessor workflowProcessor) {
         log.info("\n{}", SECTION);
-        log.info("  [7/7] WorkflowProcessor — Agentic Workflow (Multi-Agent)");
+        log.info("  [7/8] WorkflowProcessor — Agentic Workflow (Multi-Agent)");
         log.info("{}", SECTION);
 
         // Demo 7a: Show registered workflow agents (no API call)
@@ -530,6 +532,58 @@ public class ProcessorDemo {
 
         } catch (Exception e) {
             log.warn("    Workflow demo skipped — API unavailable: {}", e.getMessage());
+        }
+    }
+
+    // ============================================================
+    // 8. VOICE PROCESSOR DEMO — Voice-Driven Analytics
+    // ============================================================
+
+    private void demoVoiceProcessor(VoiceProcessor voiceProcessor) {
+        log.info("\n{}", SECTION);
+        log.info("  [8/8] VoiceProcessor — Voice-Driven AI Analytics");
+        log.info("{}", SECTION);
+
+        // Demo 8a: Voice command routing
+        log.info("\n>>> Demo 8a: Voice Command Routing — Natural Language → Action");
+        Map<String, Object> routing = voiceProcessor.demonstrateVoiceCommandRouting();
+        @SuppressWarnings("unchecked")
+        Map<String, String> routes = (Map<String, String>) routing.get("command_routing");
+        for (Map.Entry<String, String> entry : routes.entrySet()) {
+            log.info("    \"{}\" → {}", entry.getKey(), entry.getValue());
+        }
+
+        // Demo 8b: Parameter extraction
+        log.info("\n>>> Demo 8b: Parameter Extraction — IDs and Names from Speech");
+        log.info("    extractId('calculation one') = {}", voiceProcessor.extractId("calculation one"));
+        log.info("    extractId('user 42') = {}", voiceProcessor.extractId("user 42"));
+        log.info("    extractName('report for Alice Johnson') = {}", voiceProcessor.extractName("report for Alice Johnson"));
+        log.info("    extractName('forecast about Bob Smith') = {}", voiceProcessor.extractName("forecast about Bob Smith"));
+
+        // Demo 8c: Voice input validation
+        log.info("\n>>> Demo 8c: Voice Input Validation — Guardrails on Speech");
+        Map<String, Object> validation = voiceProcessor.demonstrateVoiceInputValidation();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> valid = (Map<String, Object>) validation.get("valid_voice_input");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> blocked = (Map<String, Object>) validation.get("blocked_voice_input");
+        log.info("    Valid: \"{}\" → allowed={}", valid.get("spoken"), valid.get("allowed"));
+        log.info("    Blocked: \"{}\" → allowed={}, reason={}", blocked.get("spoken"), blocked.get("allowed"), blocked.get("reason"));
+
+        // Demo 8d: Voice personas
+        log.info("\n>>> Demo 8d: Voice Personas — Available TTS Providers");
+        Map<String, Object> personas = voiceProcessor.demonstrateVoicePersonas();
+        @SuppressWarnings("unchecked")
+        List<String> openaiVoices = (List<String>) personas.get("openai_voices");
+        log.info("    OpenAI: {}", openaiVoices);
+        @SuppressWarnings("unchecked")
+        List<String> pollyVoices = (List<String>) personas.get("aws_polly_neural");
+        log.info("    AWS Polly Neural: {}", pollyVoices);
+        @SuppressWarnings("unchecked")
+        Map<String, String> arch = (Map<String, String>) personas.get("architecture");
+        log.info("    Architecture:");
+        for (Map.Entry<String, String> entry : arch.entrySet()) {
+            log.info("      {} = {}", entry.getKey(), entry.getValue());
         }
     }
 

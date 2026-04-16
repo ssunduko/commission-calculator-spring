@@ -102,7 +102,21 @@
       "Read(//c/Users/ssund/AppData/Roaming/Claude/**)",
       "Read(//c/Commission Calculator/commission-calculator-spring/$APPDATA/Claude/**)",
       "Bash(./mvnw package:*)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(./mvnw validate:*)",
+      "Bash(./mvnw clean:*)",
+      "Bash(rm -f src/main/java/com/chapman/edu/commissions/config/TogglzAutoConfig.java)",
+      "Bash(rmdir src/main/java/com/chapman/edu/commissions/config)",
+      "Bash(rm -rf src/main/resources/META-INF)",
+      "Bash(wmic process:*)",
+      "WebFetch(domain:webmachinelearning.github.io)",
+      "WebFetch(domain:travel-demo.bandarra.me)",
+      "WebFetch(domain:nicolo-nicolo-ribaudo.github.io)",
+      "Bash(grep -l \"data-webmcp\" *.html)",
+      "Bash(grep -nE '<\\(input|textarea|select\\)[^>]* name=' rag.html explainer.html disputes.html forecast.html anomaly.html agent.html workflow.html moderation.html)",
+      "WebFetch(domain:developer.puter.com)",
+      "WebFetch(domain:docs.puter.com)",
+      "Bash(powershell.exe:*)"
     ],
     "deny": [],
     "ask": []

@@ -124,7 +124,7 @@ public class McpCommissionTools {
     }
 
     @Tool(name = "addRuleToPlan",
-            description = "Add a commission rule to a plan. Specify plan ID, rule name, description, rate, type (STANDARD, ACCELERATOR, BONUS, etc.), and priority.")
+            description = "Add a commission rule to a plan. Specify plan ID, rule name, description, rate, type (STANDARD, ACCELERATOR, BONUS, etc.), and priority. Rate is a whole-number percentage (e.g. 5 for 5%, 10.5 for 10.5%) — not a decimal multiplier like 0.05.")
     public CommissionPlanResponse addRuleToPlan(String planId, AddRuleToPlanRequest request) {
         return commissionPlanService.addRuleToPlan(planId, request);
     }

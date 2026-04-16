@@ -21,7 +21,7 @@ public class DisputeComment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "dispute_id", nullable = false)
+    @Column(name = "dispute_id", insertable = false, updatable = false)
     private String disputeId;
 
     @Column(name = "user_id")

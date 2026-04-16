@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{ai/layout :: head('Voice Analytics')}"></head>
+<body>
+<nav th:replace="~{ai/layout :: navbar}" th:with="currentPage='voice'"></nav>
+
+<div class="container">
+    <h1 style="margin-bottom: 0.5rem;">&#x1F3A4; Voice Analytics</h1>
+    <p style="color: #666; margin-bottom: 2rem;">Speak commands, say <strong>"execute"</strong> to run. Say <strong>"stop"</strong> to silence the narrator. Or use buttons.</p>
+
+    <!-- Voice Control Bar -->
+    <div class="card" style="border-left: 4px solid #6b2fa0;">
+        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <div id="micDot" style="width:14px; height:14px; border-radius:50%; background:#999; flex-shrink:0;"></div>
+            <div style="flex:1; min-width:200px;">
+                <div id="voiceStatus" style="font-weight:600; color:#6b2fa0;">Click "Start Listening" or toggle to always-on mode</div>
+                <div id="voiceTranscript" style="color:#666; font-size:0.9rem; margin-top:0.25rem; font-style:italic;"></div>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                <button class="btn btn-primary" id="listenBtn" onclick="toggleListening()">&#x1F3A4; Start Listening</button>
+                <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" id="alwaysOnToggle" onchange="toggleAlwaysOn()"> Always-on
+                </label>
+                <button class="btn btn-danger" id="stopBtn" onclick="stopSpeaking()" style="display:none;">Stop Reading</button>
+            </div>
+        </div>
+
+        <!-- Narrator Voice Selection -->
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-top:1rem; flex-wrap:wrap; border-top:1px solid #eee; padding-top:1rem;">
+            <label style="font-weight:600; font-size:0.9rem; white-space:nowrap;">Narrator:</label>
+            <select id="voiceProvider" onchange="updateVoiceList()" style="padding:0.4rem; border:1px solid #ddd; border-radius:4px; font-size:0.85rem;">
+                <option value="openai">OpenAI Voices</option>
+                <option value="aws-polly-neural">AWS Polly Neural</option>
+                <option value="aws-polly-generative">AWS Polly Generative</option>
+                <option value="browser">Browser Voices</option>
+            </select>
+            <select id="voiceSelect" style="padding:0.4rem; border:1px solid #ddd; border-radius:4px; font-size:0.85rem; min-width:160px;"></select>
+            <button class="btn btn-secondary" onclick="previewVoice()" style="font-size:0.85rem;">Preview</button>
+        </div>
+    </div>
+
+    <div class="two-col">
+        <!-- Commission Q&A -->
+        <div class="card" data-webmcp-tool="voiceAskQuestion"
+             data-webmcp-description="Ask a commission question via voice"
+             data-webmcp-endpoint="/api/ai/rag/ask"
+             data-webmcp-method="POST" data-webmcp-response-key="response">
+            <h2>&#x1F50D; Ask a Question</h2>
+            <p style="color:#666; margin-bottom:1rem;">Say: <em>"What commission plans are available, execute"</em></p>
+            <div class="form-group">
+                <label for="vQuestion">Question:</label>
+                <textarea id="vQuestion" name="question" placeholder="Voice fills this or type here..."></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="runAction('ask')">Ask</button>
+            <div id="askLoading" class="loading"><div class="spinner"></div> Thinking...</div>
+            <div id="askResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <!-- Performance Report -->
+        <div class="card" data-webmcp-tool="voicePerformanceReport"
+             data-webmcp-description="Generate a sales rep performance report via voice"
+             data-webmcp-endpoint="/api/ai/rag/report/{salesRepName}"
+             data-webmcp-method="GET" data-webmcp-response-key="report">
+            <h2>&#x1F4CA; Performance Report</h2>
+            <p style="color:#666; margin-bottom:1rem;">Say: <em>"Report for Alice Johnson, execute"</em></p>
+            <div class="form-group">
+                <label for="vRepName">Sales Rep Name:</label>
+                <input type="text" id="vRepName" name="salesRepName" placeholder="Voice fills this or type...">
+            </div>
+            <button class="btn btn-primary" onclick="runAction('report')">Generate</button>
+            <div id="reportLoading" class="loading"><div class="spinner"></div> Generating report...</div>
+            <div id="reportResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <!-- Explain Calculation -->
+        <div class="card" data-webmcp-tool="voiceExplainCalculation"
+             data-webmcp-description="Explain a commission calculation via voice"
+             data-webmcp-endpoint="/api/ai/explain/calculation/{calculationId}"
+             data-webmcp-method="GET" data-webmcp-response-key="explanation">
+            <h2>&#x1F4A1; Explain Calculation</h2>
+            <p style="color:#666; margin-bottom:1rem;">Say: <em>"Explain calculation one, execute"</em></p>
+            <div class="form-group">
+                <label for="vCalcId">Calculation ID:</label>
+                <input type="text" id="vCalcId" name="calculationId" placeholder="Voice fills this or type...">
+            </div>
+            <button class="btn btn-primary" onclick="runAction('explain')">Explain</button>
+            <div id="explainLoading" class="loading"><div class="spinner"></div> Explaining...</div>
+            <div id="explainResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <!-- Forecast -->
+        <div class="card" data-webmcp-tool="voiceForecast"
+             data-webmcp-description="Forecast commissions for a sales rep via voice"
+             data-webmcp-endpoint="/api/ai/forecast/user/{userId}"
+             data-webmcp-method="GET" data-webmcp-response-key="forecast">
+            <h2>&#x1F4C8; Forecast</h2>
+            <p style="color:#666; margin-bottom:1rem;">Say: <em>"Forecast for user one, execute"</em></p>
+            <div class="form-group">
+                <label for="vUserId">User ID:</label>
+                <input type="text" id="vUserId" name="userId" placeholder="Voice fills this or type...">
+            </div>
+            <button class="btn btn-primary" onclick="runAction('forecast')">Forecast</button>
+            <div id="forecastLoading" class="loading"><div class="spinner"></div> Forecasting...</div>
+            <div id="forecastResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <!-- Anomaly Detection -->
+        <div class="card" data-webmcp-tool="voiceDetectAnomalies"
+             data-webmcp-description="Detect commission anomalies via voice command"
+             data-webmcp-endpoint="/api/ai/anomaly/detect"
+             data-webmcp-method="GET" data-webmcp-response-key="analysis">
+            <h2>&#x26A0;&#xFE0F; Detect Anomalies</h2>
+            <p style="color:#666; margin-bottom:1rem;">Say: <em>"Detect anomalies, execute"</em></p>
+            <button class="btn btn-primary" onclick="runAction('anomaly')">Detect</button>
+            <div id="anomalyLoading" class="loading"><div class="spinner"></div> Scanning...</div>
+            <div id="anomalyResult" class="result-box" style="display:none;"></div>
+        </div>
+
+        <!-- Team Forecast -->
+        <div class="card" data-webmcp-tool="voiceTeamForecast"
+             data-webmcp-description="Forecast team commissions via voice"
+             data-webmcp-endpoint="/api/ai/forecast/team"
+             data-webmcp-method="GET" data-webmcp-response-key="forecast">
+            <h2>&#x1F465; Team Forecast</h2>
+            <p style="color:#666; margin-bottom:1rem;">Say: <em>"Team forecast, execute"</em></p>
+            <button class="btn btn-primary" onclick="runAction('team')">Team Forecast</button>
+            <div id="teamLoading" class="loading"><div class="spinner"></div> Forecasting team...</div>
+            <div id="teamResult" class="result-box" style="display:none;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    <p>Voice Analytics &mdash; Web Speech API + Puter.js AI Voices + WebMCP</p>
+</div>
+
+<script src="https://js.puter.com/v2/"></script>
+
+<script>
+// ============================================================
+// Voice Personas — Puter.js providers + browser voices
+// ============================================================
+var VOICE_OPTIONS = {
+    'openai': [
+        { id: 'alloy', name: 'Alloy (neutral)' },
+        { id: 'nova', name: 'Nova (warm female)' },
+        { id: 'shimmer', name: 'Shimmer (bright female)' },
+        { id: 'echo', name: 'Echo (male)' },
+        { id: 'fable', name: 'Fable (storyteller)' },
+        { id: 'onyx', name: 'Onyx (deep male)' },
+        { id: 'coral', name: 'Coral (conversational)' },
+        { id: 'sage', name: 'Sage (wise)' },
+        { id: 'ash', name: 'Ash (crisp)' },
+        { id: 'ballad', name: 'Ballad (expressive)' }
+    ],
+    'aws-polly-neural': [
+        { id: 'Joanna', name: 'Joanna (US female)' },
+        { id: 'Matthew', name: 'Matthew (US male)' },
+        { id: 'Lupe', name: 'Lupe (US female)' },
+        { id: 'Ruth', name: 'Ruth (US female)' },
+        { id: 'Stephen', name: 'Stephen (US male)' },
+        { id: 'Amy', name: 'Amy (British female)' },
+        { id: 'Brian', name: 'Brian (British male)' },
+        { id: 'Emma', name: 'Emma (British female)' }
+    ],
+    'aws-polly-generative': [
+        { id: 'Joanna', name: 'Joanna (generative)' },
+        { id: 'Matthew', name: 'Matthew (generative)' },
+        { id: 'Ruth', name: 'Ruth (generative)' },
+        { id: 'Stephen', name: 'Stephen (generative)' }
+    ]
+};
+
+var currentProvider = 'openai';
+var currentVoiceId = 'nova';
+var currentAudio = null;
+var browserVoice = null;
+
+function updateVoiceList() {
+    var provider = document.getElementById('voiceProvider').value;
+    var sel = document.getElementById('voiceSelect');
+    sel.innerHTML = '';
+    currentProvider = provider;
+
+    if (provider === 'browser') {
+        var voices = speechSynthesis.getVoices();
+        voices.forEach(function(v) {
+            var opt = document.createElement('option');
+            opt.value = v.name;
+            opt.textContent = v.name + ' (' + v.lang + ')';
+            sel.appendChild(opt);
+        });
+        currentVoiceId = voices.length ? voices[0].name : '';
+        browserVoice = voices[0] || null;
+    } else {
+        var list = VOICE_OPTIONS[provider] || [];
+        list.forEach(function(v) {
+            var opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = v.name;
+            sel.appendChild(opt);
+        });
+        currentVoiceId = list.length ? list[0].id : '';
+    }
+
+    sel.onchange = function() {
+        currentVoiceId = sel.value;
+        if (provider === 'browser') {
+            browserVoice = speechSynthesis.getVoices().find(function(v) { return v.name === sel.value; });
+        }
+    };
+}
+
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = function() { if (currentProvider === 'browser') updateVoiceList(); };
+}
+updateVoiceList();
+
+function previewVoice() {
+    speak('Hello, I am your commission analytics narrator. How can I help?');
+}
+
+// ============================================================
+// Text-to-Speech — Puter.js multi-provider or browser fallback
+// ============================================================
+function speak(text) {
+    document.getElementById('stopBtn').style.display = 'inline-block';
+
+    if (currentProvider === 'browser') {
+        speakBrowser(text);
+        return;
+    }
+
+    if (typeof puter === 'undefined' || !puter.ai || !puter.ai.txt2speech) {
+        speakBrowser(text);
+        return;
+    }
+
+    var opts = { language: 'en-US' };
+
+    if (currentProvider === 'openai') {
+        opts.provider = 'openai';
+        opts.voice = currentVoiceId;
+    } else if (currentProvider === 'aws-polly-neural') {
+        opts.provider = 'aws-polly';
+        opts.engine = 'neural';
+        opts.voice = currentVoiceId;
+    } else if (currentProvider === 'aws-polly-generative') {
+        opts.provider = 'aws-polly';
+        opts.engine = 'generative';
+        opts.voice = currentVoiceId;
+    }
+
+    puter.ai.txt2speech(text, opts)
+        .then(function(audio) {
+            currentAudio = audio;
+            audio.play();
+            audio.onended = function() {
+                currentAudio = null;
+                document.getElementById('stopBtn').style.display = 'none';
+            };
+        })
+        .catch(function() { speakBrowser(text); });
+}
+
+function speakBrowser(text) {
+    if (!window.speechSynthesis) return;
+    speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    if (browserVoice) u.voice = browserVoice;
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    u.onend = function() { document.getElementById('stopBtn').style.display = 'none'; };
+    speechSynthesis.speak(u);
+}
+
+function stopSpeaking() {
+    if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    document.getElementById('stopBtn').style.display = 'none';
+    document.getElementById('voiceStatus').textContent = 'Stopped. Ready for next command.';
+}
+
+// ============================================================
+// Speech Recognition — two modes: on/off and always-on
+// ============================================================
+var SpeechRecAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+var recognition = null;
+var isListening = false;
+var alwaysOn = false;
+
+if (SpeechRecAPI) {
+    recognition = new SpeechRecAPI();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    var finalBuffer = '';
+
+    recognition.onresult = function(event) {
+        var interim = '';
+        finalBuffer = '';
+        for (var i = 0; i < event.results.length; i++) {
+            var t = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalBuffer += t;
+            } else {
+                interim += t;
+            }
+        }
+        document.getElementById('voiceTranscript').textContent = finalBuffer || interim;
+
+        if (finalBuffer) {
+            var trimmed = finalBuffer.trim().toLowerCase();
+
+            // "stop" command — silence narrator
+            if (trimmed === 'stop' || trimmed === 'stop.' || trimmed.endsWith(' stop') || trimmed.endsWith(' stop.')) {
+                stopSpeaking();
+                resetRecognition();
+                return;
+            }
+
+            // "execute" trigger — run the command
+            if (trimmed.endsWith('execute') || trimmed.endsWith('execute.') || trimmed.endsWith('execute!')) {
+                var command = finalBuffer.trim().replace(/\s*execute[.!]?\s*$/i, '').trim();
+                document.getElementById('voiceStatus').textContent = 'Executing: "' + command + '"';
+                routeVoiceCommand(command);
+                resetRecognition();
+            }
+        }
+    };
+
+    recognition.onerror = function(event) {
+        if (event.error === 'no-speech' || event.error === 'aborted') return;
+        document.getElementById('micDot').style.background = '#ea4335';
+        document.getElementById('micDot').style.animation = 'none';
+        setTimeout(function() {
+            if (isListening) startRecognition();
+        }, 1000);
+    };
+
+    recognition.onend = function() {
+        if (alwaysOn) {
+            // Always-on: auto-restart
+            setTimeout(function() { startRecognition(); }, 300);
+        } else if (isListening) {
+            // On/off mode: restart within session
+            setTimeout(function() { startRecognition(); }, 300);
+        } else {
+            setMicInactive();
+        }
+    };
+} else {
+    document.getElementById('voiceStatus').textContent = 'Speech recognition not supported. Use Chrome.';
+    document.getElementById('listenBtn').disabled = true;
+}
+
+function resetRecognition() {
+    finalBuffer = '';
+    try { recognition.stop(); } catch(e) {}
+    if (isListening || alwaysOn) {
+        setTimeout(function() { startRecognition(); }, 500);
+    }
+}
+
+function startRecognition() {
+    try {
+        recognition.start();
+        isListening = true;
+        setMicActive();
+    } catch(e) {}
+}
+
+function stopRecognition() {
+    isListening = false;
+    try { recognition.stop(); } catch(e) {}
+    setMicInactive();
+}
+
+function setMicActive() {
+    document.getElementById('micDot').style.background = '#34a853';
+    document.getElementById('micDot').style.animation = 'pulse 1.5s infinite';
+    document.getElementById('voiceStatus').textContent = 'Listening... say a command, then "execute"';
+    document.getElementById('listenBtn').innerHTML = '&#x1F534; Stop Listening';
+    document.getElementById('listenBtn').className = 'btn btn-danger';
+}
+
+function setMicInactive() {
+    document.getElementById('micDot').style.background = '#999';
+    document.getElementById('micDot').style.animation = 'none';
+    document.getElementById('voiceStatus').textContent = 'Mic off. Click "Start Listening" or enable always-on.';
+    document.getElementById('listenBtn').innerHTML = '&#x1F3A4; Start Listening';
+    document.getElementById('listenBtn').className = 'btn btn-primary';
+}
+
+// On/Off toggle button
+function toggleListening() {
+    if (!recognition) return;
+    if (isListening) {
+        alwaysOn = false;
+        document.getElementById('alwaysOnToggle').checked = false;
+        stopRecognition();
+    } else {
+        startRecognition();
+    }
+}
+
+// Always-on checkbox
+function toggleAlwaysOn() {
+    alwaysOn = document.getElementById('alwaysOnToggle').checked;
+    if (alwaysOn && !isListening) {
+        startRecognition();
+    } else if (!alwaysOn && isListening) {
+        // Keep current session but won't auto-restart on next end
+    }
+}
+
+// ============================================================
+// Voice Command Router
+// ============================================================
+var numWords = {one:'1',two:'2',three:'3',four:'4',five:'5',six:'6',seven:'7',eight:'8',nine:'9',ten:'10'};
+
+function extractId(str) {
+    var m = str.match(/(\d+)/);
+    if (m) return m[1];
+    var keys = Object.keys(numWords);
+    for (var i = 0; i < keys.length; i++) {
+        if (str.toLowerCase().indexOf(keys[i]) !== -1) return numWords[keys[i]];
+    }
+    return null;
+}
+
+function extractName(str) {
+    var patterns = [/(?:for|about|on)\s+(.+)/i, /report\s+(.+)/i];
+    for (var i = 0; i < patterns.length; i++) {
+        var m = str.match(patterns[i]);
+        if (m) return m[1].replace(/[.!?,]+$/, '').trim();
+    }
+    return null;
+}
+
+function routeVoiceCommand(text) {
+    var lower = text.toLowerCase();
+    if (lower.indexOf('anomal') !== -1 || lower.indexOf('scan all') !== -1) {
+        runAction('anomaly');
+    } else if (lower.indexOf('team forecast') !== -1 || lower.indexOf('team commission') !== -1) {
+        runAction('team');
+    } else if (lower.indexOf('forecast') !== -1 || lower.indexOf('predict') !== -1) {
+        var id = extractId(lower);
+        if (id) document.getElementById('vUserId').value = id;
+        runAction('forecast');
+    } else if (lower.indexOf('explain') !== -1 || lower.match(/calculation\s/)) {
+        var cid = extractId(lower);
+        if (cid) document.getElementById('vCalcId').value = cid;
+        runAction('explain');
+    } else if (lower.indexOf('report') !== -1 || lower.indexOf('performance') !== -1) {
+        var name = extractName(text);
+        if (name) document.getElementById('vRepName').value = name;
+        runAction('report');
+    } else {
+        document.getElementById('vQuestion').value = text;
+        runAction('ask');
+    }
+}
+
+// ============================================================
+// Action Execution
+// ============================================================
+var ACTIONS = {
+    ask: { url: function() { return '/api/ai/rag/ask'; }, method: 'POST',
+        body: function() { return JSON.stringify({ question: document.getElementById('vQuestion').value }); },
+        key: 'response', loading: 'askLoading', result: 'askResult',
+        ok: function() { return document.getElementById('vQuestion').value.trim(); } },
+    report: { url: function() { return '/api/ai/rag/report/' + encodeURIComponent(document.getElementById('vRepName').value); },
+        method: 'GET', body: function() { return null; }, key: 'report',
+        loading: 'reportLoading', result: 'reportResult',
+        ok: function() { return document.getElementById('vRepName').value.trim(); } },
+    explain: { url: function() { return '/api/ai/explain/calculation/' + encodeURIComponent(document.getElementById('vCalcId').value); },
+        method: 'GET', body: function() { return null; }, key: 'explanation',
+        loading: 'explainLoading', result: 'explainResult',
+        ok: function() { return document.getElementById('vCalcId').value.trim(); } },
+    forecast: { url: function() { return '/api/ai/forecast/user/' + encodeURIComponent(document.getElementById('vUserId').value); },
+        method: 'GET', body: function() { return null; }, key: 'forecast',
+        loading: 'forecastLoading', result: 'forecastResult',
+        ok: function() { return document.getElementById('vUserId').value.trim(); } },
+    anomaly: { url: function() { return '/api/ai/anomaly/detect'; }, method: 'GET',
+        body: function() { return null; }, key: 'analysis',
+        loading: 'anomalyLoading', result: 'anomalyResult', ok: function() { return true; } },
+    team: { url: function() { return '/api/ai/forecast/team'; }, method: 'GET',
+        body: function() { return null; }, key: 'forecast',
+        loading: 'teamLoading', result: 'teamResult', ok: function() { return true; } }
+};
+
+function runAction(name) {
+    var cfg = ACTIONS[name];
+    if (!cfg || !cfg.ok()) { speak('Please provide the required input first.'); return; }
+    document.getElementById(cfg.loading).classList.add('active');
+    document.getElementById(cfg.result).style.display = 'none';
+    var opts = { method: cfg.method };
+    if (cfg.method === 'POST') { opts.headers = { 'Content-Type': 'application/json' }; opts.body = cfg.body(); }
+    fetch(cfg.url(), opts)
+        .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+        .then(function(r) {
+            var text = r.data[cfg.key] || r.data.error || JSON.stringify(r.data, null, 2);
+            var el = document.getElementById(cfg.result);
+            el.textContent = text;
+            el.className = 'result-box ' + (r.ok ? 'success' : 'error');
+            el.style.display = 'block';
+            document.getElementById('voiceStatus').textContent = 'Done. Say "stop" to silence, or speak next command.';
+            speak(text.length > 500 ? text.substring(0, 500) + '...' : text);
+        })
+        .catch(function(e) {
+            var el = document.getElementById(cfg.result);
+            el.textContent = 'Error: ' + e.message;
+            el.className = 'result-box error'; el.style.display = 'block';
+            speak('An error occurred.');
+        })
+        .finally(function() { document.getElementById(cfg.loading).classList.remove('active'); });
+}
+</script>
+<!-- WebMCP Declarative -->
+<script>
+if (navigator.modelContext) {
+    function mcpFetch(endpoint, method, responseKey, args) {
+        var url = endpoint;
+        (endpoint.match(/\{(\w+)\}/g) || []).forEach(function(p) {
+            var k = p.replace(/[{}]/g, ''); url = url.replace(p, encodeURIComponent(args[k] || ''));
+        });
+        var opts = { method: method, signal: AbortSignal.timeout(120000) };
+        if (method === 'POST' || method === 'PUT') {
+            opts.headers = { 'Content-Type': 'application/json' }; opts.body = JSON.stringify(args);
+        }
+        return fetch(url, opts).then(function(r) { return r.json(); }).then(function(data) {
+            var text = responseKey ? (data[responseKey] || data.error || JSON.stringify(data))
+                                   : (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+            return { content: [{ type: 'text', text: text }] };
+        }).catch(function(e) { return { content: [{ type: 'text', text: 'Error: ' + e.message }] }; });
+    }
+    document.querySelectorAll('[data-webmcp-tool]').forEach(function(el) {
+        var name = el.dataset.webmcpTool, description = el.dataset.webmcpDescription;
+        var endpoint = el.dataset.webmcpEndpoint, method = (el.dataset.webmcpMethod || 'GET').toUpperCase();
+        var responseKey = el.dataset.webmcpResponseKey;
+        var properties = {}, required = [];
+        el.querySelectorAll('input[name], textarea[name], select[name]').forEach(function(inp) {
+            properties[inp.name] = { type: 'string', description: inp.placeholder || inp.name };
+            required.push(inp.name);
+        });
+        try {
+            navigator.modelContext.registerTool({ name: name, description: description,
+                inputSchema: { type: 'object', properties: properties, required: required },
+                execute: function(args) { return mcpFetch(endpoint, method, responseKey, args); }
+            });
+        } catch (e) { console.warn('[WebMCP] ' + name + ':', e.message); }
+    });
+    console.log('[WebMCP Declarative] Voice tools registered');
+}
+</script>
+</body>
+</html>

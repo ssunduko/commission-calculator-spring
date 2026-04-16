@@ -95,4 +95,9 @@ public class AiWebController {
         model.addAttribute("workflowAgents", workflowOrchestrator.getRegisteredAgents());
         return "ai/webmcp";
     }
+
+    @GetMapping("/voice")
+    public String voice() {
+        return "ai/voice";
+    }
 }

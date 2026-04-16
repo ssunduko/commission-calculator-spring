@@ -41,7 +41,7 @@ public class CommissionRule {
     @Column(nullable = false)
     private int priority = 0;
 
-    @Column(name = "plan_id")
+    @Column(name = "plan_id", insertable = false, updatable = false)
     private String planId;
 
     /**

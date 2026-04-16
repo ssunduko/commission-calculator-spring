@@ -1,0 +1,184 @@
+@startuml C4_Pipeline
+!include <C4/C4_Context>
+
+title CI/CD Pipeline — Commission Calculator (Stage-Gate Pattern)
+
+' ============================================================
+' CI/CD PIPELINE DIAGRAM
+' ============================================================
+' Shows the full build-test-deploy pipeline using GitHub Actions.
+' Three workflows form a stage-gate pattern:
+'
+'   CI (Continuous Integration)
+'     → Tests, Code Quality, Security (parallel gates)
+'     → Smoke Test (sequential gate after tests pass)
+'
+'   CD Build (Continuous Delivery — Build)
+'     → Build Docker Images → Push to Registry → Verify
+'
+'   CD Deploy (Continuous Delivery — Deploy)
+'     → Deploy to EC2 → Health Check → Post-Deploy Verify
+'
+' NOTATION:
+' - Rectangles = pipeline stages
+' - Arrows = triggers and data flow
+' - Parallel branches shown side-by-side
+' - Gates shown as decision diamonds
+' ============================================================
+
+skinparam rectangle {
+    BackgroundColor<<trigger>> #e8f0fe
+    BackgroundColor<<ci>> #f3e8ff
+    BackgroundColor<<gate>> #fff3e0
+    BackgroundColor<<cd_build>> #e8f5e9
+    BackgroundColor<<cd_deploy>> #fce4ec
+    BackgroundColor<<parallel>> #f5f5f5
+}
+skinparam arrow {
+    Color #333
+    Thickness 2
+}
+
+' ============================================================
+' TRIGGERS
+' ============================================================
+
+rectangle "**git push / PR**\nAll branches" as trigger <<trigger>>
+rectangle "**Schedule**\nMonday 6am UTC" as schedule <<trigger>>
+rectangle "**Manual**\nworkflow_dispatch" as manual <<trigger>>
+
+' ============================================================
+' CI WORKFLOW — Continuous Integration
+' ============================================================
+
+rectangle "**CI WORKFLOW**" as ciHeader <<ci>> {
+
+    rectangle "**Tests**\n./mvnw test -B\nAll unit + integration tests\nJUnit 5 + Mockito + AssertJ\n→ dorny/test-reporter" as tests <<ci>>
+
+    together {
+        rectangle "**Code Quality**\n./mvnw verify -DskipTests\nJaCoCo (coverage ≥ 50%)\nCheckstyle (Google style)\nSpotBugs (static analysis)\n→ Codecov upload" as quality <<ci>>
+
+        rectangle "**Security Scan**\nCodeQL Analysis\nJava language scanning\nSecurity events → GitHub" as security <<ci>>
+    }
+
+    rectangle "**OWASP Dependency Check**\n./mvnw dependency-check:check\nNVD database scan\nCVSS ≥ 10 fails build\n(Weekly + manual only)" as owasp <<ci>>
+
+    rectangle "**Smoke Test**\nStart verticalslice app\nHealth check polling\nCreate plan → activate →\ncreate deal → calculate\nVerify GET endpoints\nVerify MCP tools" as smoke <<gate>>
+}
+
+' ============================================================
+' CD BUILD WORKFLOW — Build & Push Images
+' ============================================================
+
+rectangle "**CD BUILD WORKFLOW**" as cdBuildHeader <<cd_build>> {
+
+    rectangle "**Build Docker Images**\ndocker build -t\nghcr.io/ssunduko/\ncommission-calculator-backend\nghcr.io/ssunduko/\ncommission-calculator-frontend" as buildImages <<cd_build>>
+
+    rectangle "**Push to Registry**\ndocker push ghcr.io/...\nGitHub Container Registry\nTagged: latest + SHA" as pushImages <<cd_build>>
+
+    rectangle "**Image Smoke Test**\ndocker run → health check\nVerify container starts\nVerify /actuator/health" as imageSmokeTest <<gate>>
+}
+
+' ============================================================
+' CD DEPLOY WORKFLOW — Deploy to AWS
+' ============================================================
+
+rectangle "**CD DEPLOY WORKFLOW**" as cdDeployHeader <<cd_deploy>> {
+
+    rectangle "**Deploy to EC2**\nSSH → docker compose pull\ndocker compose up -d\nElastic IP: assigned\nSecurity group: sg-commission" as deploy <<cd_deploy>>
+
+    rectangle "**Post-Deploy Verification**\ncurl health endpoint\nRun integration tests\nVerify frontend loads\nVerify MCP endpoint\nVerify API responses" as postDeploy <<gate>>
+}
+
+' ============================================================
+' RELATIONSHIPS — Stage-Gate Flow
+' ============================================================
+
+' Triggers
+trigger --> tests : "on push/PR"
+trigger --> quality : "on push/PR\n(parallel)"
+trigger --> security : "on push/PR\n(parallel)"
+schedule --> owasp : "weekly"
+manual --> owasp : "on-demand"
+
+' CI gates
+tests --> smoke : "gate: tests pass"
+quality --> smoke : "(independent)"
+security --> smoke : "(independent)"
+
+' CI → CD Build
+smoke --> buildImages : "gate: smoke passes\n(main branch only)"
+
+' CD Build flow
+buildImages --> pushImages : "sequential"
+pushImages --> imageSmokeTest : "gate: push succeeds"
+
+' CD Build → CD Deploy
+imageSmokeTest --> deploy : "gate: image verified"
+
+' CD Deploy flow
+deploy --> postDeploy : "gate: containers up"
+
+' ============================================================
+' LEGEND
+' ============================================================
+
+legend right
+  |= Color |= Meaning |
+  | <#e8f0fe> | Trigger |
+  | <#f3e8ff> | CI Stage |
+  | <#fff3e0> | Gate (sequential) |
+  | <#e8f5e9> | CD Build Stage |
+  | <#fce4ec> | CD Deploy Stage |
+  ---
+  **Parallel Execution:**
+  Tests, Code Quality, and Security Scan
+  run concurrently on every push/PR.
+  ---
+  **Stage Gates:**
+  Smoke Test requires Tests to pass.
+  CD Build requires Smoke Test to pass.
+  CD Deploy requires Image Smoke Test.
+  ---
+  **Tools:**
+  JaCoCo, Checkstyle, SpotBugs, OWASP,
+  CodeQL, JUnit 5, Docker, GitHub Actions
+endlegend
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' CI WORKFLOW (ci.yml):
+'   Triggers: push (all branches), PR, schedule, manual
+'   Jobs:
+'     tests          — ./mvnw test (all unit + integration)
+'     code-quality   — JaCoCo + Checkstyle + SpotBugs
+'     security-scan  — CodeQL analysis
+'     dependency-check — OWASP (weekly/manual only)
+'     smoke-test     — Full app start + API curl verification
+'
+'   Parallel: tests | code-quality | security-scan
+'   Sequential: tests → smoke-test
+'
+' CD BUILD WORKFLOW (planned):
+'   Triggers: CI success on main branch
+'   Jobs:
+'     build-images   — Multi-stage Docker build
+'     push-images    — Push to ghcr.io
+'     image-smoke    — Verify container health
+'
+' CD DEPLOY WORKFLOW (planned):
+'   Triggers: CD Build success
+'   Jobs:
+'     deploy-ec2     — SSH + docker compose pull/up
+'     post-verify    — Health + integration checks
+'
+' SECRETS:
+'   SPRING_DATASOURCE_PASSWORD
+'   SPRING_SECURITY_PASSWORD
+'   ANTHROPIC_API_KEY
+'   EC2_SSH_KEY (for deployment)
+'   GHCR_TOKEN (for registry push)
+' ============================================================
+
+@enduml

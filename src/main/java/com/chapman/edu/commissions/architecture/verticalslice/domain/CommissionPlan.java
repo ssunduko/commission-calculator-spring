@@ -26,7 +26,8 @@ public class CommissionPlan {
     @Column(nullable = false)
     private String name;
 
-    @Transient
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "plan_id")
     private List<CommissionRule> rules = new ArrayList<>();
 
     @Transient

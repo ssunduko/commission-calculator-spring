@@ -1,0 +1,108 @@
+@startuml C4_Deployment
+!include <C4/C4_Deployment>
+
+title Deployment Diagram — Commission Calculator (AWS EC2 + Docker Compose)
+
+' ============================================================
+' DEPLOYMENT DIAGRAM
+' ============================================================
+' Shows the physical deployment topology: AWS EC2 instance
+' running Docker Compose with frontend and backend containers,
+' connected to external services.
+'
+' INFRASTRUCTURE:
+' - AWS EC2 instance with Elastic IP
+' - Docker Compose orchestrating 2 containers
+' - Security group: ports 22 (SSH), 3000 (frontend), 8081 (backend)
+' - Docker volumes for persistent data
+' ============================================================
+
+Deployment_Node(aws, "AWS Cloud", "Amazon Web Services") {
+
+    Deployment_Node(ec2, "EC2 Instance", "t3.medium / Ubuntu\nElastic IP: assigned\nSecurity Group: sg-commission") {
+
+        Deployment_Node(docker, "Docker Compose", "docker-compose.yml") {
+
+            Deployment_Node(frontendContainer, "Frontend Container", "Nginx + Next.js\nPort 3000:3000") {
+                Container(reactApp, "React Frontend", "Next.js / Node 22", "Sales commission dashboard.\nProxies /api/** to backend.\nStatic assets served by Nginx.")
+            }
+
+            Deployment_Node(backendContainer, "Backend Container", "Eclipse Temurin JRE 21\nPort 8081:8081") {
+                Container(springApp, "Spring Boot Backend", "Java 21 / Spring Boot 3.4", "REST API, MCP Server,\nAI Services, Thymeleaf pages.\nVertical Slice Architecture.")
+            }
+
+            Deployment_Node(volumes, "Docker Volumes", "Persistent storage") {
+                ContainerDb(h2Volume, "H2 Database", "Volume: h2-data\n/app/data/commissiondb", "File-based H2 database.\nFlyway-managed schema.\nSurvives container restarts.")
+
+                ContainerDb(vectorVolume, "VectorStore", "Volume: vectorstore-data\n/app/data/vectorstore.json", "ONNX embeddings file.\nSemantic search index.\nRebuilt on first startup.")
+            }
+        }
+
+        Deployment_Node(securityGroup, "Security Group: sg-commission", "Inbound rules") {
+            Container(sgRules, "Firewall Rules", "AWS Security Group", "Port 22: SSH (admin IP only)\nPort 3000: HTTPS (0.0.0.0/0)\nPort 8081: HTTPS (0.0.0.0/0)\nPort 443: HTTPS (future)")
+        }
+    }
+}
+
+Deployment_Node(external, "External Services", "") {
+
+    Deployment_Node(githubCloud, "GitHub", "github.com") {
+        Container(ghActions, "GitHub Actions", "CI/CD Runners", "Build, test, security scan,\nbuild Docker images,\ndeploy to EC2")
+        ContainerDb(ghcr, "GitHub Container\nRegistry", "ghcr.io", "Docker images:\nghcr.io/ssunduko/\ncommission-calculator-*")
+        Container(ghRepo, "Source Repository", "Git", "ssunduko/\ncommission-calculator-spring")
+    }
+
+    Deployment_Node(anthropic, "Anthropic", "api.anthropic.com") {
+        Container(claudeApi, "Claude API", "Claude Sonnet 4", "LLM inference for\nall AI features")
+    }
+
+    Deployment_Node(mcpExternal, "External MCP", "currency-mcp.wesbos.com") {
+        Container(currencyServer, "Currency MCP Server", "SSE Transport", "Exchange rate tools")
+    }
+}
+
+Deployment_Node(userDevice, "User Device", "Browser / CLI") {
+    Container(browser, "Web Browser", "Chrome / Firefox", "Accesses React frontend\nat http://elastic-ip:3000")
+    Container(claudeDesktop, "Claude Desktop", "MCP Client", "Connects via STDIO\nor Streamable HTTP")
+}
+
+' --- Relationships ---
+Rel(browser, reactApp, "HTTPS", "Port 3000")
+Rel(reactApp, springApp, "Proxies /api/**", "HTTP :8081")
+Rel(claudeDesktop, springApp, "MCP tools", "STDIO / HTTP :8081/mcp")
+Rel(springApp, h2Volume, "JDBC", "File I/O")
+Rel(springApp, vectorVolume, "Read/Write", "File I/O")
+Rel(springApp, claudeApi, "AI inference", "HTTPS")
+Rel(springApp, currencyServer, "Currency tools", "SSE / MCP")
+Rel(ghActions, ghcr, "Push images", "docker push")
+Rel(ghActions, ec2, "Deploy via SSH", "ssh + docker compose pull")
+Rel(ghcr, ec2, "Pull images", "docker pull")
+Rel(ghRepo, ghActions, "Triggers workflows", "push / PR / schedule")
+
+' ============================================================
+' DIAGRAM NOTES
+' ============================================================
+' DOCKER COMPOSE:
+'   services:
+'     frontend:  nginx + next.js  → port 3000
+'     backend:   java 21 + spring → port 8081
+'   volumes:
+'     h2-data:        /app/data (H2 database files)
+'     vectorstore-data: /app/data (VectorStore JSON)
+'
+' DEPLOYMENT FLOW:
+'   1. Developer pushes to GitHub
+'   2. CI workflow: tests, quality, security
+'   3. CD Build: docker build → push to ghcr.io
+'   4. CD Deploy: SSH to EC2 → docker compose pull → up -d
+'   5. Post-deployment: health check + smoke test
+'
+' SECURITY:
+'   - EC2 security group restricts inbound ports
+'   - SSH limited to admin IP
+'   - API keys stored as GitHub Secrets / EC2 env vars
+'   - HTTP Basic auth on all /api/** endpoints
+'   - MCP endpoint at /mcp publicly accessible
+' ============================================================
+
+@enduml

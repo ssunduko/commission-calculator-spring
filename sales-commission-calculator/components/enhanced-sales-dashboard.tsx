@@ -163,8 +163,8 @@ export function EnhancedSalesDashboard() {
     new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount)
 
   const formatDate = (dateString: string) =>
@@ -263,7 +263,7 @@ export function EnhancedSalesDashboard() {
               <div className="text-3xl font-bold text-slate-900 mb-2">{formatCurrency(totalEarnings)}</div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center text-emerald-600 text-sm font-medium">
-                  <ArrowUpRight className="w-3 h-3 mr-1" />+{monthlyGrowth}%
+                  <ArrowUpRight className="w-3 h-3 mr-1" />+{monthlyGrowth.toFixed(2)}%
                 </div>
                 <span className="text-slate-500 text-sm">vs last month</span>
               </div>
@@ -280,7 +280,7 @@ export function EnhancedSalesDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-slate-900 mb-3">{quotaAttainment.toFixed(1)}%</div>
+              <div className="text-3xl font-bold text-slate-900 mb-3">{quotaAttainment.toFixed(2)}%</div>
               <Progress value={quotaAttainment} className="h-2 mb-2" />
               <div className="text-slate-500 text-sm">
                 {formatCurrency(totalEarnings)} of {formatCurrency(quotaTarget)}
@@ -318,7 +318,7 @@ export function EnhancedSalesDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-slate-900 mb-2">{winRate}%</div>
+              <div className="text-3xl font-bold text-slate-900 mb-2">{winRate.toFixed(2)}%</div>
               <div className="flex items-center gap-2">
                 <span className="text-slate-500 text-sm">Avg deal: {formatCurrency(avgDealSize)}</span>
               </div>

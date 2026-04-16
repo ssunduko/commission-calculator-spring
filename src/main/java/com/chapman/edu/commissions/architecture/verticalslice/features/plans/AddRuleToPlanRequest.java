@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 
 /**
  * Request DTO for adding a rule to a commission plan.
+ *
+ * @param rate commission rate as a whole-number percentage (e.g. {@code 5} for 5%,
+ *             {@code 10.5} for 10.5%). The calculation engine divides by 100 internally;
+ *             do not pass decimal multipliers like {@code 0.05}.
  */
 public record AddRuleToPlanRequest(
     String name,

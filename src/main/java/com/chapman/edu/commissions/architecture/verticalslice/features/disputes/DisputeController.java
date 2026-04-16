@@ -65,6 +65,24 @@ public class DisputeController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/comments")
+    public ResponseEntity<DisputeResponse> addComment(
+        @PathVariable String id,
+        @RequestBody AddCommentRequest request
+    ) {
+        DisputeResponse response = disputeService.addComment(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/documents")
+    public ResponseEntity<DisputeResponse> addDocument(
+        @PathVariable String id,
+        @RequestBody AddDocumentRequest request
+    ) {
+        DisputeResponse response = disputeService.addDocument(id, request);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDispute(@PathVariable String id) {
         disputeService.deleteDispute(id);

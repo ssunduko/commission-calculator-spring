@@ -3,6 +3,7 @@ package com.chapman.edu.commissions.architecture.verticalslice.features.disputes
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ValidationException;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.Dispute;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeDocument;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
 import org.springframework.stereotype.Service;
 
@@ -99,5 +100,39 @@ public class DisputeService {
             throw new ResourceNotFoundException("Dispute", id);
         }
         disputeRepository.deleteById(id);
+    }
+
+    public DisputeResponse addDocument(String id, AddDocumentRequest request) {
+        request.validate();
+
+        Dispute dispute = disputeRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Dispute", id));
+
+        DisputeDocument doc = new DisputeDocument(
+            request.name(),
+            request.contentType(),
+            request.sizeBytes(),
+            request.uploadedBy()
+        );
+        dispute.addDocument(doc);
+
+        Dispute updated = disputeRepository.save(dispute);
+        return DisputeResponse.from(updated);
+    }
+
+    public DisputeResponse addComment(String id, AddCommentRequest request) {
+        request.validate();
+
+        Dispute dispute = disputeRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Dispute", id));
+
+        if (request.userId() == null || request.userId().isBlank()) {
+            dispute.addSystemComment(request.text());
+        } else {
+            dispute.addUserComment(request.userId(), request.userName(), request.text());
+        }
+
+        Dispute updated = disputeRepository.save(dispute);
+        return DisputeResponse.from(updated);
     }
 }

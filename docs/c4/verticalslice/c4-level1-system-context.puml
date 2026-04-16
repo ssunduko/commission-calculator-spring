@@ -7,47 +7,55 @@ title System Context Diagram — Commission Calculator (Vertical Slice)
 ' C4 LEVEL 1: SYSTEM CONTEXT
 ' ============================================================
 ' Shows the Commission Calculator system and the people and
-' external systems it interacts with. This is the highest level
-' of abstraction — the "zoomed out" view.
+' external systems it interacts with.
 '
 ' PURPOSE:
 ' Answer the question: "What is the Commission Calculator and
 ' who/what does it interact with?"
-'
-' NOTATION:
-' - Blue boxes = People (actors who use the system)
-' - Dark blue box = The system under discussion
-' - Gray boxes = External systems it depends on
 ' ============================================================
 
 Person(salesRep, "Sales Representative", "Creates deals, views\ncommission calculations,\nfiles disputes")
 Person(salesManager, "Sales Manager", "Reviews team performance,\napproves commissions,\nresolves disputes")
 Person(financeAdmin, "Finance Admin", "Manages commission plans,\naudits calculations,\napproves payouts")
-Person(aiAgent, "AI Agent / LLM Client", "Invokes MCP tools to query\nand manage commission data\nprogrammatically")
+Person(aiAgent, "AI Agent", "Claude Desktop / Claude Code\ninvokes MCP tools to query\nand manage commission data")
 
-System(commCalc, "Commission Calculator", "Manages sales deals, commission plans,\ncalculations, and disputes.\nExposes REST API and MCP protocol\nfor human and AI-agent interaction.")
+System(commCalc, "Commission Calculator", "Manages sales deals, commission plans,\ncalculations, and disputes.\nReact frontend + Spring Boot backend.\nExposes REST API and MCP protocol\nfor human and AI-agent interaction.")
 
-System_Ext(h2db, "H2 Database", "In-memory relational database\nfor deal, plan, calculation,\nand dispute persistence")
+System_Ext(h2db, "H2 Database", "In-memory / file-based\nrelational database for\ndomain data persistence")
 System_Ext(swaggerUI, "Swagger UI", "Interactive API documentation\nand testing interface")
+System_Ext(anthropicApi, "Anthropic Claude API", "Claude Sonnet 4 LLM.\nPowers AI explainer, forecasting,\nanomaly detection, RAG Q&A,\nand multi-agent workflows")
+System_Ext(github, "GitHub", "Source code repository.\nCI/CD pipeline via GitHub Actions.\nCodeQL security scanning.")
+System_Ext(ghcr, "GitHub Container Registry", "Docker image storage.\nghcr.io/ssunduko/\ncommission-calculator")
+System_Ext(awsEc2, "AWS EC2", "Cloud deployment target.\nElastic IP, Docker Compose,\nNginx reverse proxy")
+System_Ext(currencyMcp, "Currency MCP Server", "External MCP server:\ncurrency-mcp.wesbos.com\nProvides exchange rate tools")
 
-Rel(salesRep, commCalc, "Creates deals, views commissions,\nfiles disputes", "REST API / HTTPS")
-Rel(salesManager, commCalc, "Reviews deals, resolves disputes,\nescalates issues", "REST API / HTTPS")
+Rel(salesRep, commCalc, "Creates deals, views commissions,\nfiles disputes", "React UI / HTTPS")
+Rel(salesManager, commCalc, "Reviews deals, resolves disputes,\nescalates issues", "React UI / HTTPS")
 Rel(financeAdmin, commCalc, "Manages plans, audits calculations", "REST API / HTTPS")
-Rel(aiAgent, commCalc, "Invokes 27 MCP tools,\nreads resources, uses prompts", "MCP Protocol / SSE + REST")
+Rel(aiAgent, commCalc, "Invokes MCP tools,\nreads resources, uses prompts", "MCP Protocol\nSTDIO + Streamable HTTP")
 
 Rel(commCalc, h2db, "Reads/writes domain data", "JDBC / JPA")
 Rel(commCalc, swaggerUI, "Serves OpenAPI spec", "HTTP")
+Rel(commCalc, anthropicApi, "AI inference for analysis,\nRAG, forecasting, agents", "HTTPS / Anthropic SDK")
+Rel(commCalc, currencyMcp, "Currency conversion\nvia MCP client", "SSE / MCP Protocol")
+
+Rel(github, commCalc, "CI/CD pipeline builds,\ntests, and deploys", "GitHub Actions")
+Rel(github, ghcr, "Pushes Docker images", "docker push")
+Rel(ghcr, awsEc2, "Pulls Docker images\nfor deployment", "docker pull")
+Rel(commCalc, awsEc2, "Deployed to", "Docker Compose")
 
 ' ============================================================
 ' DIAGRAM NOTES
 ' ============================================================
-' - All human actors authenticate via HTTP Basic
-' - AI agents connect via MCP SSE transport or REST endpoints
-' - H2 runs in-memory (data is re-initialized on each startup
-'   via DataInitializer CommandLineRunner)
-' - Swagger UI is publicly accessible (no auth required)
-' - The system is a monolithic Spring Boot application with
-'   feature-based internal organization (vertical slices)
+' - Human actors use the React frontend (port 3000)
+' - AI agents connect via MCP STDIO (Claude Desktop) or
+'   Streamable HTTP at /mcp (MCP Inspector, Claude Code)
+' - GitHub Actions runs CI (tests, quality, security) on
+'   every push and CD (build images, deploy) on main
+' - Docker images stored in GitHub Container Registry (ghcr.io)
+' - AWS EC2 runs Docker Compose with frontend + backend
+' - Anthropic Claude API used for all AI-powered features
+' - Currency MCP server provides exchange rate data
 ' ============================================================
 
 @enduml

@@ -315,7 +315,7 @@ export function SalesDashboard() {
               <Target className="h-4 w-4 text-gray-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{quotaAttainment.toFixed(1)}%</div>
+              <div className="text-2xl font-bold">{quotaAttainment.toFixed(2)}%</div>
               <Progress value={quotaAttainment} className="mt-2" />
               <div className="text-xs text-gray-500 mt-1">Quota Progress</div>
             </CardContent>

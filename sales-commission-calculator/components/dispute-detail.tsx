@@ -36,7 +36,7 @@ import {
   DollarSign,
 } from "lucide-react"
 import type { Dispute, DisputeStatus, DisputePriority } from "@/lib/dispute-workflow/types"
-import { disputesApi } from "@/lib/api"
+import { disputesApi, mapApiDisputeToLocal } from "@/lib/api"
 
 interface DisputeDetailProps {
   dispute: Dispute
@@ -46,13 +46,15 @@ interface DisputeDetailProps {
   userName: string
 }
 
-export function DisputeDetail({ dispute, onBack, userRole, userId, userName }: DisputeDetailProps) {
+export function DisputeDetail({ dispute: initialDispute, onBack, userRole, userId, userName }: DisputeDetailProps) {
+  const [dispute, setDispute] = useState<Dispute>(initialDispute)
   const [newComment, setNewComment] = useState("")
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [statusUpdateReason, setStatusUpdateReason] = useState("")
   const [resolutionAmount, setResolutionAmount] = useState("")
   const [resolutionNotes, setResolutionNotes] = useState("")
+  const [openActionId, setOpenActionId] = useState<string | null>(null)
 
   // Actions available based on dispute status and user role
   const availableActions = (() => {
@@ -150,10 +152,14 @@ export function DisputeDetail({ dispute, onBack, userRole, userId, userName }: D
     setIsSubmittingComment(true)
 
     try {
-      // Comments not yet supported via API - log for now
-      console.log("Comment added:", { disputeId: dispute.id, userId, comment: newComment })
+      const updated = await disputesApi.addComment(dispute.id, {
+        userId,
+        userName,
+        text: newComment,
+      })
+      const mapped = mapApiDisputeToLocal(updated)
+      setDispute((prev) => ({ ...prev, comments: mapped.comments, documents: mapped.documents }))
       setNewComment("")
-      // In a real app, this would trigger a refresh of the dispute data
     } catch (error) {
       console.error("Error adding comment:", error)
     } finally {
@@ -165,30 +171,42 @@ export function DisputeDetail({ dispute, onBack, userRole, userId, userName }: D
     setIsUpdatingStatus(true)
 
     try {
+      let updated
       if (newStatus === "resolved") {
-        await disputesApi.resolve(dispute.id, {
+        updated = await disputesApi.resolve(dispute.id, {
           resolution: resolutionNotes || statusUpdateReason || "Resolved",
           resolvedBy: userId,
           approved: true,
         })
       } else if (newStatus === "escalated") {
-        await disputesApi.escalate(dispute.id)
+        updated = await disputesApi.escalate(dispute.id)
       } else if (newStatus === "rejected") {
-        await disputesApi.resolve(dispute.id, {
+        updated = await disputesApi.resolve(dispute.id, {
           resolution: statusUpdateReason || "Rejected",
           resolvedBy: userId,
           approved: false,
         })
       }
 
-      if (newStatus === "resolved" && resolutionAmount) {
-        dispute.resolutionAmount = Number.parseFloat(resolutionAmount)
+      if (updated) {
+        const mapped = mapApiDisputeToLocal(updated)
+        setDispute((prev) => ({
+          ...prev,
+          status: mapped.status,
+          resolution: mapped.resolution,
+          resolvedAt: mapped.resolvedAt,
+          comments: mapped.comments,
+          documents: mapped.documents,
+          ...(newStatus === "resolved" && resolutionAmount
+            ? { resolutionAmount: Number.parseFloat(resolutionAmount) }
+            : {}),
+        }))
       }
 
       setStatusUpdateReason("")
       setResolutionAmount("")
       setResolutionNotes("")
-      // In a real app, this would trigger a refresh of the dispute data
+      setOpenActionId(null)
     } catch (error) {
       console.error("Error updating status:", error)
     } finally {
@@ -230,7 +248,11 @@ export function DisputeDetail({ dispute, onBack, userRole, userId, userName }: D
         {availableActions.length > 0 && (
           <div className="flex gap-2">
             {availableActions.map((action) => (
-              <Dialog key={action.id}>
+              <Dialog
+                key={action.id}
+                open={openActionId === action.id}
+                onOpenChange={(open) => setOpenActionId(open ? action.id : null)}
+              >
                 <DialogTrigger asChild>
                   <Button variant={action.toStatus === "resolved" ? "default" : "outline"} size="sm">
                     {action.label}
@@ -438,11 +460,11 @@ export function DisputeDetail({ dispute, onBack, userRole, userId, userName }: D
                             </div>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" disabled title="File bytes are not stored in this build">
                               <Eye className="w-4 h-4 mr-2" />
                               View
                             </Button>
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" disabled title="File bytes are not stored in this build">
                               <Download className="w-4 h-4 mr-2" />
                               Download
                             </Button>

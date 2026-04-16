@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,13 @@ import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Upload, X, FileText, DollarSign, CheckCircle, Info } from "lucide-react"
 import type { DisputeType, DisputePriority, DisputeFormData } from "@/lib/dispute-workflow/types"
-import { disputesApi } from "@/lib/api"
+import {
+  disputesApi,
+  dealsApi,
+  calculationsApi,
+  type DealResponse,
+  type CommissionCalculationResponse,
+} from "@/lib/api"
 
 interface DisputeFormProps {
   onSubmit: (disputeId: string) => void
@@ -90,6 +96,13 @@ export function DisputeForm({ onSubmit, onCancel, dealId, commissionId, prefillA
   const [uploadProgress, setUploadProgress] = useState(0)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [newTag, setNewTag] = useState("")
+  const [deals, setDeals] = useState<DealResponse[]>([])
+  const [calculations, setCalculations] = useState<CommissionCalculationResponse[]>([])
+
+  useEffect(() => {
+    dealsApi.getAll().then(setDeals).catch(() => setDeals([]))
+    calculationsApi.getAll().then(setCalculations).catch(() => setCalculations([]))
+  }, [])
 
   const [formData, setFormData] = useState<DisputeFormData>({
     title: "",
@@ -145,13 +158,43 @@ export function DisputeForm({ onSubmit, onCancel, dealId, commissionId, prefillA
         }
       }
 
+      if (!formData.commissionId) {
+        setErrors({ submit: "Select a commission — disputes must be linked to an existing commission calculation." })
+        return
+      }
+
+      // Re-fetch to guard against stale IDs (H2 in-memory DB recreates UUIDs on backend restart)
+      const freshCalcs = await calculationsApi.getAll().catch(() => calculations)
+      setCalculations(freshCalcs)
+      const selectedCalc = freshCalcs.find((c) => c.id === formData.commissionId)
+      if (!selectedCalc) {
+        setErrors({
+          submit:
+            "The selected commission no longer exists on the server (likely a backend restart). Please reselect a commission from the refreshed list.",
+        })
+        setFormData((prev) => ({ ...prev, commissionId: "" }))
+        return
+      }
+
       // Create dispute via API
       const dispute = await disputesApi.create({
-        calculationId: formData.commissionId || formData.dealId || "unknown",
-        salesRepId: "rep-001",
+        calculationId: selectedCalc.id,
+        salesRepId: selectedCalc.salesRepId,
         title: formData.title,
         description: formData.description,
       })
+
+      // Record document metadata (file bytes are not persisted — metadata-only stub)
+      for (const file of formData.documents) {
+        await disputesApi.addDocument(dispute.id, {
+          name: file.name,
+          contentType: file.type || null,
+          sizeBytes: file.size,
+          uploadedBy: selectedCalc.salesRepId,
+        }).catch((err) => {
+          console.warn("Failed to record document metadata:", file.name, err)
+        })
+      }
 
       onSubmit(dispute.id)
     } catch (error) {
@@ -332,46 +375,36 @@ export function DisputeForm({ onSubmit, onCancel, dealId, commissionId, prefillA
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="disputedAmount">Current Amount</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="disputedAmount"
-                      type="number"
-                      step="0.01"
-                      value={formData.disputedAmount}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          disputedAmount: Number.parseFloat(e.target.value) || 0,
-                        }))
-                      }
-                      className={`pl-10 ${errors.disputedAmount ? "border-red-500" : ""}`}
-                      placeholder="0.00"
-                    />
-                  </div>
+                  <Input
+                    id="disputedAmount"
+                    value={formData.disputedAmount ? String(formData.disputedAmount) : ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        disputedAmount: Number.parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className={errors.disputedAmount ? "border-red-500" : ""}
+                    placeholder="e.g. $1,250 or 1250.00"
+                  />
                   <p className="text-xs text-muted-foreground">Amount you currently received</p>
                   {errors.disputedAmount && <p className="text-sm text-red-600">{errors.disputedAmount}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="expectedAmount">Expected Amount</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="expectedAmount"
-                      type="number"
-                      step="0.01"
-                      value={formData.expectedAmount}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          expectedAmount: Number.parseFloat(e.target.value) || 0,
-                        }))
-                      }
-                      className={`pl-10 ${errors.expectedAmount ? "border-red-500" : ""}`}
-                      placeholder="0.00"
-                    />
-                  </div>
+                  <Input
+                    id="expectedAmount"
+                    value={formData.expectedAmount ? String(formData.expectedAmount) : ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        expectedAmount: Number.parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                    className={errors.expectedAmount ? "border-red-500" : ""}
+                    placeholder="e.g. $1,500 or 1500.00"
+                  />
                   <p className="text-xs text-muted-foreground">Amount you believe you should receive</p>
                   {errors.expectedAmount && <p className="text-sm text-red-600">{errors.expectedAmount}</p>}
                 </div>
@@ -379,25 +412,58 @@ export function DisputeForm({ onSubmit, onCancel, dealId, commissionId, prefillA
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="dealId">Related Deal ID</Label>
-                  <Input
-                    id="dealId"
-                    value={formData.dealId}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, dealId: e.target.value }))}
-                    placeholder="deal-001"
-                  />
-                  <p className="text-xs text-muted-foreground">Related deal identifier (if applicable)</p>
+                  <Label htmlFor="dealId">Related Deal</Label>
+                  <Select
+                    value={formData.dealId || "none"}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, dealId: value === "none" ? "" : value }))
+                    }
+                  >
+                    <SelectTrigger id="dealId">
+                      <SelectValue placeholder="Select a deal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {deals.map((deal) => (
+                        <SelectItem key={deal.id} value={deal.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{deal.title}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {deal.id} · {formatCurrency(deal.value)} · {deal.status}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Related deal (if applicable)</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="commissionId">Commission ID</Label>
-                  <Input
-                    id="commissionId"
+                  <Label htmlFor="commissionId">Commission *</Label>
+                  <Select
                     value={formData.commissionId}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, commissionId: e.target.value }))}
-                    placeholder="comm-001"
-                  />
-                  <p className="text-xs text-muted-foreground">Related commission record (if applicable)</p>
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, commissionId: value }))}
+                  >
+                    <SelectTrigger id="commissionId">
+                      <SelectValue placeholder="Select a commission" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {calculations
+                        .filter((calc) => !formData.dealId || calc.dealId === formData.dealId)
+                        .map((calc) => (
+                          <SelectItem key={calc.id} value={calc.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{calc.id}</span>
+                              <span className="text-xs text-muted-foreground">
+                                Deal {calc.dealId} · Net {formatCurrency(calc.netCommission)} · {calc.status}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Required — disputes must reference an existing commission.</p>
                 </div>
               </div>
 

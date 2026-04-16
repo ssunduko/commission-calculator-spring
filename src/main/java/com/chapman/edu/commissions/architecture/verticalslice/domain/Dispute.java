@@ -41,8 +41,13 @@ public class Dispute {
     @Column(nullable = false)
     private DisputeStatus status = DisputeStatus.INITIATED;
 
-    @Transient
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "dispute_id")
     private List<DisputeComment> comments = new ArrayList<>();
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JoinColumn(name = "dispute_id")
+    private List<DisputeDocument> documents = new ArrayList<>();
 
     @Column(name = "created_date", nullable = false)
     private LocalDateTime createdDate = LocalDateTime.now();
@@ -88,6 +93,11 @@ public class Dispute {
 
     public void addComment(DisputeComment comment) {
         this.comments.add(comment);
+        this.lastUpdatedDate = LocalDateTime.now();
+    }
+
+    public void addDocument(DisputeDocument document) {
+        this.documents.add(document);
         this.lastUpdatedDate = LocalDateTime.now();
     }
 

@@ -148,6 +148,7 @@ public class CommissionReActAgent {
 
     /**
      * Returns the registered tools (for testing and inspection).
+     * @return
      */
     public Map<String, Tool> getTools() {
         return Map.copyOf(tools);

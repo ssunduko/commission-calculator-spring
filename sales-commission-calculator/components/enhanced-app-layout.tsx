@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   Sidebar,
   SidebarContent,
@@ -31,15 +31,12 @@ import {
   LayoutDashboard,
   Settings,
   Users,
-  DollarSign,
   HelpCircle,
   Bell,
   ChevronUp,
   User,
   LogOut,
   Zap,
-  Target,
-  TrendingUp,
   BarChart3,
   FileText,
   Palette,
@@ -51,8 +48,6 @@ import { PlanBuilder } from "./plan-builder"
 import { AnalyticsDashboard } from "./analytics-dashboard"
 import { DesignSystem } from "./design-system"
 import { DisputeDashboard } from "./dispute-dashboard"
-import { dealsApi, type DealResponse } from "@/lib/api"
-
 const menuItems = [
   {
     title: "Dashboard",
@@ -92,73 +87,8 @@ const menuItems = [
   },
 ]
 
-const quickActions = [
-  {
-    title: "View Earnings",
-    icon: DollarSign,
-    description: "Check current commission",
-    color: "from-emerald-500 to-teal-500",
-  },
-  {
-    title: "Pipeline Review",
-    icon: Target,
-    description: "Review open deals",
-    color: "from-blue-500 to-indigo-500",
-  },
-  {
-    title: "Performance",
-    icon: TrendingUp,
-    description: "Analytics insights",
-    color: "from-purple-500 to-pink-500",
-  },
-  {
-    title: "Reports",
-    icon: FileText,
-    description: "Generate reports",
-    color: "from-orange-500 to-red-500",
-  },
-]
-
-const fmtCurrency = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n)
-
-function formatTimeAgo(dateStr: string | null): string {
-  if (!dateStr) return ""
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const days = Math.floor(diff / 86400000)
-  if (days > 30) return `${Math.floor(days / 30)}mo ago`
-  if (days > 0) return `${days}d ago`
-  const hours = Math.floor(diff / 3600000)
-  if (hours > 0) return `${hours}h ago`
-  return "just now"
-}
-
 export function EnhancedAppLayout() {
   const [activeView, setActiveView] = useState("dashboard")
-  const [recentActivity, setRecentActivity] = useState<
-    { title: string; description: string; amount: string; time: string; type: string }[]
-  >([])
-
-  useEffect(() => {
-    dealsApi.getAll().then((deals) => {
-      const sorted = [...deals].sort((a, b) => {
-        const dateA = a.closeDate || a.createdDate || ""
-        const dateB = b.closeDate || b.createdDate || ""
-        return dateB.localeCompare(dateA)
-      })
-      setRecentActivity(
-        sorted.slice(0, 5).map((d) => ({
-          title: d.status === "WON" ? "Deal Closed" : d.status === "OPEN" ? "Deal Opened" : `Deal ${d.status}`,
-          description: d.title,
-          amount: fmtCurrency(d.value),
-          time: formatTimeAgo(d.closeDate || d.createdDate),
-          type: d.status === "WON" ? "success" : d.status === "OPEN" ? "pending" : "info",
-        })),
-      )
-    }).catch(() => {
-      setRecentActivity([])
-    })
-  }, [])
 
   const renderContent = () => {
     switch (activeView) {
@@ -205,7 +135,8 @@ export function EnhancedAppLayout() {
                       <SidebarMenuButton
                         onClick={() => setActiveView(item.id)}
                         isActive={activeView === item.id}
-                        className="group px-3 py-3 rounded-xl hover:bg-blue-50 hover:shadow-sm transition-all data-[active=true]:bg-gradient-to-r data-[active=true]:from-blue-600 data-[active=true]:to-purple-600 data-[active=true]:text-white data-[active=true]:shadow-lg"
+                        size="lg"
+                        className="group h-auto px-3 py-3 rounded-xl hover:bg-blue-50 hover:shadow-sm transition-all data-[active=true]:bg-gradient-to-r data-[active=true]:from-blue-600 data-[active=true]:to-purple-600 data-[active=true]:text-white data-[active=true]:shadow-lg"
                       >
                         <item.icon className="h-5 w-5 group-hover:scale-110 transition-transform" />
                         <div className="flex flex-col">
@@ -219,47 +150,6 @@ export function EnhancedAppLayout() {
               </SidebarGroupContent>
             </SidebarGroup>
 
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-slate-600 font-semibold px-3 py-2">Quick Actions</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <div className="grid grid-cols-2 gap-2 px-3">
-                  {quickActions.map((action) => (
-                    <Button
-                      key={action.title}
-                      variant="outline"
-                      size="sm"
-                      className="h-auto p-3 flex flex-col items-center gap-2 hover:shadow-md transition-all border-slate-200 hover:border-blue-300 bg-transparent"
-                    >
-                      <div className={`p-2 rounded-lg bg-gradient-to-br ${action.color}`}>
-                        <action.icon className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="text-center">
-                        <div className="text-xs font-medium text-slate-700">{action.title}</div>
-                        <div className="text-xs text-slate-500">{action.description}</div>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-slate-600 font-semibold px-3 py-2">Recent Activity</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <div className="space-y-2 px-3">
-                  {recentActivity.map((activity, index) => (
-                    <div key={index} className="p-3 rounded-lg bg-slate-50/50 hover:bg-slate-100/50 transition-colors">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-slate-700">{activity.title}</span>
-                        <span className="text-xs text-slate-500">{activity.time}</span>
-                      </div>
-                      <div className="text-xs text-slate-600 mb-1">{activity.description}</div>
-                      <div className="text-sm font-bold text-slate-900">{activity.amount}</div>
-                    </div>
-                  ))}
-                </div>
-              </SidebarGroupContent>
-            </SidebarGroup>
           </SidebarContent>
 
           <SidebarFooter className="border-t border-slate-200/50 bg-gradient-to-r from-slate-50 to-blue-50/50">

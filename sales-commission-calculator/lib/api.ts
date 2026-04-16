@@ -109,6 +109,24 @@ export type DisputeStatusApi =
   | "RESOLVED"
   | "CANCELLED"
 
+export interface DisputeDocumentResponse {
+  id: string
+  name: string
+  contentType: string | null
+  sizeBytes: number
+  uploadedBy: string | null
+  uploadedAt: string | null
+}
+
+export interface DisputeCommentResponse {
+  id: string
+  userId: string | null
+  userName: string | null
+  text: string
+  timestamp: string | null
+  isSystemComment: boolean
+}
+
 export interface DisputeResponse {
   id: string
   calculationId: string
@@ -121,6 +139,8 @@ export interface DisputeResponse {
   resolvedDate: string | null
   resolution: string | null
   commentsCount: number
+  documents: DisputeDocumentResponse[]
+  comments: DisputeCommentResponse[]
 }
 
 export interface CreateDisputeRequest {
@@ -134,6 +154,19 @@ export interface ResolveDisputeRequest {
   resolution: string
   resolvedBy: string
   approved: boolean
+}
+
+export interface AddCommentRequest {
+  userId: string
+  userName: string
+  text: string
+}
+
+export interface AddDocumentRequest {
+  name: string
+  contentType: string | null
+  sizeBytes: number
+  uploadedBy: string | null
 }
 
 // ── Deal API ────────────────────────────────────────────────────────────────
@@ -203,6 +236,10 @@ export const disputesApi = {
     apiFetch<DisputeResponse>(`/disputes/${id}/resolve`, { method: "POST", body: JSON.stringify(data) }),
   escalate: (id: string) =>
     apiFetch<DisputeResponse>(`/disputes/${id}/escalate`, { method: "POST" }),
+  addComment: (id: string, data: AddCommentRequest) =>
+    apiFetch<DisputeResponse>(`/disputes/${id}/comments`, { method: "POST", body: JSON.stringify(data) }),
+  addDocument: (id: string, data: AddDocumentRequest) =>
+    apiFetch<DisputeResponse>(`/disputes/${id}/documents`, { method: "POST", body: JSON.stringify(data) }),
   delete: (id: string) => apiFetch<void>(`/disputes/${id}`, { method: "DELETE" }),
 }
 
@@ -232,8 +269,25 @@ export function mapApiDisputeToLocal(d: DisputeResponse) {
     createdAt: d.createdDate || new Date().toISOString(),
     updatedAt: d.createdDate || new Date().toISOString(),
     resolvedAt: d.resolvedDate || undefined,
-    documents: [] as any[],
-    comments: [] as any[],
+    documents: (d.documents || []).map((doc) => ({
+      id: doc.id,
+      name: doc.name,
+      type: doc.contentType || "application/octet-stream",
+      url: "",
+      uploadedAt: doc.uploadedAt || new Date().toISOString(),
+      uploadedBy: doc.uploadedBy || "unknown",
+      size: doc.sizeBytes,
+    })),
+    comments: (d.comments || []).map((c) => ({
+      id: c.id,
+      disputeId: d.id,
+      userId: c.userId || "system",
+      userName: c.isSystemComment ? "System" : (c.userName || c.userId || "Unknown"),
+      userRole: "sales" as const,
+      content: c.text,
+      createdAt: c.timestamp || new Date().toISOString(),
+      isInternal: c.isSystemComment,
+    })),
     statusHistory: [] as any[],
     tags: [] as string[],
     resolution: d.resolution || undefined,

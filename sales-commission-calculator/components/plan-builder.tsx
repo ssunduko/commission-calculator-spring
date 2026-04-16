@@ -129,7 +129,7 @@ export function PlanBuilder() {
           name: tier.name,
           description: `${tier.rateType === "percentage" ? tier.rate + "%" : "$" + tier.rate} commission`,
           rate: tier.rate,
-          ruleType: "tiered",
+          ruleType: "STANDARD",
           priority: tiers.indexOf(tier) + 1,
         })
       }
@@ -139,7 +139,7 @@ export function PlanBuilder() {
           name: "Base Rate",
           description: `${baseRateType === "percentage" ? baseRate[0] + "%" : "$" + baseRate[0]} base commission`,
           rate: baseRate[0],
-          ruleType: "base_rate",
+          ruleType: "STANDARD",
           priority: 1,
         })
       }
