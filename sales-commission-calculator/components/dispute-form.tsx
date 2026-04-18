@@ -21,6 +21,7 @@ import {
   type DealResponse,
   type CommissionCalculationResponse,
 } from "@/lib/api"
+import { WebMcpTool } from "@/components/webmcp-tool"
 
 interface DisputeFormProps {
   onSubmit: (disputeId: string) => void
@@ -182,6 +183,7 @@ export function DisputeForm({ onSubmit, onCancel, dealId, commissionId, prefillA
         salesRepId: selectedCalc.salesRepId,
         title: formData.title,
         description: formData.description,
+        priority: formData.priority.toUpperCase() as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
       })
 
       // Record document metadata (file bytes are not persisted — metadata-only stub)
@@ -257,7 +259,24 @@ export function DisputeForm({ onSubmit, onCancel, dealId, commissionId, prefillA
   const selectedPriority = PRIORITY_LEVELS.find((priority) => priority.value === formData.priority)
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <WebMcpTool
+      tool="createDispute"
+      description="Create a new commission dispute for a sales representative. calculationId and salesRepId must refer to existing records — call listCalculations (or listDisputes to see sample IDs) first if unknown."
+      endpoint="/disputes"
+      method="POST"
+      params={[
+        { name: "calculationId", description: "Commission calculation UUID to dispute (from GET /api/calculations)" },
+        { name: "salesRepId", description: "Sales representative user ID — typically the salesRepId of the selected calculation" },
+        { name: "title", description: "Brief title describing the dispute" },
+        { name: "description", description: "Detailed explanation of the dispute issue" },
+        {
+          name: "priority",
+          description: "Priority: LOW, MEDIUM, HIGH, or URGENT. Defaults to MEDIUM if omitted.",
+          required: false,
+        },
+      ]}
+      className="max-w-4xl mx-auto space-y-6"
+    >
       {/* Progress Indicator */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Create New Dispute</h2>
@@ -648,6 +667,6 @@ export function DisputeForm({ onSubmit, onCancel, dealId, commissionId, prefillA
           </Card>
         )}
       </form>
-    </div>
+    </WebMcpTool>
   )
 }

@@ -41,6 +41,10 @@ public class Dispute {
     @Column(nullable = false)
     private DisputeStatus status = DisputeStatus.INITIATED;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private DisputePriority priority = DisputePriority.MEDIUM;
+
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JoinColumn(name = "dispute_id")
     private List<DisputeComment> comments = new ArrayList<>();

@@ -23,6 +23,8 @@ import {
 } from "lucide-react"
 import type { Dispute, DisputeStatus, DisputeType, DisputePriority } from "@/lib/dispute-workflow/types"
 import { disputesApi, mapApiDisputeToLocal } from "@/lib/api"
+import { WebMcpTool } from "@/components/webmcp-tool"
+import { useWebMcp } from "@/hooks/use-webmcp"
 
 interface DisputeListProps {
   onViewDispute: (dispute: Dispute) => void
@@ -43,6 +45,41 @@ export function DisputeList({ onViewDispute, userRole, userId }: DisputeListProp
       setAllDisputes(data.map(mapApiDisputeToLocal))
     }).catch(() => setAllDisputes([]))
   }, [])
+
+  // Also expose createDispute from the list page so agents don't need to
+  // navigate to the form view before invoking it.
+  useWebMcp({
+    tool: "createDispute",
+    description:
+      "Create a new commission dispute. calculationId + salesRepId must refer to existing records — use listCalculations (or inspect an existing dispute) if unknown.",
+    endpoint: "/disputes",
+    method: "POST",
+    params: [
+      { name: "calculationId", description: "Commission calculation UUID to dispute" },
+      { name: "salesRepId", description: "Sales rep user ID (typically the calc's salesRepId)" },
+      { name: "title", description: "Brief title describing the dispute" },
+      { name: "description", description: "Detailed explanation of the dispute issue" },
+      {
+        name: "priority",
+        description: "Priority: LOW, MEDIUM, HIGH, or URGENT. Defaults to MEDIUM if omitted.",
+        required: false,
+      },
+    ],
+  })
+
+  // Discovery helper: lets an agent look up valid calculationId / salesRepId
+  // pairs so it can construct a createDispute call without any UI help.
+  useWebMcp({
+    tool: "listCalculations",
+    description:
+      "List commission calculations (id, dealId, salesRepId, amounts). Use this to find valid calculationId and salesRepId values before calling createDispute.",
+    endpoint: "/calculations",
+    method: "GET",
+    params: [
+      { name: "dealId", description: "Filter by deal ID", required: false },
+      { name: "salesRepId", description: "Filter by sales rep user ID", required: false },
+    ],
+  })
 
   const myDisputes = allDisputes.filter((d) => d.submittedBy === userId)
 
@@ -74,8 +111,11 @@ export function DisputeList({ onViewDispute, userRole, userId }: DisputeListProp
         return false
       }
 
-      // Priority filter
-      if (priorityFilter !== "all" && dispute.priority !== priorityFilter) {
+      // Priority filter (case-insensitive: backend enums are uppercase, local type is lowercase)
+      if (
+        priorityFilter !== "all" &&
+        String(dispute.priority).toLowerCase() !== String(priorityFilter).toLowerCase()
+      ) {
         return false
       }
 
@@ -183,7 +223,26 @@ export function DisputeList({ onViewDispute, userRole, userId }: DisputeListProp
   }
 
   return (
-    <div className="space-y-6">
+    <WebMcpTool
+      tool="listDisputes"
+      description="List commission disputes, optionally filtered by sales rep, status, or priority"
+      endpoint="/disputes"
+      method="GET"
+      params={[
+        { name: "salesRepId", description: "Filter by sales rep identifier", required: false },
+        {
+          name: "status",
+          description: "Filter by status (INITIATED, UNDER_REVIEW, PENDING_INFO, ESCALATED, RESOLVED, REJECTED)",
+          required: false,
+        },
+        {
+          name: "priority",
+          description: "Filter by priority (LOW, MEDIUM, HIGH, URGENT)",
+          required: false,
+        },
+      ]}
+      className="space-y-6"
+    >
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -399,6 +458,6 @@ export function DisputeList({ onViewDispute, userRole, userId }: DisputeListProp
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </WebMcpTool>
   )
 }

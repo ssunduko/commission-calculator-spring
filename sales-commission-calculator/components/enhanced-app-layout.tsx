@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Sidebar,
   SidebarContent,
@@ -87,8 +88,29 @@ const menuItems = [
   },
 ]
 
+const VALID_VIEWS = new Set(["dashboard", "analytics", "plan-builder", "disputes", "admin", "design-system"])
+
 export function EnhancedAppLayout() {
-  const [activeView, setActiveView] = useState("dashboard")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const urlView = searchParams.get("view")
+  const initialView = urlView && VALID_VIEWS.has(urlView) ? urlView : "dashboard"
+  const [activeView, setActiveView] = useState(initialView)
+
+  useEffect(() => {
+    if (urlView && VALID_VIEWS.has(urlView) && urlView !== activeView) {
+      setActiveView(urlView)
+    }
+  }, [urlView]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const changeView = (view: string) => {
+    setActiveView(view)
+    const params = new URLSearchParams(Array.from(searchParams.entries()))
+    if (view === "dashboard") params.delete("view")
+    else params.set("view", view)
+    const qs = params.toString()
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false })
+  }
 
   const renderContent = () => {
     switch (activeView) {
@@ -133,7 +155,7 @@ export function EnhancedAppLayout() {
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
-                        onClick={() => setActiveView(item.id)}
+                        onClick={() => changeView(item.id)}
                         isActive={activeView === item.id}
                         size="lg"
                         className="group h-auto px-3 py-3 rounded-xl hover:bg-blue-50 hover:shadow-sm transition-all data-[active=true]:bg-gradient-to-r data-[active=true]:from-blue-600 data-[active=true]:to-purple-600 data-[active=true]:text-white data-[active=true]:shadow-lg"

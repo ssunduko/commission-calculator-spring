@@ -7,6 +7,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers: {
       "Content-Type": "application/json",
       Authorization: AUTH_HEADER,
+      "ngrok-skip-browser-warning": "true",
       ...options?.headers,
     },
   })
@@ -109,6 +110,8 @@ export type DisputeStatusApi =
   | "RESOLVED"
   | "CANCELLED"
 
+export type DisputePriorityApi = "LOW" | "MEDIUM" | "HIGH" | "URGENT"
+
 export interface DisputeDocumentResponse {
   id: string
   name: string
@@ -134,6 +137,7 @@ export interface DisputeResponse {
   title: string
   description: string
   status: DisputeStatusApi
+  priority: DisputePriorityApi
   isEscalated: boolean
   createdDate: string | null
   resolvedDate: string | null
@@ -148,6 +152,7 @@ export interface CreateDisputeRequest {
   salesRepId: string
   title: string
   description: string
+  priority?: DisputePriorityApi
 }
 
 export interface ResolveDisputeRequest {
@@ -222,10 +227,11 @@ export const calculationsApi = {
 // ── Disputes API ────────────────────────────────────────────────────────────
 
 export const disputesApi = {
-  getAll: (params?: { salesRepId?: string; status?: DisputeStatusApi }) => {
+  getAll: (params?: { salesRepId?: string; status?: DisputeStatusApi; priority?: DisputePriorityApi }) => {
     const query = new URLSearchParams()
     if (params?.salesRepId) query.set("salesRepId", params.salesRepId)
     if (params?.status) query.set("status", params.status)
+    if (params?.priority) query.set("priority", params.priority)
     const qs = query.toString()
     return apiFetch<DisputeResponse[]>(`/disputes${qs ? `?${qs}` : ""}`)
   },
@@ -251,7 +257,7 @@ export function mapApiDisputeToLocal(d: DisputeResponse) {
     title: d.title,
     description: d.description,
     type: "commission_calculation" as const,
-    priority: "medium" as const,
+    priority: (d.priority ? (d.priority.toLowerCase() as "low" | "medium" | "high" | "urgent") : "medium"),
     status: (d.status === "INITIATED" ? "initiated"
       : d.status === "UNDER_REVIEW" ? "under_review"
       : d.status === "ESCALATED" ? "escalated"

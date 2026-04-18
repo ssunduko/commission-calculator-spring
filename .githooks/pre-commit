@@ -1,0 +1,33 @@
+#!/bin/sh
+# Block commits that contain obvious secrets.
+# Activate once per clone:  git config core.hooksPath .githooks
+
+DIFF=$(git diff --cached --diff-filter=ACMR -U0 -- . ':(exclude).githooks/pre-commit')
+ADDED=$(printf '%s\n' "$DIFF" | grep -E '^\+[^+]' || true)
+[ -z "$ADDED" ] && exit 0
+
+FAIL=0
+scan() {
+  label=$1
+  regex=$2
+  match=$(printf '%s\n' "$ADDED" | grep -nE -e "$regex" || true)
+  if [ -n "$match" ]; then
+    echo "pre-commit: possible $label in staged changes:" >&2
+    printf '%s\n' "$match" | sed 's/^/  /' >&2
+    FAIL=1
+  fi
+}
+
+scan "Anthropic API key"        'sk-ant-api[0-9]+-[A-Za-z0-9_-]{20,}'
+scan "AWS access key"           'AKIA[0-9A-Z]{16}'
+scan "private key block"        '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+scan "GitHub token"             'gh[pousr]_[A-Za-z0-9]{36,}'
+scan "OpenAI API key"           'sk-[A-Za-z0-9]{32,}'
+scan "Slack token"              'xox[abprs]-[A-Za-z0-9-]{10,}'
+
+if [ "$FAIL" -ne 0 ]; then
+  echo "" >&2
+  echo "Commit blocked. If this is a false positive, bypass with:  git commit --no-verify" >&2
+  exit 1
+fi
+exit 0

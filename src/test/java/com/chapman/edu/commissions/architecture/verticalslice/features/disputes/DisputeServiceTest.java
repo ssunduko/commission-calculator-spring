@@ -1,6 +1,7 @@
 package com.chapman.edu.commissions.architecture.verticalslice.features.disputes;
 
 import com.chapman.edu.commissions.architecture.verticalslice.domain.Dispute;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputePriority;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
 import com.chapman.edu.commissions.architecture.verticalslice.features.disputes.*;
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ResourceNotFoundException;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,7 +47,8 @@ class DisputeServiceTest {
                 "CALC002",
                 "REP002",
                 "Commission Rate Dispute",
-                "The commission rate applied is incorrect"
+                "The commission rate applied is incorrect",
+                null
         );
         Dispute savedDispute = new Dispute("CALC002", "REP002", "Commission Rate Dispute", "The commission rate applied is incorrect");
         savedDispute.setId("2");
@@ -61,7 +64,43 @@ class DisputeServiceTest {
         assertThat(response.title()).isEqualTo("Commission Rate Dispute");
         assertThat(response.calculationId()).isEqualTo("CALC002");
         assertThat(response.salesRepId()).isEqualTo("REP002");
+        assertThat(response.priority()).isEqualTo(DisputePriority.MEDIUM);
         verify(disputeRepository, times(1)).save(any(Dispute.class));
+    }
+
+    @Test
+    void createDispute_WithExplicitPriority_ShouldPersistPriority() {
+        // Given
+        CreateDisputeRequest request = new CreateDisputeRequest(
+                "CALC002",
+                "REP002",
+                "Urgent Issue",
+                "This is time-critical",
+                DisputePriority.URGENT
+        );
+        when(disputeRepository.save(any(Dispute.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        DisputeResponse response = disputeService.createDispute(request);
+
+        // Then
+        assertThat(response.priority()).isEqualTo(DisputePriority.URGENT);
+        verify(disputeRepository, times(1)).save(argThat(d -> d.getPriority() == DisputePriority.URGENT));
+    }
+
+    @Test
+    void getDisputesByPriority_ShouldReturnFilteredDisputes() {
+        // Given
+        testDispute.setPriority(DisputePriority.HIGH);
+        when(disputeRepository.findByPriority(DisputePriority.HIGH)).thenReturn(Arrays.asList(testDispute));
+
+        // When
+        List<DisputeResponse> responses = disputeService.getDisputesByPriority(DisputePriority.HIGH);
+
+        // Then
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).priority()).isEqualTo(DisputePriority.HIGH);
+        verify(disputeRepository, times(1)).findByPriority(DisputePriority.HIGH);
     }
 
     @Test

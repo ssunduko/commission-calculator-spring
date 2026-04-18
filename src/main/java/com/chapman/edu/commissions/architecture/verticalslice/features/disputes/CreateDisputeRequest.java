@@ -1,5 +1,7 @@
 package com.chapman.edu.commissions.architecture.verticalslice.features.disputes;
 
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputePriority;
+
 /**
  * Request DTO for creating a new dispute.
  */
@@ -7,7 +9,8 @@ public record CreateDisputeRequest(
     String calculationId,
     String salesRepId,
     String title,
-    String description
+    String description,
+    DisputePriority priority
 ) {
     public void validate() {
         if (calculationId == null || calculationId.isBlank()) {

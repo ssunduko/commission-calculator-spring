@@ -116,7 +116,22 @@
       "Bash(grep -nE '<\\(input|textarea|select\\)[^>]* name=' rag.html explainer.html disputes.html forecast.html anomaly.html agent.html workflow.html moderation.html)",
       "WebFetch(domain:developer.puter.com)",
       "WebFetch(domain:docs.puter.com)",
-      "Bash(powershell.exe:*)"
+      "Bash(powershell.exe:*)",
+      "Bash(npx next *)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"console.log\\(typeof btoa\\)\")",
+      "Bash(npm run *)",
+      "Read(//tmp/**)",
+      "Bash(grep -c \"tailwind\\\\|\\\\\\\\.max-w-4xl\\\\|\\\\\\\\.bg-gradient-to-br\\\\|\\\\\\\\.flex\\\\|\\\\\\\\.text-\")",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(grep -oE 'class=\"[^\"]{0,200}\"' /tmp/page2.html)",
+      "Bash(chmod +x *)",
+      "Bash(command -v ngrok)",
+      "Bash(where.exe ngrok *)",
+      "Bash(ngrok version *)",
+      "Read(//c/Users/ssund/AppData/Roaming/npm/node_modules/ngrok/bin/**)",
+      "Bash(C:/Users/ssund/AppData/Roaming/npm/node_modules/ngrok/bin/ngrok.exe version *)",
+      "WebFetch(domain:docs.mcp-b.ai)"
     ],
     "deny": [],
     "ask": []

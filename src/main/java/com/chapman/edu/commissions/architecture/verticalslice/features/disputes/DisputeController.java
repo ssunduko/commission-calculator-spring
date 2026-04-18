@@ -1,5 +1,6 @@
 package com.chapman.edu.commissions.architecture.verticalslice.features.disputes;
 
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputePriority;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +36,8 @@ public class DisputeController {
     @GetMapping
     public ResponseEntity<List<DisputeResponse>> getAllDisputes(
         @RequestParam(required = false) String salesRepId,
-        @RequestParam(required = false) DisputeStatus status
+        @RequestParam(required = false) DisputeStatus status,
+        @RequestParam(required = false) DisputePriority priority
     ) {
         List<DisputeResponse> disputes;
 
@@ -43,6 +45,8 @@ public class DisputeController {
             disputes = disputeService.getDisputesBySalesRep(salesRepId);
         } else if (status != null) {
             disputes = disputeService.getDisputesByStatus(status);
+        } else if (priority != null) {
+            disputes = disputeService.getDisputesByPriority(priority);
         } else {
             disputes = disputeService.getAllDisputes();
         }

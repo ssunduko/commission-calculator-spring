@@ -224,7 +224,8 @@ public class McpServerIntegrationTest {
             "CALC_MCP_TEST",
             "REP_MCP_TEST",
             "MCP Test Dispute",
-            "Testing dispute creation through MCP"
+            "Testing dispute creation through MCP",
+            null
         );
 
         mockMvc.perform(post("/api/disputes")

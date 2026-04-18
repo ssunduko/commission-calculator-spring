@@ -4,6 +4,7 @@ import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exc
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.exceptions.ValidationException;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.Dispute;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeDocument;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputePriority;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +33,9 @@ public class DisputeService {
             request.title(),
             request.description()
         );
+        if (request.priority() != null) {
+            dispute.setPriority(request.priority());
+        }
 
         Dispute savedDispute = disputeRepository.save(dispute);
         return DisputeResponse.from(savedDispute);
@@ -57,6 +61,12 @@ public class DisputeService {
 
     public List<DisputeResponse> getDisputesByStatus(DisputeStatus status) {
         return disputeRepository.findByStatus(status).stream()
+            .map(DisputeResponse::from)
+            .collect(Collectors.toList());
+    }
+
+    public List<DisputeResponse> getDisputesByPriority(DisputePriority priority) {
+        return disputeRepository.findByPriority(priority).stream()
             .map(DisputeResponse::from)
             .collect(Collectors.toList());
     }

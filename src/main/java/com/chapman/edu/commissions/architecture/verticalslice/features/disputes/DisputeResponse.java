@@ -1,6 +1,7 @@
 package com.chapman.edu.commissions.architecture.verticalslice.features.disputes;
 
 import com.chapman.edu.commissions.architecture.verticalslice.domain.Dispute;
+import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputePriority;
 import com.chapman.edu.commissions.architecture.verticalslice.domain.DisputeStatus;
 
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ public record DisputeResponse(
     String title,
     String description,
     DisputeStatus status,
+    DisputePriority priority,
     boolean isEscalated,
     LocalDateTime createdDate,
     LocalDateTime resolvedDate,
@@ -44,6 +46,7 @@ public record DisputeResponse(
             dispute.getTitle(),
             dispute.getDescription(),
             dispute.getStatus(),
+            dispute.getPriority(),
             dispute.isEscalated(),
             dispute.getCreatedDate(),
             dispute.getResolvedDate(),
