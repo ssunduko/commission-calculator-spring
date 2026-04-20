@@ -76,7 +76,7 @@ public class McpServerIntegrationTest {
         mockMvc.perform(get("/api/mcp/capabilities")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools.count").value(31))
+                .andExpect(jsonPath("$.tools.count").value(32))
                 .andExpect(jsonPath("$.tools.listChanged").value(true));
 
         // Test MCP initialize endpoint
@@ -90,14 +90,15 @@ public class McpServerIntegrationTest {
 
     @Test
     public void testToolsAreRegistered() throws Exception {
-        // Verify that all 31 tools are registered and accessible via MCP protocol
+        // Verify that all 32 tools are registered and accessible via MCP protocol
+        // (31 feature tools + delegateToDisputeAgent A2A bridge).
 
         mockMvc.perform(post("/api/mcp/tools/list")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tools").isArray())
-                .andExpect(jsonPath("$.tools", hasSize(31)))
+                .andExpect(jsonPath("$.tools", hasSize(32)))
                 .andExpect(jsonPath("$.tools[?(@.name=='createDeal')]").exists())
                 .andExpect(jsonPath("$.tools[?(@.name=='createCommissionPlan')]").exists())
                 .andExpect(jsonPath("$.tools[?(@.name=='createDispute')]").exists())
@@ -312,13 +313,13 @@ public class McpServerIntegrationTest {
         // Verify that all MCP tools are accessible through the service layer
         // This ensures the @Tool annotations are properly configured
 
-        // Get all tools via MCP protocol
+        // Get all tools via MCP protocol (31 feature tools + 1 A2A bridge)
         String response = mockMvc.perform(post("/api/mcp/tools/list")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tools").isArray())
-                .andExpect(jsonPath("$.tools", hasSize(31)))
+                .andExpect(jsonPath("$.tools", hasSize(32)))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -332,13 +333,20 @@ public class McpServerIntegrationTest {
         int planTools = 0;
         int disputeTools = 0;
         int calculationTools = 0;
+        int a2aTools = 0;
 
         for (var tool : tools) {
             String name = tool.get("name").asText();
             String description = tool.get("description").asText();
 
-            // Categorize based on tool name patterns (check more specific patterns first)
-            if (name.contains("Calculation") || name.contains("calculation") ||
+            // Categorize based on tool name patterns (check more specific patterns first).
+            // A2A bridge tools are disambiguated before the DisputeService prefix match
+            // — delegateToDisputeAgent contains "Dispute" in its name but lives in
+            // McpCommissionTools, not DisputeService, so it shouldn't inflate the
+            // DisputeService count.
+            if (name.startsWith("delegate") || name.contains("Agent")) {
+                a2aTools++;
+            } else if (name.contains("Calculation") || name.contains("calculation") ||
                 name.equals("calculateCommission")) {
                 calculationTools++;
             } else if (name.contains("Dispute") || name.contains("dispute") ||
@@ -367,6 +375,7 @@ public class McpServerIntegrationTest {
         assert planTools == 7 : "Expected 7 Commission Plan tools, found " + planTools;
         assert disputeTools == 8 : "Expected 8 Dispute tools, found " + disputeTools;
         assert calculationTools == 5 : "Expected 5 Calculation tools, found " + calculationTools;
+        assert a2aTools == 1 : "Expected 1 A2A bridge tool (delegateToDisputeAgent), found " + a2aTools;
 
         // Verify specific critical tools exist
         mockMvc.perform(post("/api/mcp/tools/list")

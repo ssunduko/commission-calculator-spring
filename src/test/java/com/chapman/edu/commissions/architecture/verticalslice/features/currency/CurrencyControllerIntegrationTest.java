@@ -170,11 +170,12 @@ public class CurrencyControllerIntegrationTest {
 
     @Test
     void totalToolCountShouldIncludeCurrencyTools() throws Exception {
+        // 31 feature tools + delegateToDisputeAgent A2A bridge = 32.
         mockMvc.perform(post("/api/mcp/tools/list")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools", hasSize(31)));
+                .andExpect(jsonPath("$.tools", hasSize(32)));
     }
 
     // ==================== MCP Tool Invocation Tests ====================

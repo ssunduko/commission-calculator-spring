@@ -139,7 +139,8 @@
       "Bash(xargs -I {} sh -c 'echo \"=== $1 ===\" ; unzip -l \"$1\" 2>&1 | grep -E \"AgentCard\\\\.class|AgentSkill\\\\.class|AgentExecutor\\\\.class|DefaultAgentExecutor\\\\.class|Message.class|TextPart\\\\.class|RequestContext\\\\.class\" ' _ {})",
       "Bash(xargs -I {} sh -c 'echo \"=== $1 ===\" ; unzip -l \"$1\" 2>&1 | grep \"\\\\.class\" | head -20' _ {})",
       "Bash(xargs -I {} sh -c 'unzip -l \"$1\" 2>&1 | grep -q \"EnabledStreamableServerCondition.class\" && echo \"FOUND IN: $1\"' _ {})",
-      "Bash(xargs -I {} sh -c 'unzip -l \"$1\" 2>&1 | grep -q \"McpServerStreamableHttpProperties.class\" && echo \"$1\"' _ {})"
+      "Bash(xargs -I {} sh -c 'unzip -l \"$1\" 2>&1 | grep -q \"McpServerStreamableHttpProperties.class\" && echo \"$1\"' _ {})",
+      "Bash(grep -nB1 -A3 \"Caused by\" \"C:/Users/ssund/.claude/projects/C--Commission-Calculator-commission-calculator-spring/f59fd5b8-8e39-4425-b14d-84f7a6f91d5a/tool-results/b26zd4enq.txt\")"
     ],
     "deny": [],
     "ask": []
