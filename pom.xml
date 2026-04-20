@@ -174,6 +174,23 @@
             <artifactId>spring-ai-vector-store</artifactId>
         </dependency>
 
+        <!-- Spring AI A2A — Agent-to-Agent Protocol Server                -->
+        <!-- Auto-exposes JSON-RPC sendMessage at POST / and agent-card    -->
+        <!-- discovery at /.well-known/agent-card.json when an AgentCard   -->
+        <!-- and AgentExecutor bean are present.                           -->
+        <dependency>
+            <groupId>org.springaicommunity</groupId>
+            <artifactId>spring-ai-a2a-server-autoconfigure</artifactId>
+            <version>0.2.0</version>
+        </dependency>
+
+        <!-- A2A Java SDK Client — for calling other A2A agents           -->
+        <dependency>
+            <groupId>io.github.a2asdk</groupId>
+            <artifactId>a2a-java-sdk-client</artifactId>
+            <version>0.3.3.Final</version>
+        </dependency>
+
         <!-- WebSocket Support -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

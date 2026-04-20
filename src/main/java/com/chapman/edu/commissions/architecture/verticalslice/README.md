@@ -1,376 +1,227 @@
-# Commission Calculator - Vertical Slice Architecture
+# Commission Calculator — Vertical Slice Module
 
-## Overview
+Spring Boot application implementing a commission calculator using **Vertical Slice
+Architecture** with three integration surfaces for AI agents:
 
-This is a Spring Boot application implementing a commission calculator system using **Vertical Slice Architecture**. The application manages deals, commission plans, calculations, and disputes with support for AI agent integration through MCP (Model Context Protocol) tools.
+- **MCP** (Model Context Protocol) — 35 tools, 10 prompts, 12 resources.
+- **A2A** (Agent-to-Agent) — a dedicated dispute-filing agent exposed over JSON-RPC.
+- **REST** — conventional HTTP API for every feature.
+
+Port: **8081** (override with `-Dserver.port=…`). Default credentials: `admin` / `admin123`.
+
+---
+
+## Table of Contents
+
+1. [Architecture](#architecture)
+2. [Domain Model](#domain-model)
+3. [Features](#features)
+4. [Running the Application](#running-the-application)
+5. [MCP Server](#mcp-server)
+6. [A2A — Agent-to-Agent](#a2a--agent-to-agent)
+7. [Feature Flags (Togglz)](#feature-flags-togglz)
+8. [Observability](#observability)
+9. [Testing](#testing)
+10. [Common Workflows](#common-workflows)
+
+---
 
 ## Architecture
 
-### Vertical Slice Architecture
+### Vertical Slice
 
-This application follows the **Vertical Slice Architecture** pattern, where each feature is organized as a complete vertical slice containing all the layers needed for that feature:
+Each feature is a complete vertical slice containing every layer needed to serve it:
 
 ```
 verticalslice/
-├── domain/              # Domain models and enums
-├── features/            # Feature slices (vertical slices)
-│   ├── deals/          # Deal management feature
-│   ├── plans/          # Commission plan feature
-│   ├── calculations/   # Commission calculation feature
-│   ├── disputes/       # Dispute management feature
-│   └── currency/       # Currency conversion (MCP client to external server)
-├── processor/           # STARTUP DEMOS — Showcases Vertical Slice concepts
-│   ├── VerticalSliceProcessor.java       # Demonstrates all VS patterns
-│   └── VerticalSliceProcessorDemo.java   # CommandLineRunner for startup demos
-└── infrastructure/      # Cross-cutting concerns
-    ├── config/         # Configuration
-    ├── data/           # Data initialization
-    ├── exceptions/     # Global exception handling
-    └── mcp/            # MCP server (tools, prompts, resources, controllers)
+├── domain/                 # Shared enums + entities
+├── features/
+│   ├── deals/              # Controller + service + repository + DTOs
+│   ├── plans/
+│   ├── calculations/
+│   ├── disputes/
+│   └── currency/           # MCP client to currency-mcp.wesbos.com
+├── processor/              # VerticalSliceProcessor — startup demos
+└── infrastructure/
+    ├── a2a/                # A2A dispute agent + client + REST trigger + CLI
+    ├── cli/                # Interactive REPL for MCP tools
+    ├── config/             # Security, OpenAPI, feature flags
+    ├── data/               # DataInitializer
+    ├── exceptions/         # GlobalExceptionHandler
+    └── mcp/                # Hand-rolled SSE + REST MCP controllers, tools, prompts, resources
 ```
 
-Each feature slice contains:
-- **Controller**: REST API endpoints
-- **Service**: Business logic and MCP tools
-- **Repository**: Data access
-- **DTOs**: Request/Response objects
-- **Domain Models**: Related to that feature
+Benefits: feature cohesion, easy navigation, independent development, clear boundaries,
+isolation-friendly testing.
 
-### Benefits of Vertical Slice Architecture
-
-1. **Feature Cohesion**: Everything related to a feature is in one place
-2. **Easy Navigation**: Developers can quickly find all code for a feature
-3. **Independent Development**: Features can be developed independently
-4. **Clear Boundaries**: Reduces coupling between features
-5. **Easier Testing**: Each slice can be tested in isolation
+---
 
 ## Domain Model
 
-### Core Entities
+| Entity | Key fields | Statuses |
+|---|---|---|
+| **Deal** | id, title, value, salesRepId, closeDate, products | OPEN, WON, LOST, CANCELLED |
+| **CommissionPlan** | id, name, currency, effective dates, rules, tiers | DRAFT, ACTIVE, INACTIVE, ARCHIVED |
+| **CommissionRule** | id, name, type, rate, priority | PERCENTAGE, TIERED, FLAT, ACCELERATOR |
+| **CommissionCalculation** | id, dealId, salesRepId, planId, baseCommission, finalAmount | DRAFT, PENDING, APPROVED, PAID, CANCELLED |
+| **Dispute** | id, calculationId, salesRepId, title, description, **priority**, resolution | INITIATED, UNDER_REVIEW, ADDITIONAL_INFO_REQUESTED, ESCALATED, APPROVED, REJECTED, RESOLVED, CANCELLED |
+| **DisputePriority** | LOW, MEDIUM, HIGH, URGENT | — |
 
-#### Deal
-Represents a sales deal that will generate commissions.
-- **Fields**: id, title, value, salesRepId, status, closeDate, products
-- **Statuses**: OPEN, WON, LOST, CANCELLED
-
-#### CommissionPlan
-Defines commission rules and calculation methods.
-- **Fields**: id, name, currency, status, effectiveStartDate, effectiveEndDate, rules, tiers
-- **Statuses**: DRAFT, ACTIVE, INACTIVE, ARCHIVED
-
-#### CommissionRule
-Rules within a commission plan that define how commissions are calculated.
-- **Fields**: id, name, description, type, rate, priority, conditions
-- **Types**: PERCENTAGE, TIERED, FLAT, ACCELERATOR
-
-#### CommissionCalculation
-Result of calculating commission for a deal.
-- **Fields**: id, dealId, salesRepId, planId, baseCommission, adjustments, finalAmount
-- **Statuses**: DRAFT, PENDING, APPROVED, PAID, CANCELLED
-
-#### Dispute
-Dispute raised by sales reps regarding commission calculations.
-- **Fields**: id, calculationId, salesRepId, title, description, status, escalated, resolution
-- **Statuses**: INITIATED, UNDER_REVIEW, ADDITIONAL_INFO_REQUESTED, ESCALATED, APPROVED, REJECTED, RESOLVED, CANCELLED
+---
 
 ## Features
 
 ### 1. Deal Management (`features/deals`)
 
-Manages sales deals and their lifecycle.
+**REST:** `POST/GET/PUT/DELETE /api/deals`, `/api/deals/rep/{id}`, `/api/deals/status/{s}`.
+**MCP tools:** `createDeal`, `getDeal`, `getAllDeals`, `getDealsBySalesRep`, `getDealsByStatus`, `updateDeal`, `deleteDeal`.
 
-**Services:**
-- Create new deals
-- Update deal status and information
-- Retrieve deals by sales rep or status
-- Delete deals
+### 2. Commission Plans (`features/plans`)
 
-**MCP Tools Available:**
-- `createDeal` - Create a new deal
-- `getDeal` - Get deal by ID
-- `getAllDeals` - Get all deals
-- `getDealsBySalesRep` - Filter deals by sales rep
-- `getDealsByStatus` - Filter deals by status
-- `updateDeal` - Update deal information
-- `deleteDeal` - Remove a deal
-
-**REST Endpoints:**
-- `POST /api/deals` - Create deal
-- `GET /api/deals/{id}` - Get deal
-- `GET /api/deals` - List all deals
-- `GET /api/deals/rep/{salesRepId}` - Get deals by sales rep
-- `GET /api/deals/status/{status}` - Get deals by status
-- `PUT /api/deals/{id}` - Update deal
-- `DELETE /api/deals/{id}` - Delete deal
-
-### 2. Commission Plan Management (`features/plans`)
-
-Manages commission plans and their rules.
-
-**Services:**
-- Create and activate commission plans
-- Add rules to plans (percentage, tiered, accelerators)
-- Retrieve plans by status
-- Delete plans
-
-**MCP Tools Available:**
-- `createCommissionPlan` - Create a new commission plan
-- `getCommissionPlan` - Get plan by ID
-- `getAllCommissionPlans` - Get all plans
-- `getCommissionPlansByStatus` - Filter plans by status
-- `activateCommissionPlan` - Activate a plan
-- `addRuleToPlan` - Add commission rule to plan
-- `deleteCommissionPlan` - Remove a plan
-
-**REST Endpoints:**
-- `POST /api/plans` - Create plan
-- `GET /api/plans/{id}` - Get plan
-- `GET /api/plans` - List all plans
-- `GET /api/plans/status/{status}` - Get plans by status
-- `POST /api/plans/{id}/activate` - Activate plan
-- `POST /api/plans/{id}/rules` - Add rule to plan
-- `DELETE /api/plans/{id}` - Delete plan
+**REST:** `POST/GET /api/plans`, `POST /api/plans/{id}/activate`, `POST /api/plans/{id}/rules`, `DELETE /api/plans/{id}`.
+**MCP tools:** `createCommissionPlan`, `getCommissionPlan`, `getAllCommissionPlans`, `getCommissionPlansByStatus`, `activateCommissionPlan`, `addRuleToPlan`, `deleteCommissionPlan`.
 
 ### 3. Commission Calculation (`features/calculations`)
 
-Calculates commissions based on deals and plans.
-
-**Services:**
-- Calculate commission for a deal using a plan
-- Retrieve calculations by deal or sales rep
-- Manage calculation lifecycle
-
-**MCP Tools Available:**
-- `calculateCommission` - Calculate commission for a deal
-- `getCommissionCalculation` - Get calculation by ID
-- `getAllCommissionCalculations` - Get all calculations
-- `getCalculationsByDeal` - Filter by deal
-- `getCalculationsBySalesRep` - Filter by sales rep
-
-**REST Endpoints:**
-- `POST /api/calculations` - Calculate commission
-- `GET /api/calculations/{id}` - Get calculation
-- `GET /api/calculations` - List all calculations
-- `GET /api/calculations/deal/{dealId}` - Get calculations by deal
-- `GET /api/calculations/rep/{salesRepId}` - Get calculations by sales rep
+**REST:** `POST /api/calculations`, `GET /api/calculations/{id|deal|rep}`.
+**MCP tools:** `calculateCommission`, `getCommissionCalculation`, `getAllCommissionCalculations`, `getCalculationsByDeal`, `getCalculationsBySalesRep`.
 
 ### 4. Dispute Management (`features/disputes`)
 
-Manages disputes raised by sales representatives.
-
-**Services:**
-- Create disputes for commission calculations
-- Resolve disputes (approve/reject)
-- Escalate disputes to management
-- Track dispute status
-
-**MCP Tools Available:**
-- `createDispute` - Create a new dispute
-- `getDispute` - Get dispute by ID
-- `getAllDisputes` - Get all disputes
-- `getDisputesBySalesRep` - Filter by sales rep
-- `getDisputesByStatus` - Filter by status
-- `resolveDispute` - Resolve a dispute
-- `escalateDispute` - Escalate dispute
-- `deleteDispute` - Remove a dispute
-
-**REST Endpoints:**
-- `POST /api/disputes` - Create dispute
-- `GET /api/disputes/{id}` - Get dispute
-- `GET /api/disputes` - List all disputes
-- `GET /api/disputes/rep/{salesRepId}` - Get disputes by sales rep
-- `GET /api/disputes/status/{status}` - Get disputes by status
-- `POST /api/disputes/{id}/resolve` - Resolve dispute
-- `POST /api/disputes/{id}/escalate` - Escalate dispute
-- `DELETE /api/disputes/{id}` - Delete dispute
+**REST:** `POST/GET/DELETE /api/disputes`, `POST /api/disputes/{id}/{resolve|escalate|comments|documents}`, `?priority=LOW|MEDIUM|HIGH|URGENT` filter on `GET /api/disputes`.
+**MCP tools:** `createDispute`, `getDispute`, `getAllDisputes`, `getDisputesBySalesRep`, `getDisputesByStatus`, `resolveDispute`, `escalateDispute`, `deleteDispute`, plus AI-powered `analyzeDispute`, `summarizeSalesPerformance`, `explainCommission`, and the A2A bridge `delegateToDisputeAgent` (see the A2A section).
 
 ### 5. Currency Conversion (`features/currency`)
 
-Provides real-time currency conversion by acting as an **MCP client** that connects to an external MCP server ([currency-mcp.wesbos.com](https://github.com/wesbos/currency-conversion-mcp)).
+Acts as an **MCP client** against [currency-mcp.wesbos.com](https://github.com/wesbos/currency-conversion-mcp) over SSE and re-exposes the remote tools locally — demonstrating MCP server chaining.
 
-**How It Works:**
-- `CurrencyMcpClientConfig` creates an `McpSyncClient` bean that connects to the remote server via SSE transport
-- `CurrencyConversionService` calls the remote MCP tools and also exposes them as local `@Tool` methods
-- This means AI agents connected to THIS server can trigger currency conversions that internally call OUT to the external server
+**REST:** `POST /api/currency/convert`, `GET /api/currency/rates`, `/api/currency/supported`, `/api/currency/historical`.
+**MCP tools (proxied):** `convertCurrency`, `getLatestRates`, `listSupportedCurrencies`, `getHistoricalRates`.
 
-**MCP Tools Available (proxied from remote server):**
-- `convertCurrency` - Convert an amount between two currencies
-- `getLatestRates` - Fetch latest exchange rates with optional base/symbols filter
-- `listSupportedCurrencies` - List all supported currencies
-- `getHistoricalRates` - Get exchange rates for a specific past date
+---
 
-**REST Endpoints:**
-- `POST /api/currency/convert` - Convert currency (`{ "from": "USD", "to": "EUR", "amount": 100 }`)
-- `GET /api/currency/rates?base=USD&symbols=EUR,GBP,JPY` - Latest rates
-- `GET /api/currency/supported` - List supported currencies
-- `GET /api/currency/historical?date=2025-01-15&base=USD` - Historical rates
-
-**Configuration** (`application.properties`):
-```properties
-app.mcp.currency.base-url=https://currency-mcp.wesbos.com
-app.mcp.currency.sse-endpoint=/sse
-```
-
-## MCP Server Integration
-
-### What is MCP?
-
-**Model Context Protocol (MCP)** is a protocol that enables AI agents to interact with your application's services through well-defined tools. This application exposes **31 MCP tools** across all services.
-
-### MCP Tools Architecture
-
-All service methods are annotated with `@Tool` from Spring AI, making them automatically available as MCP tools:
-
-```java
-@Service
-public class DealService {
-
-    @Tool(name = "createDeal",
-          description = "Create a new deal with title, value, and sales rep ID.")
-    public DealResponse createDeal(CreateDealRequest request) {
-        // Implementation
-    }
-}
-```
-
-### Total MCP Tools: 31
-
-- **Deal Management**: 7 tools
-- **Commission Plans**: 7 tools
-- **Calculations**: 5 tools
-- **Disputes**: 8 tools
-- **Currency Conversion**: 4 tools (proxied from external MCP server)
-
-### Using MCP Tools
-
-MCP tools can be invoked by AI agents through the Spring AI MCP server. Each tool:
-
-1. **Has a descriptive name** - Clear identification (e.g., "createDeal")
-2. **Has a description** - Explains what the tool does and what parameters it needs
-3. **Validates input** - Request objects validate before processing
-4. **Returns structured data** - Response DTOs with consistent format
-5. **Handles exceptions** - Global exception handling for errors
-
-### Example MCP Tool Usage
-
-An AI agent can:
-1. Create a deal: `createDeal(title="Enterprise Deal", value=250000, salesRepId="REP001")`
-2. Create a commission plan: `createCommissionPlan(name="Q1 2024 Plan", currency="USD")`
-3. Add rules to the plan: `addRuleToPlan(planId="...", name="Base", rate=5.0)`
-4. Calculate commission: `calculateCommission(dealId="...", planId="...")`
-5. Create a dispute if needed: `createDispute(calculationId="...", title="Error", description="...")`
-
-## Testing the MCP Server
+## Running the Application
 
 ### Prerequisites
 
-- **Java 21+** and **Maven 3.8+**
-- **Node.js** (for MCP Inspector via `npx`)
-- **Claude Desktop** (for Claude Desktop testing)
+- Java 21+
+- Maven 3.8+
+- Node.js (for MCP Inspector and `mcp-remote`)
 
-Build the application JAR before testing:
-
-```bash
-mvn clean package -DskipTests -Pverticalslice                                                                                                                         
-```
-
----
-
-### Interactive MCP CLI
-
-The MCP CLI provides a REPL for exploring and invoking MCP tools, prompts, and resources from the terminal — no external MCP client (Claude Desktop, Inspector) needed.
-
-#### Running the CLI
+### Build
 
 ```bash
-# Build first
 mvn clean package -DskipTests -Pverticalslice
-
-# Run with the cli profile
-java -Dspring.profiles.active=cli -jar target/commission-calculator-0.0.1-SNAPSHOT.jar
 ```
 
-Or with Maven directly:
+### Run (development, with DevTools)
 
 ```bash
-mvn spring-boot:run -Pverticalslice -Dspring-boot.run.profiles=cli
+mvn -Pverticalslice spring-boot:run
 ```
 
-#### CLI Commands
+`-Pverticalslice` activates the Maven profile that points `spring-boot:run` at `CommissionCalculatorApplication` — without it, `mvn spring-boot:run` defaults to the ORM module and the wrong context boots.
 
-| Command | Description | Example |
-|---------|-------------|---------|
-| `help` | Show available commands | `help` |
-| `tools` | List all 31 MCP tools | `tools` |
-| `tool <name> [json]` | Invoke a tool | `tool getAllDeals` |
-| `prompts` | List all MCP prompts | `prompts` |
-| `prompt <name>` | Show prompt details | `prompt create-commission-workflow` |
-| `resources` | List all MCP resources | `resources` |
-| `resource <uri>` | Read a resource | `resource deals://all` |
-| `templates` | List resource templates | `templates` |
-| `search <keyword>` | Search tools by name/description | `search deal` |
-| `exit` | Exit the CLI | `exit` |
+### Run from packaged JAR
 
-#### CLI Examples
-
+```bash
+java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar
 ```
-> tools
-  31 tools available: createDeal, getDeal, getAllDeals, ...
 
-> tool getAllDeals
-  [{ "id": "deal-001", "title": "Enterprise License", ... }]
+### Environment variables
 
-> tool createDeal {"title":"New Deal","value":50000,"salesRepId":"REP001"}
-  { "id": "...", "title": "New Deal", "value": 50000, ... }
-
-> search commission
-  5 matches: calculateCommission, getCommissionCalculation, ...
-
-> resource deals://all
-  [All deals as JSON]
-
-> exit
-```
+| Variable | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | Required when the A2A agent or `analyzeDispute` / `explainCommission` / `summarizeSalesPerformance` tools are used. |
+| `SPRING_DATASOURCE_PASSWORD` | Override default H2 password. |
+| `APP_REGION` | Region value read by `RegionActivationStrategy` (feature flags). |
 
 ---
 
-### Testing with Claude Desktop
+## MCP Server
 
-Claude Desktop supports both **Streamable HTTP** (recommended) and **STDIO** transports.
+### What is MCP?
 
-#### Step 1: Open the Claude Desktop Config File
+**Model Context Protocol** lets AI agents call well-defined tools on an application. This
+module exposes **35 tools**, **10 prompts**, and **12 resources** via Spring AI's MCP server.
+All `@Tool`-annotated methods across services are registered automatically.
 
-In Claude Desktop go to **Settings → Developer → Edit Config**. This opens (or creates) the config file.
+### Transports
 
-Alternatively, open the file directly:
+Three ways to talk to the MCP server — pick one based on client:
 
-| OS      | Path                                                        |
-|---------|-------------------------------------------------------------|
-| Windows | `%APPDATA%\Claude\claude_desktop_config.json`               |
-| macOS   | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Transport | Endpoint | Who uses it |
+|---|---|---|
+| **Streamable HTTP** (recommended) | `POST http://localhost:8081/mcp` | Claude Desktop via `mcp-remote`, modern MCP clients |
+| **SSE** | `GET http://localhost:8081/api/mcp/sse` + `POST http://localhost:8081/api/mcp/message` | Legacy MCP Inspector / clients without Streamable HTTP |
+| **Plain REST shim** | `POST http://localhost:8081/api/mcp/{tools|prompts|resources}/{list|call|read}` | `curl` quick tests |
+| **STDIO** | via `java -Dspring.ai.mcp.server.stdio=true -Dspring.ai.mcp.server.protocol=STDIO -jar …` | Claude Desktop launching the server as a subprocess |
 
-#### Step 2: Add the Server Configuration
+`spring.ai.mcp.server.stdio=false` (default) must be set for the Streamable HTTP transport at `/mcp` to register. Flip to `true` **and** `protocol=STDIO` when running under a stdio-spawning client — the HTTP endpoint then goes away.
 
-##### Option A: Streamable HTTP (Recommended)
+### Tool catalogue (35)
 
-Start the server first (`java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar`), then configure Claude Desktop to connect over HTTP:
+<details>
+<summary>Click to expand</summary>
 
+**Deals (7):** `createDeal`, `getDeal`, `getAllDeals`, `getDealsBySalesRep`, `getDealsByStatus`, `updateDeal`, `deleteDeal`.
+
+**Commission plans (7):** `createCommissionPlan`, `getCommissionPlan`, `getAllCommissionPlans`, `getCommissionPlansByStatus`, `activateCommissionPlan`, `addRuleToPlan`, `deleteCommissionPlan`.
+
+**Calculations (5):** `calculateCommission`, `getCommissionCalculation`, `getAllCommissionCalculations`, `getCalculationsByDeal`, `getCalculationsBySalesRep`.
+
+**Disputes (8):** `createDispute`, `getDispute`, `getAllDisputes`, `getDisputesBySalesRep`, `getDisputesByStatus`, `resolveDispute`, `escalateDispute`, `deleteDispute`.
+
+**Currency (4, proxied):** `convertCurrency`, `getLatestRates`, `listSupportedCurrencies`, `getHistoricalRates`.
+
+**AI-powered (3, uses MCP sampling):** `analyzeDispute`, `explainCommission`, `summarizeSalesPerformance`.
+
+**A2A bridge (1):** `delegateToDisputeAgent` — forwards a natural-language task to the dispute agent and returns its reply.
+
+</details>
+
+### Prompts (10 workflows)
+
+`analyze-sales-performance`, `create-commission-workflow`, `dispute-resolution`,
+`setup-commission-plan`, `monthly-commission-report`, `compare-plans`,
+`audit-calculation`, `convert-deal-currency`, `multi-currency-commission-report`,
+`currency-rate-check`.
+
+### Resources (12)
+
+Data: `deals://all`, `deals://active`, `plans://all`, `plans://active`,
+`disputes://all`, `disputes://open`, `calculations://all`, `currency://supported`,
+`currency://rates`, `currency-rates://{baseCurrency}`.
+Schemas: `schema://deal`, `schema://commission-plan`, `schema://dispute`.
+
+### Connecting Claude Desktop (Streamable HTTP via `mcp-remote`)
+
+1. **Start the server:** `mvn -Pverticalslice spring-boot:run` (or from JAR).
+2. **Edit the config file**:
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+3. **Add:**
+   ```json
+   {
+     "mcpServers": {
+       "commission-calculator": {
+         "command": "npx",
+         "args": ["-y", "mcp-remote", "http://localhost:8081/mcp"]
+       }
+     }
+   }
+   ```
+4. **Fully quit** Claude Desktop (tray → Quit, not just close window) and relaunch.
+5. Tools appear under the 🔨 icon in the chat input. Try: *"File an URGENT dispute for sales rep usr-002 about a wrong 12% rate."*
+
+Some Claude Desktop builds support a native `streamable-http` type — if yours does, you can skip `mcp-remote`:
 ```json
-{
-  "mcpServers": {
-    "commission-calculator": {
-      "type": "streamable-http",
-      "url": "http://localhost:8081/mcp"
-    }
-  }
-}
+{ "mcpServers": { "commission-calculator": { "type": "streamable-http", "url": "http://localhost:8081/mcp" } } }
 ```
 
-**Benefits**: Server runs independently, supports multiple clients, no classpath issues.
+### Connecting Claude Desktop (STDIO)
 
-##### Option B: STDIO (Alternative)
-
-Claude Desktop launches the server process directly:
+Claude Desktop launches the server as a child process. Requires a packaged JAR.
 
 ```json
 {
@@ -378,592 +229,298 @@ Claude Desktop launches the server process directly:
     "commission-calculator": {
       "command": "java",
       "args": [
-        "--enable-native-access=ALL-UNNAMED",
-        "-Dspring.profiles.active=stdio",
+        "-Dspring.ai.mcp.server.stdio=true",
+        "-Dspring.ai.mcp.server.protocol=STDIO",
         "-Dspring.main.web-application-type=none",
+        "-Dlogging.pattern.console=",
+        "-Dspring.main.banner-mode=off",
         "-jar",
         "C:\\Commission Calculator\\commission-calculator-spring\\target\\commission-calculator-0.0.1-SNAPSHOT.jar"
       ]
     }
-  },
-  "preferences": {
-    "coworkScheduledTasksEnabled": true,
-    "ccdScheduledTasksEnabled": true,
-    "sidebarMode": "chat",
-    "coworkWebSearchEnabled": true
   }
 }
 ```
 
-> **Note**: Update the JAR path to match your local project location. Use `\\` on Windows or `/` on macOS. If you already have other MCP servers configured, merge this entry into the existing `mcpServers` object.
+Flag explanations: `stdio=true` + `protocol=STDIO` selects STDIO transport; `web-application-type=none` drops Tomcat; `logging.pattern.console=` and `banner-mode=off` keep stderr/stdout clean so the JSON-RPC stream isn't corrupted.
 
-**STDIO flags explained:**
-- `stdio=true` — enables STDIO transport
-- `web-application-type=none` — disables the HTTP web server (not needed for STDIO)
-- `logging.pattern.console=` — suppresses console logging to keep STDIO clean
-- `banner-mode=off` — disables Spring Boot banner output
+### MCP Inspector
 
-#### Step 3: Fully Quit and Restart Claude Desktop
+Web UI for browsing tools/prompts/resources and running them.
 
-Don't just close the window — fully quit Claude Desktop (system tray → Quit on Windows, or Cmd+Q on macOS) and relaunch it. Claude Desktop only reads the config file on startup.
-
-> **Note**: If using Streamable HTTP, make sure the server is running before restarting Claude Desktop.
-
-#### Step 4: Verify and Use
-
-After restart, look for the **MCP tools icon** (hammer/wrench) in the bottom-right of the chat input box. Click it to see the 31 available tools.
-
-Once connected, all **31 tools**, **10 prompts**, and **12 resources** are available directly in conversation. Try these examples:
-
-```
-Use the "analyze-sales-performance" prompt to analyze sales rep REP001 for last month
-```
-
-```
-Create a new deal titled "Enterprise Software License" with value $50000 for sales rep REP001
-```
-
-```
-Show me all active commission plans
-```
-
-#### Troubleshooting Claude Desktop
-
-| Problem                     | Solution                                                                 |
-|-----------------------------|--------------------------------------------------------------------------|
-| Server not appearing        | Verify the JAR path exists and matches the config                        |
-| Connection fails            | Run the `java` command from config manually in a terminal to see errors  |
-| Wrong Java version          | Run `java -version` — must be 21+                                        |
-| Stale build                 | Rebuild: `mvn clean package -DskipTests`                                 |
-| Check logs                  | Claude Desktop → Settings → Advanced → View Logs                         |
-
----
-
-### Testing with MCP Inspector
-
-The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) provides a web-based UI for browsing tools, prompts, resources, and executing commands against your MCP server.
-
-#### Method 1: STDIO Mode (No Server Required)
-
-The inspector launches the server directly — no need to start it separately.
-
+**Streamable HTTP against a running server:**
 ```bash
-npx @modelcontextprotocol/inspector \
-  java \
-  -Dspring.ai.mcp.server.stdio=true \
-  -Dspring.main.web-application-type=none \
-  -Dspring.main.banner-mode=off \
-  -Dlogging.level.root=OFF \
-  -Dlogging.level.org.springframework=OFF \
-  -Dlogging.level.org.hibernate=OFF \
-  -Dspring.jpa.show-sql=false \
-  -jar "C:\Commission Calculator\commission-calculator-spring\target\commission-calculator-0.0.1-SNAPSHOT.jar"
+npx @modelcontextprotocol/inspector --transport streamable-http http://localhost:8081/mcp
 ```
 
-Open the URL printed in the terminal (typically http://localhost:5173).
-
-#### Method 2: Streamable HTTP Mode (Recommended)
-
-Connect the inspector to an already-running server instance.
-
-**Terminal 1 — Start the server:**
-
-```bash
-java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar
-```
-
-**Terminal 2 — Connect the inspector:**
-
-```bash
-npx @modelcontextprotocol/inspector --transport streamable-http http://admin:admin123@localhost:8081/api/mcp/message
-```
-
-> **Important**: You must include `--transport streamable-http`. Without it, the inspector treats the URL as a command to spawn and fails with `ENOENT`.
-
-#### Method 3: SSE Mode
-
-Alternative transport using Server-Sent Events (deprecated in favor of Streamable HTTP, but still functional).
-
-**Terminal 1 — Start the server:**
-
-```bash
-java -jar target/commission-calculator-0.0.1-SNAPSHOT.jar
-```
-
-**Terminal 2 — Connect the inspector:**
-
+**SSE (legacy):**
 ```bash
 npx @modelcontextprotocol/inspector --transport sse http://admin:admin123@localhost:8081/api/mcp/sse
 ```
 
-#### What You Can Do in the Inspector
+**STDIO (inspector spawns the server):**
+```bash
+npx @modelcontextprotocol/inspector java -Dspring.ai.mcp.server.stdio=true -Dspring.ai.mcp.server.protocol=STDIO -Dspring.main.web-application-type=none -Dspring.main.banner-mode=off -Dlogging.level.root=OFF -jar "target/commission-calculator-0.0.1-SNAPSHOT.jar"
+```
 
-| Tab         | Capability                                               |
-|-------------|----------------------------------------------------------|
-| Tools       | Browse all 31 tools, view schemas, execute with test data |
-| Prompts     | Browse 10 workflow prompts, execute with parameters       |
-| Resources   | Read from 10 data resources and schema definitions        |
-| Messages    | View raw JSON-RPC request/response traffic for debugging  |
+Open the printed URL (usually `http://localhost:5173`). Remember `--transport <name>` on the URL form — without it, `npx` tries to `exec` the URL and errors with `ENOENT`.
 
-#### Inspector Examples
+### Interactive CLI (REPL, no external client needed)
 
-**List all deals:**
-1. Open the inspector UI
-2. Navigate to Tools → `getAllDeals`
-3. Click "Execute"
+```bash
+mvn spring-boot:run -Pverticalslice -Dspring-boot.run.profiles=cli
+```
+Or from a packaged JAR: `java -Dspring.profiles.active=cli -jar target/commission-calculator-0.0.1-SNAPSHOT.jar`.
 
-**Create a deal:**
-1. Navigate to Tools → `createDeal`
-2. Enter parameters:
-   ```json
-   {
-     "title": "Test Deal",
-     "value": 50000,
-     "salesRepId": "REP001"
-   }
-   ```
-3. Click "Execute"
+```
+> tools                              # list all 35
+> tool getAllDeals                   # invoke without args
+> tool createDeal {"title":"X","value":1000,"salesRepId":"REP001"}
+> prompts                            # list prompts
+> prompt create-commission-workflow  # show prompt details
+> resources                          # list resources
+> resource deals://all               # read a resource
+> search dispute                     # search by keyword
+> exit
+```
 
-**Run a workflow prompt:**
-1. Navigate to Prompts → `create-commission-workflow`
-2. Enter parameters:
-   ```json
-   {
-     "dealTitle": "Q1 Enterprise License",
-     "dealValue": "100000",
-     "salesRepId": "REP001",
-     "planId": "plan-1"
-   }
-   ```
-3. Execute and review the multi-step workflow output
+### curl quick tests
 
-#### Inspector Troubleshooting
+```bash
+# Server info (custom REST shim)
+curl -u admin:admin123 http://localhost:8081/api/mcp/info
 
-| Problem                      | Solution                                                  |
-|------------------------------|-----------------------------------------------------------|
-| `npx: command not found`     | Install Node.js from https://nodejs.org                   |
-| Connection refused (HTTP/SSE)| Ensure the server is running on port 8081                 |
-| JSON parse errors (STDIO)    | Verify all logging flags are set to suppress console output|
-| Port 8081 in use             | Kill existing process or change `server.port` in application.properties |
+# Streamable HTTP — initialize, then tools/list (needs Mcp-Session-Id cookie from first response)
+curl -i -X POST http://localhost:8081/mcp -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -d '{"jsonrpc":"2.0","id":"1","method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"probe","version":"0.1"}}}'
+# ^ grab Mcp-Session-Id header, then:
+curl -X POST http://localhost:8081/mcp -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" -H "Mcp-Session-Id: <paste>" -d '{"jsonrpc":"2.0","id":"2","method":"tools/list"}'
+
+# Custom REST shim — no session needed
+curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/tools/call \
+  -H "Content-Type: application/json" \
+  -d '{"name":"getAllDeals","arguments":{}}'
+```
 
 ---
 
-### Quick Testing with curl
+## A2A — Agent-to-Agent
 
-For quick command-line verification without the inspector:
+The `infrastructure/a2a` package implements a specialist **dispute-filing agent** using
+the [Spring AI A2A starter](https://spring.io/blog/2026/01/29/spring-ai-agentic-patterns-a2a-integration).
+Other agents (or Claude via MCP) hand it a natural-language task; it resolves ids,
+picks the right internal tool, and returns a structured reply.
 
-```bash
-# Check server info
-curl -u admin:admin123 http://localhost:8081/api/mcp/info
+### Activation
 
-# List all tools
-curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/tools/list \
-  -H "Content-Type: application/json" -d '{}'
-
-# Call a tool
-curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/tools/call \
-  -H "Content-Type: application/json" \
-  -d '{"name": "getAllDeals", "arguments": {}}'
-
-# List prompts
-curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/prompts/list \
-  -H "Content-Type: application/json" -d '{}'
-
-# Read a resource
-curl -u admin:admin123 -X POST http://localhost:8081/api/mcp/resources/read \
-  -H "Content-Type: application/json" \
-  -d '{"uri": "deals://all"}'
+Defaults in `application.properties`:
+```properties
+spring.ai.a2a.server.enabled=true
+a2a.dispute-agent.url=http://localhost:8081
 ```
+Plus **`ANTHROPIC_API_KEY`** must be in the environment — the agent needs a real
+`ChatClient.Builder` to reason. Set to `false` (server) if you don't have a key and
+don't want the autoconfigure to fail.
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/.well-known/agent-card.json` | Agent discovery (AgentCard JSON) |
+| `POST` | `/` | JSON-RPC 2.0 `message/send` — the A2A protocol |
+| `POST` | `/a2a-client/send` | Plain-text client wrapper (posts through `DisputeClient` to `/`) |
+
+All three are public (no Basic Auth) and exempt from CSRF — see `SecurityConfig.java`.
+
+### Agent card preview
+
+```json
+{
+  "name": "Dispute Filing Agent",
+  "description": "Files commission disputes on behalf of a calling agent ...",
+  "url": "http://localhost:8081",
+  "protocolVersion": "0.3.0",
+  "skills": [
+    { "id": "file-dispute",   "name": "File a commission dispute", ... },
+    { "id": "lookup-dispute", "name": "Look up commission disputes", ... }
+  ]
+}
+```
+
+Skill ids are advisory (for prompt planning) — A2A agents don't expose per-skill
+endpoints. You always send a free-form `Message` with a `TextPart` to `POST /`.
+
+### Internal tools (what the agent's LLM can pick)
+
+Declared in `DisputeAgentTools.java`:
+
+| Tool | Purpose |
+|---|---|
+| `listCalculations` | Returns every calculation so the agent can discover a valid `calculationId`/`salesRepId` pair |
+| `listCalculationsForSalesRep(salesRepId)` | Narrower variant |
+| `getCalculation(id)` | Verify a specific calc exists |
+| **`createDispute(calculationId, salesRepId, title, description, priority)`** | **The core action — creates the dispute** |
+| `listDisputes` | Verify filings |
+| `getDispute(id)` | Fetch one |
+
+### Calling from outside
+
+**Plain REST wrapper (easiest for shell / testing):**
+```bash
+curl -X POST http://localhost:8081/a2a-client/send \
+  -H "Content-Type: text/plain" \
+  --data "File an URGENT dispute for rep usr-002 about a wrong 12% rate - expected 15%."
+```
+Response body is the agent's reply text (Markdown).
+
+**Direct A2A JSON-RPC** (peers that speak the protocol):
+```bash
+curl -X POST http://localhost:8081/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc":"2.0","id":"1","method":"message/send",
+    "params":{"message":{
+      "role":"user",
+      "parts":[{"kind":"text","text":"List all disputes."}],
+      "messageId":"probe-001","kind":"message"
+    }}
+  }'
+```
+Response is a full `Task` result with `status.state=completed`, `artifacts[].parts[].text` carrying the agent's reply.
+
+**From Claude Desktop via MCP:** call the `delegateToDisputeAgent` tool with
+`{ "task": "…" }`. Under the hood this invokes `McpCommissionTools.delegateToDisputeAgent` →
+`DisputeClient.sendTask` → JSON-RPC `POST /` → `DefaultAgentExecutor` → inner Claude →
+back through all layers.
+
+**From an embedded CLI at startup:** pass `a2a.client.cli.task=…` and the
+`DisputeAgentCli` (fires on `ApplicationReadyEvent`) sends the task once, prints the
+reply, and keeps the app running.
+
+### End-to-end flow (Claude Desktop example)
+
+```
+user → Claude Desktop
+       ↓ tools/call delegateToDisputeAgent
+       mcp-remote → POST /mcp
+       ↓ (in-process) McpCommissionTools.delegateToDisputeAgent
+       DisputeClient.sendTask("File an URGENT dispute ...")
+       ↓ JSON-RPC message/send
+       POST /
+       ↓ MessageController → RequestHandler → DefaultAgentExecutor
+       ChatClient.prompt().call()  (inner Claude + DisputeAgentTools)
+       ↓ LLM picks listCalculations, inspects calc-003, then calls createDispute(...)
+       Task { status=completed, artifacts[...].text = "Dispute filed: id=..." }
+       ↓ back up the stack
+user sees the dispute id and status
+```
+
+### Design note — why `DisputeClient` has no `@Tool`
+
+Earlier `DisputeClient.fileDisputeViaAgent` was `@Tool`-annotated. In the same JVM
+that runs both the A2A server and its caller, the project-wide tool scanner (`spring.ai.mcp.server.annotation-scanner.enabled=true`)
+exposed that tool to the **server agent's own ChatClient**, which picked it and
+recursively POSTed to itself until the 60 s timeout tripped. The annotation was
+removed; call `DisputeClient.sendTask(...)` directly (or via the REST wrapper /
+`delegateToDisputeAgent` MCP bridge).
 
 ---
 
 ## Feature Flags (Togglz)
 
-Runtime feature flags using [Togglz](https://www.togglz.org/) decouple **deployment from release** — ship code anytime, activate features independently.
-
-### Registered Flags
+Runtime feature flags at `/togglz-console`.
 
 | Flag | Default | Purpose |
-|------|---------|---------|
-| `CURRENCY_CONVERSION` | Enabled | Gates all `/api/currency/**` endpoints |
-| `BETA_DASHBOARD` | Disabled | Beta dashboard for selected users |
-| `ADVANCED_ANALYTICS` | Disabled | Advanced commission analytics |
-| `BULK_IMPORT` | Disabled | Bulk deal import functionality |
+|---|---|---|
+| `CURRENCY_CONVERSION` | ON | Gates `/api/currency/**` |
+| `BETA_DASHBOARD` | OFF | Beta UI for selected users |
+| `ADVANCED_ANALYTICS` | OFF | Advanced commission analytics |
+| `BULK_IMPORT` | OFF | Bulk deal import |
 
-### Togglz Console
-
-Toggle flags at runtime via the web UI:
+Activation strategies available: **kill switch** (default), **gradual rollout** by %, **username targeting**, **release date**, and a custom **`RegionActivationStrategy`** that reads the `X-Region` header or `APP_REGION` env var. Test with:
 ```
-http://localhost:8081/togglz-console
+curl -H "X-Region: eu-west" http://localhost:8081/api/currency/supported
 ```
 
-### Activation Strategies
+---
 
-#### 1. Kill Switch (Default)
-No strategy needed — simply enable or disable globally.
-```
-/togglz-console → CURRENCY_CONVERSION → Enabled: false
-```
-All `/api/currency/**` endpoints immediately return **503 Service Unavailable**.
+## Observability
 
-#### 2. Gradual Rollout (Percentage)
-Strategy: **Gradual rollout** (built-in `GradualActivationStrategy`).
-Uses consistent hashing on user ID — the same user always gets the same result.
-```
-/togglz-console → ADVANCED_ANALYTICS → Strategy: Gradual rollout → percentage=10
-```
-Enables for 10% of users. Increase to 50, then 100 for full rollout.
+- **Health:** `http://localhost:8081/actuator/health`
+- **Prometheus:** `http://localhost:8081/actuator/prometheus` → search `feature_flag_*`
+- **Swagger UI:** `http://localhost:8081/swagger-ui/`
+- **OpenAPI JSON:** `http://localhost:8081/api-docs`
+- **H2 console:** `http://localhost:8081/h2-console` (JDBC `jdbc:h2:mem:commissiondb`, user `sa`)
+- **CORS:** allows `http://localhost:*`, `http://127.0.0.1:*`, and `*.ngrok-free.{app,dev}` / `*.ngrok.{io,app,dev}` (see `SecurityConfig.java`).
 
-#### 3. User Targeting (Username)
-Strategy: **Username** (built-in `UsernameActivationStrategy`).
-```
-/togglz-console → BETA_DASHBOARD → Strategy: Username → users=alice,bob
-```
-Only `alice` and `bob` see the beta dashboard.
-
-#### 4. Time Window (Release Date)
-Strategy: **Release date** (built-in `ReleaseDateActivationStrategy`).
-```
-/togglz-console → BULK_IMPORT → Strategy: Release date → date=2026-12-01
-```
-Feature auto-enables after December 1, 2026.
-
-#### 5. Server/Region (Custom Strategy)
-Custom `RegionActivationStrategy` reads the current region from:
-1. `X-Region` HTTP header (per-request override)
-2. `APP_REGION` environment variable (server-level default)
-
-```
-/togglz-console → CURRENCY_CONVERSION → Strategy: Server/Region → regions=us-east,eu-west
-```
-
-**Implementation** (`RegionActivationStrategy.java`):
-```java
-@Component
-public class RegionActivationStrategy implements ActivationStrategy {
-    @Override
-    public String getId() { return "region"; }
-
-    @Override
-    public boolean isActive(FeatureState state, FeatureUser user) {
-        String enabledRegions = state.getParameter("regions");    // "us-east,eu-west"
-        String currentRegion = resolveCurrentRegion();             // from header or env
-        return Arrays.stream(enabledRegions.split(","))
-                     .anyMatch(r -> r.trim().equalsIgnoreCase(currentRegion));
-    }
-
-    private String resolveCurrentRegion() {
-        // 1. X-Region header (per-request)
-        // 2. APP_REGION env var (server-level)
-    }
-}
-```
-
-To test: `curl -H "X-Region: eu-west" http://localhost:8081/api/currency/supported`
-
-### Observability
-
-Feature flag state is exposed as **Micrometer metrics** (scrapable by Prometheus):
-
-| Metric | Type | Description |
-|--------|------|-------------|
-| `feature_flag_state{feature="X"}` | Gauge | 1=enabled, 0=disabled |
-| `feature_flag_checked_total{feature="X"}` | Counter | Number of flag checks |
-
-Logs:
-- **State changes**: logged at `WARN` level immediately
-- **Periodic summary**: logged at `INFO` every 60 seconds
-- **Prometheus endpoint**: `http://localhost:8081/actuator/prometheus` → search `feature_flag_*`
-
-### Architecture
-
-```
-CurrencyController                    FeatureManager (Togglz)
-  │                                        │
-  ├─ metrics.recordCheck(flag)             ├─ ActivationStrategy
-  ├─ featureManager.isActive(flag)?        │   ├─ (none) = Kill Switch
-  │   ├─ YES → call service normally       │   ├─ GradualActivation (%)
-  │   └─ NO  → 503 Service Unavailable    │   ├─ UsernameActivation
-  │                                        │   ├─ ReleaseDateActivation
-  FeatureFlagMetrics                       │   └─ RegionActivation (custom)
-  ├─ Gauge: feature_flag_state             │
-  ├─ Counter: feature_flag_checked_total   StateRepository
-  └─ Scheduled: log changes + summary     (in-memory, JDBC, file, Redis)
-```
-
-## Infrastructure
-
-### Configuration (`infrastructure/config`)
-
-- **OpenApiConfig**: Swagger/OpenAPI configuration
-- **SecurityConfig**: Security and authentication setup
-- **Features**: Feature flag enum with activation strategy configuration
-- **RegionActivationStrategy**: Custom region-based feature activation
-- **FeatureFlagMetrics**: Observability — Micrometer metrics and structured logging
-
-### Data Initialization (`infrastructure/data`)
-
-- **DataInitializer**: Seeds initial data for development
-
-### Exception Handling (`infrastructure/exceptions`)
-
-Global exception handling with custom exceptions:
-- **ResourceNotFoundException**: When entities are not found (404)
-- **ValidationException**: When validation fails (400)
-- **GlobalExceptionHandler**: Handles all exceptions globally
-
-## Technology Stack
-
-- **Spring Boot 3.4.5**
-- **Spring Data JPA** - Data persistence
-- **Spring Security** - Authentication/Authorization
-- **Spring AI** - MCP server support
-- **H2 Database** - In-memory database for development
-- **Lombok** - Reduces boilerplate code
-- **SpringDoc OpenAPI** - API documentation
-- **JUnit 5 & Mockito** - Testing
-
-## API Documentation
-
-### Swagger UI
-
-Access the interactive API documentation at:
-```
-http://localhost:8080/swagger-ui/
-```
-
-### OpenAPI Specification
-
-View the raw API specification at:
-```
-http://localhost:8080/api-docs
-```
-
-## Database
-
-### H2 Console
-
-Access the H2 database console at:
-```
-http://localhost:8080/h2-console
-```
-
-**Connection Details:**
-- JDBC URL: `jdbc:h2:mem:commissiondbtwo`
-- Username: `sa`
-- Password: (empty)
-
-## Security
-
-Default credentials for development:
-- **Username**: `admin`
-- **Password**: `admin123`
-
-## Running the Application
-
-### Prerequisites
-- Java 21+
-- Maven 3.8+
-
-### Build
-```bash
-mvn clean package
-```
-
-### Run
-```bash
-mvn spring-boot:run
-```
-
-The application will start on port 8080.
+---
 
 ## Testing
 
-### Unit Tests
-
-Each service has comprehensive unit tests using Mockito:
+### Unit tests
 ```bash
 mvn test -Dtest=*ServiceTest
 ```
 
-### Integration Tests
-
-MCP integration tests verify that MCP tools work correctly:
+### MCP integration tests
 ```bash
-mvn test -Dtest=*McpIntegrationTest
+mvn test -Dtest=McpServerIntegrationTest
 ```
 
-**Note**: Integration tests require fixing compatibility issues with enums and response DTOs.
+### A2A smoke test (server running)
+```bash
+# Agent card
+curl http://localhost:8081/.well-known/agent-card.json | jq .
 
-## Development Workflow
-
-### Adding a New Feature
-
-1. **Create feature package** under `features/`
-2. **Define domain model** in `domain/`
-3. **Create repository** interface extending JpaRepository
-4. **Create service** with business logic
-5. **Add @Tool annotations** for MCP support
-6. **Create controller** with REST endpoints
-7. **Define DTOs** for requests/responses
-8. **Write tests** (unit and integration)
-
-### Example: Adding a "Products" Feature
-
-```
-features/products/
-├── Product.java (domain model)
-├── ProductRepository.java
-├── ProductService.java (with @Tool annotations)
-├── ProductController.java
-├── CreateProductRequest.java
-├── UpdateProductRequest.java
-└── ProductResponse.java
+# Full round-trip
+curl -X POST http://localhost:8081/a2a-client/send \
+  -H "Content-Type: text/plain" \
+  --data "List all disputes."
 ```
 
-## Best Practices
-
-### 1. Vertical Slice Organization
-- Keep all feature code together
-- Minimize dependencies between slices
-- Use clear package naming
-
-### 2. MCP Tool Design
-- Use descriptive tool names
-- Provide clear descriptions
-- Validate all inputs
-- Return structured responses
-- Handle errors gracefully
-
-### 3. DTOs
-- Use records for immutability
-- Include validation annotations
-- Separate request/response DTOs
-- Provide factory methods (from domain)
-
-### 4. Exception Handling
-- Use custom exceptions
-- Provide meaningful error messages
-- Return appropriate HTTP status codes
-- Log errors appropriately
-
-### 5. Testing
-- Write unit tests for services
-- Mock dependencies
-- Test edge cases
-- Integration tests for workflows
+---
 
 ## Common Workflows
 
-### 1. Commission Calculation Workflow
-
+### Commission calculation
 ```
-1. Create Deal → createDeal()
-2. Create Commission Plan → createCommissionPlan()
-3. Add Rules to Plan → addRuleToPlan()
-4. Activate Plan → activateCommissionPlan()
-5. Calculate Commission → calculateCommission()
-6. Review Calculation → getCommissionCalculation()
+createDeal → createCommissionPlan → addRuleToPlan → activateCommissionPlan →
+calculateCommission → getCommissionCalculation
 ```
 
-### 2. Dispute Resolution Workflow
-
+### Dispute resolution (manual)
 ```
-1. Identify Issue → getCommissionCalculation()
-2. Create Dispute → createDispute()
-3. Review Dispute → getDispute()
-4. Escalate if Needed → escalateDispute()
-5. Resolve Dispute → resolveDispute()
+getCommissionCalculation → createDispute → getDispute → escalateDispute → resolveDispute
 ```
 
-### 3. Sales Rep Commission Report
-
+### Dispute filing via the A2A agent
 ```
-1. Get All Rep Deals → getDealsBySalesRep()
-2. Get Rep Calculations → getCalculationsBySalesRep()
-3. Check Disputes → getDisputesBySalesRep()
-4. Generate Report
+user prompt  →  delegateToDisputeAgent(task)  →  inner agent runs
+listCalculations → createDispute(priority=URGENT) → returns new dispute id
 ```
 
-## Monitoring and Observability
-
-### Health Endpoint
+### Sales rep report
 ```
-http://localhost:8080/actuator/health
+getDealsBySalesRep → getCalculationsBySalesRep → getDisputesBySalesRep → compose report
 ```
-
-### Metrics
-Prometheus metrics available at:
-```
-http://localhost:8080/actuator/prometheus
-```
-
-## Future Enhancements
-
-### Planned Features
-- [ ] Real-time notifications for disputes
-- [ ] Advanced commission rule engine
-- [ ] Multi-currency support enhancements
-- [ ] Bulk calculation processing
-- [ ] Commission forecasting
-- [ ] Integration with external CRM systems
-- [ ] Role-based access control refinements
-- [ ] Audit logging for all operations
-
-### MCP Enhancements
-- [ ] Streaming support for large datasets
-- [ ] Batch operations via MCP tools
-- [ ] Complex query tools
-- [ ] Report generation tools
-- [ ] Analytics and insights tools
-
-## Contributing
-
-### Code Style
-- Follow Spring Boot best practices
-- Use Lombok to reduce boilerplate
-- Write descriptive method names
-- Add JavaDoc for public APIs
-- Keep methods small and focused
-
-### Commit Messages
-```
-feat: Add new feature
-fix: Bug fix
-docs: Documentation update
-test: Add or update tests
-refactor: Code refactoring
-```
-
-## License
-
-This project is for educational and demonstration purposes.
-
-## Contact and Support
-
-For questions or issues:
-1. Check the Swagger documentation
-2. Review the test cases for examples
-3. Examine existing features as templates
 
 ---
 
-## Processor Demos
+## Troubleshooting
 
-The `VerticalSliceProcessor` runs at startup to demonstrate key Vertical Slice concepts:
-
-| Demo | Concept | What It Shows |
-|------|---------|---------------|
-| **Feature-First Organization** | Package by feature | All code for a feature lives in one package — change one feature, touch one package |
-| **Minimal Abstractions** | Concrete classes | No interfaces, no ports — DealController → DealService → DealRepository directly |
-| **Cross-Feature Communication** | Direct dependencies | Calculation service injects deal and plan repositories — simple but coupled |
-| **Rapid Development** | Low ceremony | 5-6 files to add a feature vs 10+ in Clean Architecture |
-| **Full Feature Walkthrough** | End-to-end | Create deal → get plan → calculate commission — all through direct service calls |
-| **MCP Server** | AI Agent Integration | 31 @Tool methods expose all features to AI agents via Model Context Protocol |
-| **MCP Client — Currency Conversion** | External MCP consumption | Connects to currency-mcp.wesbos.com via SSE, calls remote tools, and re-exposes them as local @Tool methods — demonstrating MCP server chaining |
-| **Feature Flags — Togglz** | Runtime feature toggles | Kill switch, gradual rollout (%), user targeting, time window, custom region strategy — with Micrometer metrics and /togglz-console |
-| **MCP Sampling** | Server-initiated AI | Server gathers data, asks AI client to reason about it — reverse of normal tool calls |
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `NoResourceFoundException: No static resource mcp` on `POST /mcp` | Streamable HTTP not registered because `spring.ai.mcp.server.stdio=true` | Set `stdio=false` and restart |
+| `Parameter 0 of method logAgentCard ... AgentCard ... could not be found` | Wrong main class (ORM instead of verticalslice) or missing ANTHROPIC_API_KEY | Use `mvn -Pverticalslice spring-boot:run` and export the key |
+| A2A call times out at 60 s | Response came as `TaskUpdateEvent` not `MessageEvent` (fixed — consumer handles all three event kinds) | Pull latest; timeout is now 180 s |
+| curl `mcp` returns 400 on `tools/list` | Missing `Mcp-Session-Id` header from `initialize` response | Capture the header and re-send |
+| CORS 403 "Invalid CORS request" from a ngrok tunnel | Origin not in the allow-list patterns | Add the ngrok TLD pattern in `SecurityConfig` |
 
 ---
 
-**Built with Spring Boot 3.4.5 | Vertical Slice Architecture | MCP-Enabled | Togglz Feature Flags**
+## Tech stack
+
+Spring Boot 3.4.5 · Spring Data JPA · Spring Security · Spring AI 1.1.0 (MCP server webmvc, Anthropic starter, MCP client, Vector Store) · Spring AI A2A 0.2.0 + a2a-java-sdk 0.3.3 · H2 · Flyway · Togglz · Lombok · SpringDoc OpenAPI · JUnit 5 · Mockito · Micrometer.
+
+---
+
+**Built with Spring Boot 3.4.5 · Vertical Slice · MCP server + client · A2A agent · Togglz**

@@ -57,6 +57,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/mcp/**").permitAll()
                 // Allow public access to Spring AI auto-configured Streamable HTTP MCP endpoint
                 .requestMatchers("/mcp/**").permitAll()
+                // Allow public access to A2A agent discovery + JSON-RPC endpoint
+                .requestMatchers("/.well-known/agent-card.json").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/").permitAll()
                 // Require authentication for all other API endpoints
                 .requestMatchers("/api/**").authenticated()
                 // Allow all other requests
@@ -69,7 +72,9 @@ public class SecurityConfig {
                     "/h2-console/**",
                     "/api/**",
                     "/mcp/**",
-                    "/togglz-console/**"
+                    "/togglz-console/**",
+                    "/",
+                    "/a2a-client/**"
                 ))
             // Allow frames for H2 console
             .headers(headers -> headers

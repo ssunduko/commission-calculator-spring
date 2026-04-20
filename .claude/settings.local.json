@@ -131,7 +131,15 @@
       "Bash(ngrok version *)",
       "Read(//c/Users/ssund/AppData/Roaming/npm/node_modules/ngrok/bin/**)",
       "Bash(C:/Users/ssund/AppData/Roaming/npm/node_modules/ngrok/bin/ngrok.exe version *)",
-      "WebFetch(domain:docs.mcp-b.ai)"
+      "WebFetch(domain:docs.mcp-b.ai)",
+      "Bash(./mvnw dependency:resolve -q -pl .)",
+      "Read(//c/Users/ssund/.m2/repository/org/springaicommunity/spring-ai-a2a-server-autoconfigure/**)",
+      "Read(//c/Users/ssund/.m2/repository/io/github/a2asdk/**)",
+      "Bash(xargs -I {} unzip -l {})",
+      "Bash(xargs -I {} sh -c 'echo \"=== $1 ===\" ; unzip -l \"$1\" 2>&1 | grep -E \"AgentCard\\\\.class|AgentSkill\\\\.class|AgentExecutor\\\\.class|DefaultAgentExecutor\\\\.class|Message.class|TextPart\\\\.class|RequestContext\\\\.class\" ' _ {})",
+      "Bash(xargs -I {} sh -c 'echo \"=== $1 ===\" ; unzip -l \"$1\" 2>&1 | grep \"\\\\.class\" | head -20' _ {})",
+      "Bash(xargs -I {} sh -c 'unzip -l \"$1\" 2>&1 | grep -q \"EnabledStreamableServerCondition.class\" && echo \"FOUND IN: $1\"' _ {})",
+      "Bash(xargs -I {} sh -c 'unzip -l \"$1\" 2>&1 | grep -q \"McpServerStreamableHttpProperties.class\" && echo \"$1\"' _ {})"
     ],
     "deny": [],
     "ask": []

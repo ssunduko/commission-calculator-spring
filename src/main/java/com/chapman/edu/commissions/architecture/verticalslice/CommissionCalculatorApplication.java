@@ -28,10 +28,7 @@ import java.util.Map;
  * (ORM, SpringBoot, AI) that coexist in the same JAR.
  */
 @SpringBootApplication(
-    scanBasePackages = "com.chapman.edu.commissions.architecture.verticalslice",
-    exclude = {
-        org.springframework.ai.model.anthropic.autoconfigure.AnthropicChatAutoConfiguration.class
-    }
+    scanBasePackages = "com.chapman.edu.commissions.architecture.verticalslice"
 )
 @EnableScheduling
 public class CommissionCalculatorApplication {

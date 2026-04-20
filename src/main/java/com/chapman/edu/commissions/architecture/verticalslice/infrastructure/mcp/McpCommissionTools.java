@@ -18,7 +18,9 @@ import com.chapman.edu.commissions.architecture.verticalslice.features.plans.Add
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanResponse;
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanService;
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CreateCommissionPlanRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.a2a.DisputeClient;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -35,16 +37,19 @@ public class McpCommissionTools {
     private final CommissionPlanService commissionPlanService;
     private final DisputeService disputeService;
     private final CommissionCalculationService calculationService;
+    private final ObjectProvider<DisputeClient> disputeClientProvider;
 
     public McpCommissionTools(
             DealService dealService,
             CommissionPlanService commissionPlanService,
             DisputeService disputeService,
-            CommissionCalculationService calculationService) {
+            CommissionCalculationService calculationService,
+            ObjectProvider<DisputeClient> disputeClientProvider) {
         this.dealService = dealService;
         this.commissionPlanService = commissionPlanService;
         this.disputeService = disputeService;
         this.calculationService = calculationService;
+        this.disputeClientProvider = disputeClientProvider;
     }
 
     // ==================== Deal Tools ====================
@@ -215,5 +220,24 @@ public class McpCommissionTools {
             description = "Get all commission calculations for a specific deal. Specify the deal ID.")
     public List<CommissionCalculationResponse> getCalculationsByDeal(String dealId) {
         return calculationService.getCalculationsByDeal(dealId);
+    }
+
+    // ==================== A2A Delegation ====================
+
+    @Tool(name = "delegateToDisputeAgent",
+            description = "Delegate a dispute-filing task to the backend A2A dispute agent. "
+                    + "Pass a natural-language instruction that includes the sales rep id or "
+                    + "calculation id, the reason, and optionally a priority "
+                    + "(LOW/MEDIUM/HIGH/URGENT). Returns the agent's reply text — typically the "
+                    + "new dispute id and status. Use this when the user asks you to open or file "
+                    + "a dispute and you want the specialist agent to resolve ids and create the "
+                    + "record on your behalf.")
+    public String delegateToDisputeAgent(String task) {
+        DisputeClient client = disputeClientProvider.getIfAvailable();
+        if (client == null) {
+            return "Error: A2A dispute agent is not configured on this server "
+                    + "(spring.ai.a2a.server.enabled must be true and the A2A beans must be on the classpath).";
+        }
+        return client.sendTask(task);
     }
 }
