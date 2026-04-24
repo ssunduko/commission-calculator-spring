@@ -1,4 +1,4 @@
-name: CI
+honame: CI
 
 on:
   workflow_dispatch:
@@ -197,3 +197,61 @@ jobs:
           echo "=== MCP Tools List ==="
           curl -s --fail-with-body -X POST http://localhost:8081/api/mcp/tools/list | jq '.tools | length'
           echo "MCP server verified with registered tools"
+
+  docker-publish:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [tests, smoke-test]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scrub hardcoded Anthropic API key from properties
+        # application.properties has historically shipped a ${ANTHROPIC_API_KEY:sk-ant-...}
+        # fallback that bakes a real key into the jar. Replace any such literal
+        # fallback with an empty default so runtime env vars are the only source.
+        run: |
+          sed -i -E 's|\$\{ANTHROPIC_API_KEY:sk-ant-[^}]*\}|\$\{ANTHROPIC_API_KEY:\}|g' \
+            src/main/resources/application.properties
+
+      - name: Fail if any Anthropic key literal remains in sources
+        run: |
+          if grep -rEn "sk-ant-[A-Za-z0-9_-]+" src/ 2>/dev/null; then
+            echo "::error::Anthropic API key literal found in sources — refusing to build image"
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GIT_TOKEN }}
+
+      - name: Compute lowercase image name
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/commission-calculator" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:latest
+            ${{ steps.img.outputs.name }}:${{ github.sha }}
+
+      - name: Verify pushed image contains no Anthropic key
+        run: |
+          docker pull ${{ steps.img.outputs.name }}:${{ github.sha }}
+          CID=$(docker create ${{ steps.img.outputs.name }}:${{ github.sha }})
+          docker cp "$CID":/app/app.jar /tmp/app.jar
+          docker rm "$CID" > /dev/null
+          if unzip -p /tmp/app.jar BOOT-INF/classes/application.properties | grep -E "sk-ant-[A-Za-z0-9_-]+"; then
+            echo "::error::Anthropic API key leaked into pushed image"
+            exit 1
+          fi
+          echo "Image verified clean: no sk-ant-* literal in packaged properties"
