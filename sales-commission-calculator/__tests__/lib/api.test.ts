@@ -107,11 +107,21 @@ describe("dealsApi", () => {
     await expect(dealsApi.get("bad-id")).rejects.toThrow("API 404")
   })
 
-  test("includes Authorization header", async () => {
+  test("sends Bearer token from session storage when present", async () => {
+    window.localStorage.setItem("ccalc.session.token", "test-jwt-token")
     mockFetch.mockReturnValueOnce(jsonResponse([]))
     await dealsApi.getAll()
     const headers = mockFetch.mock.calls[0][1].headers
-    expect(headers.Authorization).toMatch(/^Basic /)
+    expect(headers.Authorization).toBe("Bearer test-jwt-token")
+    window.localStorage.removeItem("ccalc.session.token")
+  })
+
+  test("omits Authorization header when no session token is set", async () => {
+    window.localStorage.removeItem("ccalc.session.token")
+    mockFetch.mockReturnValueOnce(jsonResponse([]))
+    await dealsApi.getAll()
+    const headers = mockFetch.mock.calls[0][1].headers
+    expect(headers.Authorization).toBeUndefined()
   })
 })
 

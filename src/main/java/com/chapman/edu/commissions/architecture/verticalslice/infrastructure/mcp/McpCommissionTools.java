@@ -18,6 +18,14 @@ import com.chapman.edu.commissions.architecture.verticalslice.features.plans.Add
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanResponse;
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CommissionPlanService;
 import com.chapman.edu.commissions.architecture.verticalslice.features.plans.CreateCommissionPlanRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.authentication.AuthService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.authentication.LoginRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.authentication.LoginResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.registration.RegisterRequest;
+import com.chapman.edu.commissions.architecture.verticalslice.features.registration.RegistrationResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.registration.RegistrationService;
+import com.chapman.edu.commissions.architecture.verticalslice.features.subscriptions.SubscriptionPackageResponse;
+import com.chapman.edu.commissions.architecture.verticalslice.features.subscriptions.SubscriptionPackageService;
 import com.chapman.edu.commissions.architecture.verticalslice.infrastructure.a2a.DisputeClient;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.beans.factory.ObjectProvider;
@@ -37,6 +45,9 @@ public class McpCommissionTools {
     private final CommissionPlanService commissionPlanService;
     private final DisputeService disputeService;
     private final CommissionCalculationService calculationService;
+    private final AuthService authService;
+    private final RegistrationService registrationService;
+    private final SubscriptionPackageService subscriptionPackageService;
     private final ObjectProvider<DisputeClient> disputeClientProvider;
 
     public McpCommissionTools(
@@ -44,11 +55,17 @@ public class McpCommissionTools {
             CommissionPlanService commissionPlanService,
             DisputeService disputeService,
             CommissionCalculationService calculationService,
+            AuthService authService,
+            RegistrationService registrationService,
+            SubscriptionPackageService subscriptionPackageService,
             ObjectProvider<DisputeClient> disputeClientProvider) {
         this.dealService = dealService;
         this.commissionPlanService = commissionPlanService;
         this.disputeService = disputeService;
         this.calculationService = calculationService;
+        this.authService = authService;
+        this.registrationService = registrationService;
+        this.subscriptionPackageService = subscriptionPackageService;
         this.disputeClientProvider = disputeClientProvider;
     }
 
@@ -220,6 +237,32 @@ public class McpCommissionTools {
             description = "Get all commission calculations for a specific deal. Specify the deal ID.")
     public List<CommissionCalculationResponse> getCalculationsByDeal(String dealId) {
         return calculationService.getCalculationsByDeal(dealId);
+    }
+
+    // ==================== Authentication, Registration, Subscription Packages ====================
+
+    @Tool(name = "listSubscriptionPackages",
+            description = "List all active subscription packages that new users can sign up for. "
+                    + "Returns id, code, name, tier, monthlyPrice, and limits for each package.")
+    public List<SubscriptionPackageResponse> listSubscriptionPackages() {
+        return subscriptionPackageService.listActivePackages();
+    }
+
+    @Tool(name = "registerUser",
+            description = "Register a new user account and subscribe them to a package with a credit card payment. "
+                    + "Requires username, email, firstName, lastName, password (>= 8 chars), packageCode "
+                    + "(one of the codes returned by listSubscriptionPackages — e.g. BASIC, PROFESSIONAL, ENTERPRISE) "
+                    + "and payment details (cardHolderName, cardNumber, expiryMonth, expiryYear, cvv). "
+                    + "Returns the new user, subscription, payment summary, and an auth token.")
+    public RegistrationResponse registerUser(RegisterRequest request) {
+        return registrationService.register(request);
+    }
+
+    @Tool(name = "login",
+            description = "Authenticate an existing user by username and password. "
+                    + "Returns a JWT bearer token the caller can attach to subsequent requests.")
+    public LoginResponse login(LoginRequest request) {
+        return authService.login(request);
     }
 
     // ==================== A2A Delegation ====================

@@ -56,7 +56,7 @@ describe("EnhancedSalesDashboard", () => {
     mockCalcsApi.getAll.mockResolvedValue(sampleCalcs)
     render(<EnhancedSalesDashboard />)
     await waitFor(() => expect(screen.getByText("Connected to API")).toBeInTheDocument())
-    expect(screen.getByText("$10,000")).toBeInTheDocument()
+    expect(screen.getByText("$10,000.00")).toBeInTheDocument()
   })
 
   test("shows error badge when API fails", async () => {

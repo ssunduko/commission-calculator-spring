@@ -3,6 +3,7 @@ package com.chapman.edu.commissions.architecture.verticalslice.processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -17,8 +18,14 @@ import java.util.Map;
  * Executes Vertical Slice processor demos at startup to showcase
  * Feature-First Organization, Minimal Abstractions, Cross-Feature
  * Communication, and Rapid Development.
+ *
+ * Off by default — the demo only runs (and only emits any output)
+ * when {@code app.verticalslice.demo.enabled=true} is set. Without
+ * that flag the {@link CommandLineRunner} bean is never created, so
+ * startup is silent and faster.
  */
 @Configuration("verticalSliceProcessorDemo")
+@ConditionalOnProperty(name = "app.verticalslice.demo.enabled", havingValue = "true")
 public class VerticalSliceProcessorDemo {
 
     private static final Logger log = LoggerFactory.getLogger(VerticalSliceProcessorDemo.class);

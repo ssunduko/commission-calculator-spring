@@ -1,15 +1,30 @@
 const API_BASE = "/api"
-const AUTH_HEADER = "Basic " + btoa("admin:admin123")
+
+const SESSION_TOKEN_KEY = "ccalc.session.token"
+const SESSION_USER_KEY = "ccalc.session.user"
+
+function currentAuthHeader(): string | null {
+  if (typeof window !== "undefined") {
+    const token = window.localStorage?.getItem(SESSION_TOKEN_KEY)
+    if (token) return `Bearer ${token}`
+  }
+  return null
+}
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
+    ...((options?.headers as Record<string, string>) || {}),
+  }
+  const auth = currentAuthHeader()
+  if (auth && !headers.Authorization) {
+    headers.Authorization = auth
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: AUTH_HEADER,
-      "ngrok-skip-browser-warning": "true",
-      ...options?.headers,
-    },
+    headers,
+    credentials: "omit",
   })
 
   if (!res.ok) {
@@ -247,6 +262,118 @@ export const disputesApi = {
   addDocument: (id: string, data: AddDocumentRequest) =>
     apiFetch<DisputeResponse>(`/disputes/${id}/documents`, { method: "POST", body: JSON.stringify(data) }),
   delete: (id: string) => apiFetch<void>(`/disputes/${id}`, { method: "DELETE" }),
+}
+
+// ── Subscription / Auth types ───────────────────────────────────────────────
+
+export type PackageTier = "BASIC" | "PROFESSIONAL" | "ENTERPRISE"
+
+export interface SubscriptionPackageResponse {
+  id: string
+  code: string
+  name: string
+  description: string
+  monthlyPrice: number
+  maxUsers: number
+  maxDealsPerMonth: number
+  tier: PackageTier
+  active: boolean
+}
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface LoginResponse {
+  token: string
+  tokenType: string
+  expiresInSeconds: number
+  userId: string
+  username: string
+  email: string
+  fullName: string
+}
+
+export interface RegisterPaymentDetails {
+  cardHolderName: string
+  cardNumber: string
+  expiryMonth: string
+  expiryYear: string
+  cvv: string
+}
+
+export interface RegisterRequest {
+  username: string
+  email: string
+  firstName: string
+  lastName: string
+  password: string
+  packageCode: string
+  payment: RegisterPaymentDetails
+}
+
+export interface RegistrationResponse {
+  userId: string
+  username: string
+  email: string
+  fullName: string
+  subscriptionId: string
+  packageCode: string
+  packageName: string
+  subscriptionStatus: "ACTIVE" | "CANCELLED" | "EXPIRED" | "PENDING_PAYMENT"
+  paymentId: string
+  paymentStatus: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED"
+  amountCharged: number
+  cardLastFour: string
+  token: string
+  expiresInSeconds: number
+}
+
+export interface SessionUser {
+  userId: string
+  username: string
+  email: string
+  fullName: string
+}
+
+export const subscriptionPackagesApi = {
+  list: () => apiFetch<SubscriptionPackageResponse[]>("/subscription-packages"),
+  get: (id: string) => apiFetch<SubscriptionPackageResponse>(`/subscription-packages/${id}`),
+}
+
+export const authApi = {
+  login: (data: LoginRequest) =>
+    apiFetch<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
+  register: (data: RegisterRequest) =>
+    apiFetch<RegistrationResponse>("/register", { method: "POST", body: JSON.stringify(data) }),
+}
+
+export const session = {
+  save(token: string, user: SessionUser) {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem(SESSION_TOKEN_KEY, token)
+    window.localStorage.setItem(SESSION_USER_KEY, JSON.stringify(user))
+  },
+  clear() {
+    if (typeof window === "undefined") return
+    window.localStorage.removeItem(SESSION_TOKEN_KEY)
+    window.localStorage.removeItem(SESSION_USER_KEY)
+  },
+  getToken(): string | null {
+    if (typeof window === "undefined") return null
+    return window.localStorage.getItem(SESSION_TOKEN_KEY)
+  },
+  getUser(): SessionUser | null {
+    if (typeof window === "undefined") return null
+    const raw = window.localStorage.getItem(SESSION_USER_KEY)
+    if (!raw) return null
+    try {
+      return JSON.parse(raw) as SessionUser
+    } catch {
+      return null
+    }
+  },
 }
 
 // ── Dispute mapping helper ──────────────────────────────────────────────────

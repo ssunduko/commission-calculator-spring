@@ -76,7 +76,7 @@ public class McpServerIntegrationTest {
         mockMvc.perform(get("/api/mcp/capabilities")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tools.count").value(32))
+                .andExpect(jsonPath("$.tools.count").value(35))
                 .andExpect(jsonPath("$.tools.listChanged").value(true));
 
         // Test MCP initialize endpoint
@@ -98,7 +98,7 @@ public class McpServerIntegrationTest {
                 .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tools").isArray())
-                .andExpect(jsonPath("$.tools", hasSize(32)))
+                .andExpect(jsonPath("$.tools", hasSize(35)))
                 .andExpect(jsonPath("$.tools[?(@.name=='createDeal')]").exists())
                 .andExpect(jsonPath("$.tools[?(@.name=='createCommissionPlan')]").exists())
                 .andExpect(jsonPath("$.tools[?(@.name=='createDispute')]").exists())
@@ -319,7 +319,7 @@ public class McpServerIntegrationTest {
                 .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tools").isArray())
-                .andExpect(jsonPath("$.tools", hasSize(32)))
+                .andExpect(jsonPath("$.tools", hasSize(35)))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();

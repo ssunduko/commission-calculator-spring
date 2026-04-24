@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { session, type SessionUser } from "@/lib/api"
 import {
   Sidebar,
   SidebarContent,
@@ -96,12 +97,32 @@ export function EnhancedAppLayout() {
   const urlView = searchParams.get("view")
   const initialView = urlView && VALID_VIEWS.has(urlView) ? urlView : "dashboard"
   const [activeView, setActiveView] = useState(initialView)
+  const [user, setUser] = useState<SessionUser | null>(null)
 
   useEffect(() => {
     if (urlView && VALID_VIEWS.has(urlView) && urlView !== activeView) {
       setActiveView(urlView)
     }
   }, [urlView]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setUser(session.getUser())
+  }, [])
+
+  const handleSignOut = () => {
+    session.clear()
+    router.push("/login")
+  }
+
+  const displayName = user?.fullName || "Guest"
+  const displayEmail = user?.email || "Sign in to access your account"
+  const initials = (user?.fullName || "G U")
+    .split(" ")
+    .map((s) => s.charAt(0))
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase()
 
   const changeView = (view: string) => {
     setActiveView(view)
@@ -184,14 +205,14 @@ export function EnhancedAppLayout() {
                       className="data-[state=open]:bg-blue-50 hover:bg-blue-50 transition-colors rounded-xl p-3"
                     >
                       <Avatar className="h-10 w-10 rounded-xl shadow-md">
-                        <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Sarah Johnson" />
+                        <AvatarImage src="/placeholder.svg?height=40&width=40" alt={displayName} />
                         <AvatarFallback className="rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 text-white font-bold">
-                          SJ
+                          {initials}
                         </AvatarFallback>
                       </Avatar>
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold text-slate-900">Sarah Johnson</span>
-                        <span className="truncate text-xs text-slate-600">Senior Sales Representative</span>
+                        <span className="truncate font-semibold text-slate-900">{displayName}</span>
+                        <span className="truncate text-xs text-slate-600">{user?.username ? `@${user.username}` : "Not signed in"}</span>
                       </div>
                       <ChevronUp className="ml-auto size-4 text-slate-600" />
                     </SidebarMenuButton>
@@ -205,14 +226,14 @@ export function EnhancedAppLayout() {
                     <DropdownMenuLabel className="p-0 font-normal">
                       <div className="flex items-center gap-3 px-3 py-3 text-left text-sm">
                         <Avatar className="h-10 w-10 rounded-xl">
-                          <AvatarImage src="/placeholder.svg?height=40&width=40" alt="Sarah Johnson" />
+                          <AvatarImage src="/placeholder.svg?height=40&width=40" alt={displayName} />
                           <AvatarFallback className="rounded-xl bg-gradient-to-br from-blue-600 to-purple-600 text-white">
-                            SJ
+                            {initials}
                           </AvatarFallback>
                         </Avatar>
                         <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-semibold text-slate-900">Sarah Johnson</span>
-                          <span className="truncate text-xs text-slate-600">sarah@company.com</span>
+                          <span className="truncate font-semibold text-slate-900">{displayName}</span>
+                          <span className="truncate text-xs text-slate-600">{displayEmail}</span>
                         </div>
                       </div>
                     </DropdownMenuLabel>
@@ -230,10 +251,23 @@ export function EnhancedAppLayout() {
                       <span className="text-slate-700">Help & Support</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="hover:bg-red-50 text-red-700 rounded-lg mx-1">
-                      <LogOut className="mr-3 h-4 w-4" />
-                      <span>Sign Out</span>
-                    </DropdownMenuItem>
+                    {user ? (
+                      <DropdownMenuItem
+                        className="hover:bg-red-50 text-red-700 rounded-lg mx-1"
+                        onClick={handleSignOut}
+                      >
+                        <LogOut className="mr-3 h-4 w-4" />
+                        <span>Sign Out</span>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        className="hover:bg-blue-50 text-blue-700 rounded-lg mx-1"
+                        onClick={() => router.push("/login")}
+                      >
+                        <User className="mr-3 h-4 w-4" />
+                        <span>Sign In</span>
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </SidebarMenuItem>

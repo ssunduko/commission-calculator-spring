@@ -39,7 +39,13 @@ export interface WebMcpParam {
   required?: boolean
 }
 
-const AUTH_HEADER = "Basic " + btoa("admin:admin123")
+const SESSION_TOKEN_KEY = "ccalc.session.token"
+
+function bearerHeader(): string | null {
+  if (typeof window === "undefined") return null
+  const token = window.localStorage?.getItem(SESSION_TOKEN_KEY)
+  return token ? `Bearer ${token}` : null
+}
 
 async function mcpFetch(
   origin: string,
@@ -57,8 +63,11 @@ async function mcpFetch(
   })
 
   const headers: Record<string, string> = {
-    Authorization: AUTH_HEADER,
     "ngrok-skip-browser-warning": "true",
+  }
+  const auth = bearerHeader()
+  if (auth) {
+    headers.Authorization = auth
   }
   const opts: RequestInit = { method, headers, mode: "cors", credentials: "omit" }
 
