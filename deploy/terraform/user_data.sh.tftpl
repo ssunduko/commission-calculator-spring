@@ -1,0 +1,70 @@
+#!/bin/bash
+set -euo pipefail
+
+dnf update -y
+dnf install -y docker
+systemctl enable --now docker
+
+# Docker Compose v2 as a CLI plugin — AL2023 doesn't ship the compose plugin
+# in the default repos, so fetch the static binary from the upstream release.
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL -o /usr/local/lib/docker/cli-plugins/docker-compose \
+  "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64"
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+install -d -m 0755 /opt/commission-calc
+install -d -m 0755 /var/lib/commission-calc
+
+cat >/opt/commission-calc/docker-compose.yml <<'COMPOSE'
+services:
+  commission-ai:
+    image: ${image}
+    container_name: commission-ai
+    ports:
+      - "8081:8081"
+    environment:
+      - ANTHROPIC_API_KEY=$${ANTHROPIC_API_KEY}
+    volumes:
+      - /var/lib/commission-calc:/app/data
+    restart: unless-stopped
+
+  commission-ui:
+    image: ${ui_image}
+    container_name: commission-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://commission-ai:8081
+    depends_on:
+      - commission-ai
+    restart: unless-stopped
+COMPOSE
+
+# Store the Anthropic key in an env file compose reads at up time. 0600 so
+# only root can read it; the container only sees the value, not the file.
+umask 077
+cat >/opt/commission-calc/.env <<ENVFILE
+ANTHROPIC_API_KEY=${anthropic_api_key}
+ENVFILE
+umask 022
+
+cat >/etc/systemd/system/commission-calc.service <<'UNIT'
+[Unit]
+Description=Commission Calculator (backend + UI via docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/commission-calc
+ExecStartPre=/usr/bin/docker compose pull
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now commission-calc.service

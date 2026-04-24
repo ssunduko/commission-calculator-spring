@@ -1,13 +1,26 @@
 services:
   commission-ai:
     build: .
+    image: ghcr.io/ssunduko/commission-calculator:latest
     container_name: commission-ai
     ports:
       - "8081:8081"
     environment:
-      - SPRING_AI_ANTHROPIC_API_KEY=${SPRING_AI_ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
       - vectorstore-data:/app/data
+    restart: unless-stopped
+
+  commission-ui:
+    build: ./sales-commission-calculator
+    image: ghcr.io/ssunduko/commission-calculator-ui:latest
+    container_name: commission-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://commission-ai:8081
+    depends_on:
+      - commission-ai
     restart: unless-stopped
 
 volumes:

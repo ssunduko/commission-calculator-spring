@@ -255,3 +255,33 @@ jobs:
             exit 1
           fi
           echo "Image verified clean: no sk-ant-* literal in packaged properties"
+
+  docker-publish-ui:
+    name: Build & Push UI Image
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GIT_TOKEN }}
+
+      - name: Compute lowercase image name
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/commission-calculator-ui" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push UI image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./sales-commission-calculator
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:latest
+            ${{ steps.img.outputs.name }}:${{ github.sha }}

@@ -1,0 +1,13 @@
+node_modules
+.next
+__tests__
+jest.config.ts
+jest.setup.ts
+tsconfig.tsbuildinfo
+.env
+.env.local
+.git
+.gitignore
+Dockerfile
+.dockerignore
+npm-debug.log
