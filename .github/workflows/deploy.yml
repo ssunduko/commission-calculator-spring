@@ -107,26 +107,37 @@ jobs:
           echo "SSH never came up"
           exit 1
 
-      - name: Wait for cloud-init / commission-calc service
+      - name: Wait for cloud-init to finish
         run: |
           IP="${{ needs.terraform.outputs.public_ip }}"
           for i in $(seq 1 60); do
             STATE=$(ssh -i ~/.ssh/E90.pem -o StrictHostKeyChecking=no -o BatchMode=yes ec2-user@"$IP" \
-                'sudo systemctl is-active commission-calc.service 2>/dev/null' || true)
-            if [ "$STATE" = "active" ]; then
-              echo "commission-calc.service active"
+                'cloud-init status 2>/dev/null | awk "{print \$2}"' || true)
+            if [ "$STATE" = "done" ]; then
+              echo "cloud-init done"
               exit 0
             fi
-            echo "Waiting for service ($i/60, current=$STATE)..."
+            # cloud-init can also report "error" if user_data partially failed
+            # (e.g., transient ghcr pull timeout). The redeploy step recovers
+            # via docker compose pull, so move on once cloud-init is no longer
+            # 'running'.
+            if [ "$STATE" = "error" ]; then
+              echo "cloud-init reported error — proceeding; redeploy step will recover"
+              exit 0
+            fi
+            echo "Waiting for cloud-init ($i/60, current=$STATE)..."
             sleep 10
           done
-          echo "Service never reported active — continuing to attempt redeploy"
+          echo "cloud-init never finished — proceeding anyway; redeploy will surface real failures"
 
       - name: Pull latest images and restart
         run: |
           IP="${{ needs.terraform.outputs.public_ip }}"
           ssh -i ~/.ssh/E90.pem -o StrictHostKeyChecking=no ec2-user@"$IP" 'bash -s' <<'REMOTE'
           set -e
+          # Clear any prior failed state from a transient boot-time pull error
+          # so future systemctl checks aren't poisoned.
+          sudo systemctl reset-failed commission-calc.service 2>/dev/null || true
           cd /opt/commission-calc
           sudo /usr/bin/docker compose pull
           sudo /usr/bin/docker compose up -d

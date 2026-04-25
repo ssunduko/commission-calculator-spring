@@ -61,7 +61,13 @@ public class SecurityConfig {
             "https://claude.ai",
             "https://*.claude.ai",
             "https://*.claudeusercontent.com",
-            "https://*.anthropic.com"
+            "https://*.anthropic.com",
+            // EC2 deploys come up at rotating public IPs, and the Next.js UI
+            // proxies API calls server-side but forwards the browser's Origin
+            // header. Wildcard is intentional for the dev/demo deployment;
+            // tighten if this app ever holds sensitive data.
+            "http://*",
+            "https://*"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
