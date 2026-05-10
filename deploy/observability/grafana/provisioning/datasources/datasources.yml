@@ -1,0 +1,49 @@
+# Auto-provisioned Grafana datasources.
+# Reachable on first boot — no clicking through the UI to wire them up.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      # Lets Grafana jump from a Prometheus exemplar straight to the
+      # matching trace in Jaeger.
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      # Pulls traceId out of the log message body and turns it into a
+      # clickable link to Jaeger. Pattern matches the logback layout.
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '\[([0-9a-f]{32}),'
+          url: '$${__value.raw}'
+          datasourceUid: jaeger
+
+  - name: Jaeger
+    uid: jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -1h
+        spanEndTimeShift: 1h
+        tags:
+          - { key: service.name, value: app }
+        filterByTraceID: true
+      tracesToMetrics:
+        datasourceUid: prometheus

@@ -1,0 +1,85 @@
+{
+  "title": "Commission AI — Overview",
+  "uid": "commission-ai-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "time": { "from": "now-15m", "to": "now" },
+  "refresh": "10s",
+  "tags": ["commission-calculator", "ai"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "JVM Uptime",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "process_uptime_seconds{module=\"ai\"}",
+          "legendFormat": "uptime",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HTTP request rate (req/s) by URI",
+      "gridPos": { "x": 4, "y": 0, "w": 10, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (uri) (rate(http_server_requests_seconds_count{module=\"ai\"}[1m]))",
+          "legendFormat": "{{uri}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "HTTP latency p95 (s) by URI",
+      "gridPos": { "x": 14, "y": 0, "w": 10, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{module=\"ai\"}[5m])))",
+          "legendFormat": "p95 {{uri}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "JVM heap used",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (area) (jvm_memory_used_bytes{module=\"ai\",area=\"heap\"})",
+          "legendFormat": "{{area}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Recent AI logs",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "{app=\"commission-calculator\"} |~ \"(?i)ai|rag|agent\"",
+          "refId": "A"
+        }
+      ],
+      "options": { "showTime": true, "wrapLogMessage": true }
+    }
+  ]
+}

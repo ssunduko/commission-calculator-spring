@@ -2,7 +2,7 @@ package com.chapman.edu.commissions.architecture.verticalslice.features.currency
 
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
+import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,10 +16,8 @@ import java.time.Duration;
  * Configuration for the external Currency Conversion MCP client.
  *
  * Connects to Wes Bos's currency-conversion-mcp server at
- * https://currency-mcp.wesbos.com using SSE transport.
- *
- * This demonstrates using Spring AI's MCP client to consume
- * tools from a third-party MCP server.
+ * https://currency-mcp.wesbos.com using the Streamable HTTP transport
+ * (the SSE endpoint at /sse returns 404 — the server only exposes /mcp).
  */
 @Configuration
 public class CurrencyMcpClientConfig {
@@ -29,16 +27,16 @@ public class CurrencyMcpClientConfig {
     @Value("${app.mcp.currency.base-url:https://currency-mcp.wesbos.com}")
     private String baseUrl;
 
-    @Value("${app.mcp.currency.sse-endpoint:/sse}")
-    private String sseEndpoint;
+    @Value("${app.mcp.currency.mcp-endpoint:/mcp}")
+    private String mcpEndpoint;
 
     @Bean(destroyMethod = "close")
     public McpSyncClient currencyMcpClient() {
-        log.info("Connecting to Currency MCP server at {}{}", baseUrl, sseEndpoint);
+        log.info("Connecting to Currency MCP server at {}{} (Streamable HTTP)", baseUrl, mcpEndpoint);
 
-        HttpClientSseClientTransport transport = HttpClientSseClientTransport
+        HttpClientStreamableHttpTransport transport = HttpClientStreamableHttpTransport
                 .builder(baseUrl)
-                .sseEndpoint(sseEndpoint)
+                .endpoint(mcpEndpoint)
                 .build();
 
         McpSyncClient client = McpClient.sync(transport)

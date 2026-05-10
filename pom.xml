@@ -74,6 +74,33 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- ============================================================ -->
+        <!-- OBSERVABILITY — Distributed Tracing, Metrics, and Logs        -->
+        <!-- ============================================================ -->
+        <!-- Micrometer Tracing bridges Spring's @Observed/Observation API -->
+        <!-- into OpenTelemetry, which exports traces over OTLP to Jaeger. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
+        <!-- AOP enables @Observed method instrumentation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Loki4j — pushes Logback events to Grafana Loki -->
+        <dependency>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>1.5.2</version>
+        </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>

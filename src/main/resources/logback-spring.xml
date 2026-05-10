@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Logback configuration for the Commission Calculator app.
+
+    Goals:
+      1. Console output with traceId/spanId pulled from Micrometer's MDC,
+         so a developer reading the terminal can correlate a log line with
+         a span in Jaeger.
+      2. Loki push (loki4j) so the same lines, plus structured labels,
+         flow into Grafana for cross-service search.
+
+    Loki is only attached when `app.loki.url` is set (defaults to the
+    docker-compose observability stack at localhost:3100). Tests that don't
+    spin up Loki will simply see connection errors logged at WARN; they
+    don't fail the test.
+-->
+<configuration>
+
+    <springProperty name="appName" source="spring.application.name" defaultValue="commission-calculator"/>
+    <springProperty name="lokiUrl" source="app.loki.url" defaultValue="http://localhost:3100/loki/api/v1/push"/>
+    <springProperty name="activeProfile" source="spring.profiles.active" defaultValue="default"/>
+
+    <!-- Console pattern includes traceId/spanId from MDC. Micrometer Tracing
+         populates these automatically once tracing is enabled. -->
+    <property name="CONSOLE_PATTERN"
+              value="%d{HH:mm:ss.SSS} %-5level [%thread] [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>${lokiUrl}</url>
+        </http>
+        <format>
+            <label>
+                <!-- Static labels keep cardinality low. Don't put traceId
+                     or userId here — those go in the message body. -->
+                <pattern>app=${appName},profile=${activeProfile},level=%level,logger=%logger{20}</pattern>
+            </label>
+            <message>
+                <pattern>[%thread] [%X{traceId:-},%X{spanId:-}] %msg %ex</pattern>
+            </message>
+        </format>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </root>
+
+    <logger name="com.chapman.edu.commissions" level="DEBUG"/>
+    <logger name="org.springframework.ai" level="INFO"/>
+</configuration>

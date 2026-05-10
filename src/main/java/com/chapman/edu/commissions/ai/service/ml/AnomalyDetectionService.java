@@ -3,6 +3,7 @@ package com.chapman.edu.commissions.ai.service.ml;
 import com.chapman.edu.commissions.ai.service.prompt.PromptTemplateService;
 import com.chapman.edu.commissions.orm.entity.CommissionCalculation;
 import com.chapman.edu.commissions.orm.repository.CommissionCalculationRepository;
+import io.micrometer.observation.annotation.Observed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -76,6 +77,7 @@ public class AnomalyDetectionService {
      *
      * @return An AI-generated anomaly analysis report
      */
+    @Observed(name = "commission.anomaly.detect", contextualName = "anomaly-detect-all")
     public String detectAnomalies() {
         log.info("Running anomaly detection on commission calculations");
 

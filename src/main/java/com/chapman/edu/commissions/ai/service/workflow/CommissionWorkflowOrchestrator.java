@@ -1,5 +1,6 @@
 package com.chapman.edu.commissions.ai.service.workflow;
 
+import io.micrometer.observation.annotation.Observed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -153,6 +154,7 @@ public class CommissionWorkflowOrchestrator {
      * @param request The user's natural language review request
      * @return WorkflowResult containing the report and metadata
      */
+    @Observed(name = "commission.workflow.review", contextualName = "workflow-review")
     public WorkflowResult executeReview(String request) {
         log.info("Starting commission review workflow for: '{}'", request);
 

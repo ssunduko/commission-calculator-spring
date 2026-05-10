@@ -1,5 +1,7 @@
 package com.chapman.edu.commissions.ai.config;
 
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.observation.aop.ObservedAspect;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.context.annotation.Bean;
@@ -78,5 +80,17 @@ public class AiConfig {
                         Format currency values with $ and two decimal places.
                         """)
                 .build();
+    }
+
+    /**
+     * Wires Spring AOP into Micrometer's Observation API. Without this bean,
+     * @Observed annotations on Spring beans are silently ignored — methods
+     * still run, but no spans/timers are produced. With it, every annotated
+     * method becomes a span exported to Jaeger via OTLP and a timer scraped
+     * by Prometheus.
+     */
+    @Bean
+    public ObservedAspect observedAspect(ObservationRegistry registry) {
+        return new ObservedAspect(registry);
     }
 }

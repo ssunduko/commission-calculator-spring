@@ -1,0 +1,88 @@
+# =============================================================================
+# Observability stack for the Commission Calculator AI module.
+#
+# Brings up four services that together cover the three pillars of
+# observability plus distributed tracing:
+#   - Jaeger      → distributed tracing UI (receives OTLP from the app)
+#   - Loki        → log aggregation (receives push from loki-logback-appender)
+#   - Prometheus  → metrics scrape (pulls /actuator/prometheus from the app)
+#   - Grafana     → unified UI with all three datasources auto-provisioned
+#
+# Run alongside (not instead of) ../../compose.yaml — that one boots the app.
+# Start this stack first, then run the app with profile `ai` so the OTLP and
+# Loki endpoints resolve to localhost:4318 and localhost:3100 respectively.
+#
+# Quick start:
+#   cd deploy/observability && docker compose up -d
+#   open http://localhost:3000   (Grafana, anonymous admin)
+#   open http://localhost:16686  (Jaeger UI)
+#   open http://localhost:9090   (Prometheus UI)
+# =============================================================================
+
+services:
+
+  jaeger:
+    # all-in-one image runs collector + query + agent in one process and
+    # accepts OTLP directly on 4317/4318, which removes the need for a
+    # separate OTel collector for this dev-only stack.
+    image: jaegertracing/all-in-one:1.57
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP (Spring Boot default)
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: loki
+    command: -config.file=/etc/loki/loki-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom-data:/prometheus
+    extra_hosts:
+      # Lets Prometheus (inside the container) scrape the Spring Boot app
+      # running on the docker host. Required on Linux; a no-op on Docker
+      # Desktop where host.docker.internal is already wired up.
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+    restart: unless-stopped
+
+volumes:
+  loki-data:
+  prom-data:
+  grafana-data:

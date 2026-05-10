@@ -1,5 +1,6 @@
 package com.chapman.edu.commissions.ai.service.agent;
 
+import io.micrometer.observation.annotation.Observed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -187,6 +188,7 @@ public class CommissionReActAgent {
      * @param question The user's natural language question
      * @return AgentResult containing the answer and reasoning chain
      */
+    @Observed(name = "commission.agent.execute", contextualName = "react-agent-execute")
     public AgentResult execute(String question) {
         log.info("ReAct agent executing: '{}'", question);
 

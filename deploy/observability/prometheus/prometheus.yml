@@ -1,0 +1,25 @@
+# Prometheus scrape config for the Commission Calculator stack.
+#
+# The Spring Boot app exposes /actuator/prometheus on port 8081. We scrape
+# host.docker.internal so this works whether the app runs on the host
+# (mvn spring-boot:run) or in a sibling container with port 8081 published.
+
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+  external_labels:
+    stack: commission-calculator
+
+scrape_configs:
+  - job_name: commission-calculator-ai
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - host.docker.internal:8081
+        labels:
+          module: ai
+
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

@@ -1,6 +1,7 @@
 package com.chapman.edu.commissions.ai.service.rag;
 
 import com.chapman.edu.commissions.ai.service.vectorstore.EmbeddingSearchService;
+import io.micrometer.observation.annotation.Observed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -101,6 +102,7 @@ public class CommissionRagService {
      * @param question A natural language question about commissions
      * @return An AI-generated answer grounded in commission data
      */
+    @Observed(name = "commission.rag.answer", contextualName = "rag-answer-question")
     public String answerQuestion(String question) {
         log.info("RAG query: '{}'", question);
 
@@ -192,6 +194,7 @@ public class CommissionRagService {
      * @param salesRepName The name of the sales representative to analyze
      * @return A comprehensive AI-generated analysis report
      */
+    @Observed(name = "commission.rag.report", contextualName = "rag-performance-report")
     public String generatePerformanceReport(String salesRepName) {
         log.info("Generating performance report for: {}", salesRepName);
 
